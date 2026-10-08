@@ -1,9 +1,10 @@
-// 1) Paste your Firebase web app settings below (Firebase console > Project settings > Your apps > Config).
+// Firebase settings for the "SAADI Financial Tracker" project.
+// These values are meant to be public; the Firestore rules protect the data.
 window.SAADI_FIREBASE_CONFIG = {
-  apiKey: "PASTE-API-KEY",
-  authDomain: "PASTE-PROJECT-ID.firebaseapp.com",
-  projectId: "PASTE-PROJECT-ID",
-  storageBucket: "PASTE-PROJECT-ID.appspot.com",
-  messagingSenderId: "PASTE",
-  appId: "PASTE"
+  apiKey: "AIzaSyDsPgYFcNMKx9eOV43A81CYkT47NQo68xA",
+  authDomain: "saadi-financial-tracker.firebaseapp.com",
+  projectId: "saadi-financial-tracker",
+  storageBucket: "saadi-financial-tracker.firebasestorage.app",
+  messagingSenderId: "643022190115",
+  appId: "1:643022190115:web:9d7408f4f576dc44bb2396"
 };

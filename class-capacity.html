@@ -136,6 +136,18 @@ label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:60
 .empty{padding:40px 16px;text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center}
 .empty h2{font-size:26px}
 .set-grid td input[type=number]{width:90px}
+/* key actions */
+.actions-panel{border-top:4px solid var(--brand)}
+.actions{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;counter-reset:act}
+.actions>li{counter-increment:act;display:grid;align-content:start;grid-template-columns:32px 1fr;gap:4px 10px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface);min-width:0}
+.actions>li::before{content:counter(act);grid-row:1 / span 3;width:28px;height:28px;border-radius:50%;background:var(--brand);color:#fff;font-family:var(--display);font-weight:600;display:flex;align-items:center;justify-content:center}
+.actions .a-top{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:baseline;justify-content:space-between}
+.actions .a-title{font-weight:700;line-height:1.3}
+.actions .a-impact{font-family:var(--display);font-weight:600;color:var(--good);white-space:nowrap}
+.actions .a-detail{font-size:14px;color:var(--muted);overflow-wrap:anywhere}
+.actions .a-do{font-size:14px;margin:0;padding-left:18px}
+.tag{font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;padding:1px 7px;border-radius:99px;background:var(--surface-2);color:var(--muted)}
+.tag.gap{background:var(--bad-bg);color:var(--bad)} .tag.target{background:var(--warn-bg);color:var(--warn)} .tag.grow{background:var(--good-bg);color:var(--good)}
 @media (prefers-reduced-motion:no-preference){.bar-fill{transition:width .4s ease}}
 </style>
 </head>
@@ -249,6 +261,10 @@ label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:60
       <div class="eyebrow" id="weekLabel"></div>
       <p id="headline" style="margin:4px 0 0;font-size:17px;max-width:75ch"></p>
     </div>
+    <section class="panel actions-panel">
+      <div class="panel-head"><h2>Key actions this week</h2><span class="muted">worked out from this week's numbers<span class="money">, biggest £ first</span></span></div>
+      <ol class="actions" id="actions"></ol>
+    </section>
     <section class="kpis" id="kpis"></section>
 
     <section class="panel trend">
@@ -432,6 +448,7 @@ function render(){
     `<div class="kpi"><span class="eyebrow">Waiting list</span><span class="v num">${T.wl}</span><span class="s">children waiting</span>${deltaHtml(T.wl,P&&P.wl,"n")}</div>`
   ].filter(Boolean).join("");
   renderTrend(snap);
+  renderActions(snap,list,P);
   // by area (all groups present, counted first)
   const groups={};snap.classes.filter(c=>!c.legacy).forEach(c=>{(groups[c.group]=groups[c.group]||[]).push(c)});
   const gnames=Object.keys(groups).sort((a,b)=>(gs(b).include-gs(a).include)||(totals(groups[b]).places-totals(groups[a]).places));
@@ -449,6 +466,65 @@ function render(){
   const wlc=snap.classes.filter(c=>!c.legacy&&c.avail===0&&c.wl>0).sort((a,b)=>b.wl-a.wl);
   $("wlList").innerHTML=wlc.map(c=>`<div class="it"><span>${esc(c.day)} ${esc(c.time.split(" - ")[0])} · ${esc(c.name)}</span><span class="num"><span class="pill good">${c.wl} waiting</span></span></div>`).join("")||'<p class="muted">No full classes have a waiting list.</p>';
   renderBoard(snap);
+}
+/* ---------- key actions: rules applied to the week's numbers ---------- */
+const tidyName=s=>s.toLowerCase().replace(/\b(year|reception|aged|mixed|girls|boys)\b/g,w=>w[0].toUpperCase()+w.slice(1)).replace(/\s+/g," ").trim();
+const short=c=>`${c.day} ${c.time.split(" - ")[0].replace(/^0/,"").replace(":00","").replace(" ","").toLowerCase()} ${c.band||c.group}`;
+const yearsOf=c=>{const n=(c.name.split("|")[0]||"").toUpperCase();const ys=[];if(/AGED\s*3|3 AND 4|3 & 4/.test(n))ys.push(-1);if(/AGED\s*4|RECEPTION/.test(n))ys.push(0);
+  const m=n.match(/YEAR\s*(\d)\s*(?:[-&]|AND)?\s*(\d)?\s*(\+)?/);if(m){const a=+m[1],b=m[2]?+m[2]:(m[3]?a+2:a);for(let y=a;y<=b;y++)ys.push(y)}return ys};
+function renderActions(snap,list,P){
+  const price=c=>gs(c.group).price||0, A=[];
+  const val=(places,c)=>isOwner?places*(c?price(c):15):places;
+  const fmtImpact=(places,money)=>isOwner&&money?`up to ${gbp(money)}/wk`:`${places} place${places===1?"":"s"}`;
+  const rec=list.filter(c=>cap(c)>0);
+  // 1. waiting-list moves into same colour, overlapping school year, with space
+  const full=snap.classes.filter(c=>!c.legacy&&c.avail===0&&c.wl>0);
+  const moves=[];let movable=0,moveMoney=0;
+  full.forEach(f=>{const fy=yearsOf(f);
+    const opts=rec.filter(o=>o!==f&&o.avail>0&&o.group===f.group&&(f.band?o.band===f.band:true)&&(!fy.length||yearsOf(o).some(y=>fy.includes(y)))).sort((a,b)=>(a.day===f.day?-1:0)-(b.day===f.day?-1:0)||b.avail-a.avail);
+    if(opts.length){const n=Math.min(f.wl,opts.reduce((s,o)=>s+o.avail,0));movable+=n;moveMoney+=n*price(f);moves.push(`${short(f)} (${f.wl} waiting) → ${opts.slice(0,2).map(o=>`${short(o)}, ${o.avail} space${o.avail>1?"s":""}`).join(" or ")}`)}});
+  if(movable)A.push({tag:"grow",t:`Offer ${movable} waiting-list ${movable===1?"child":"children"} a place in a class with space`,d:"They're waiting on full classes, but there's room in a class of the same colour and school year.",
+    list:moves.slice(0,4),score:isOwner?moveMoney:movable,imp:fmtImpact(movable,moveMoney)});
+  // 2. trials to convert
+  const tr=rec.filter(c=>c.trial>0);const trN=tr.reduce((s,c)=>s+c.trial,0);
+  if(trN){const m=tr.reduce((s,c)=>s+c.trial*price(c),0);A.push({tag:"grow",t:`Chase ${trN} trial${trN>1?"s":""} to sign up`,d:"Call or message each family within 48 hours of the trial, while it's fresh.",list:tr.slice(0,4).map(c=>`${short(c)}: ${c.trial} trial`),score:isOwner?m:trN,imp:fmtImpact(trN,m)})}
+  // 3. weakest day
+  const days=DAYS.map(d=>{const cs=rec.filter(c=>c.day===d),t=totals(cs);return{d,cs,t}}).filter(x=>x.t.places>=20);
+  const avgFill=totals(rec).fill;
+  const weak=days.slice().sort((a,b)=>a.t.fill-b.t.fill)[0];
+  if(weak&&weak.t.fill<avgFill-0.08){const worst=weak.cs.filter(c=>c.avail>0).sort((a,b)=>a.booked/cap(a)-b.booked/cap(b)).slice(0,3);
+    const target=Math.max(0,Math.round(weak.t.places*Math.min(0.85,settings.target/100))-weak.t.booked);
+    A.push({tag:"gap",t:`Fill ${DAYNAME[weak.d]}: only ${pct(weak.t.fill)} full`,d:`${weak.t.empty} empty places, against ${pct(avgFill)} across the week. Point new enquiries and waiting lists here first, and try a ${DAYNAME[weak.d]} offer (sibling discount or a second class).`,
+      list:worst.map(c=>`${short(c)} (${tidyName(c.name.split("|")[0])}): ${c.booked}/${cap(c)}`),score:isOwner?target*15:target,imp:fmtImpact(target,target*15)})}
+  // 4. who to target: weakest colour band, with the ages it covers
+  const bands=BANDS.map(b=>{const cs=rec.filter(c=>c.band===b&&c.group==="Recreational"),t=totals(cs);return{b,cs,t}}).filter(x=>x.t.places>=20);
+  const wb=bands.slice().sort((a,b)=>a.t.fill-b.t.fill)[0];
+  if(wb&&wb.t.fill<0.8){const ages=[...new Set(wb.cs.map(c=>tidyName(c.name.split("|")[0])))].slice(0,4);
+    const target=Math.max(0,Math.round(wb.t.places*0.8)-wb.t.booked);
+    A.push({tag:"target",t:`Target new ${wb.b} families: ${ages.slice(0,3).join(", ")}`,d:`${wb.b} classes are ${pct(wb.t.fill)} full (${wb.t.empty} empty places). Ideas: flyers in local school book bags, a bring-a-friend week, and a move-up offer for Pre School families.`,
+      score:isOwner?target*15:target,imp:fmtImpact(target,target*15)})}
+  // 5. under-filled areas outside Recreational (e.g. Pre School, Parent & Child) with Play Gym as the feeder
+  const playGym=snap.classes.filter(c=>/play gym/i.test(c.group)&&!/sen/i.test(c.group)).reduce((s,c)=>s+c.booked,0);
+  const groups={};rec.filter(c=>c.group!=="Recreational").forEach(c=>{(groups[c.group]=groups[c.group]||[]).push(c)});
+  Object.entries(groups).forEach(([g,cs])=>{const t=totals(cs);if(t.places<15||t.fill>=0.7)return;
+    const target=Math.max(0,Math.round(t.places*0.75)-t.booked);const m=target*(gs(g).price||0);
+    const feeder=/pre ?school|parent/i.test(g)&&playGym?` This week's ${playGym} Play Gym bookings are the obvious families to invite.`:"";
+    A.push({tag:"target",t:`Grow ${g}: ${pct(t.fill)} full`,d:`${t.empty} empty places across ${cs.length} session${cs.length>1?"s":""}.${feeder} Consider fewer, fuller sessions if numbers stay low.`,
+      list:cs.filter(c=>c.avail>0).sort((a,b)=>a.booked/cap(a)-b.booked/cap(b)).slice(0,3).map(c=>`${short(c)}: ${c.booked}/${cap(c)}`),score:isOwner?m:target,imp:fmtImpact(target,m)})});
+  // 6. sessions to review (very low)
+  const low=rec.filter(c=>cap(c)>=5&&c.booked/cap(c)<=0.3).sort((a,b)=>a.booked/cap(a)-b.booked/cap(b));
+  if(low.length)A.push({tag:"gap",t:`Review ${low.length} session${low.length>1?"s":""} that ${low.length>1?"are":"is"} 30% full or less`,d:"Merge with a neighbouring class, move the time, or relaunch for a different age group. That frees coach time if a class can't be filled.",
+    list:low.slice(0,4).map(c=>`${short(c)} (${tidyName(c.name.split("|")[0])}): ${c.booked}/${cap(c)}`),score:isOwner?115:Math.min(low.length,5),imp:isOwner?"saves coach time":`${low.length} session${low.length>1?"s":""}`});
+  // 7. add capacity where demand has nowhere to go
+  const stuck=full.filter(f=>!moves.some(m=>m.startsWith(short(f))));const stuckN=stuck.reduce((s,c)=>s+c.wl,0);
+  if(stuckN>=2){const m=stuck.reduce((s,c)=>s+c.wl*price(c),0);A.push({tag:"grow",t:`Add places where demand has nowhere to go: ${stuckN} waiting`,d:"These full classes have no similar class with space. Consider an extra session at that time, or 1–2 more places if coaching ratios allow.",
+    list:stuck.slice(0,4).map(c=>`${short(c)}: ${c.wl} waiting`),score:isOwner?m:stuckN,imp:fmtImpact(stuckN,m)})}
+  // 8. watch: drop since last week
+  if(P&&isFinite(P.fill)){const T=totals(list),d=T.fill-P.fill;if(d<=-0.03)A.push({tag:"gap",t:`Fill dropped ${Math.round(-d*100)} points since last week`,d:"Check JustGo for cancellations and leavers, and contact those families to find out why.",score:1e9,imp:`${P.booked-T.booked} fewer booked`})}
+  A.sort((a,b)=>b.score-a.score);
+  $("actions").innerHTML=A.slice(0,7).map(a=>`<li><div class="a-top"><span class="a-title">${esc(a.t)}</span><span class="a-impact num">${esc(a.imp)}</span></div>
+    <div class="a-detail"><span class="tag ${a.tag}">${a.tag==="gap"?"Gap":a.tag==="target"?"Target":"Grow"}</span> ${esc(a.d)}</div>
+    ${a.list&&a.list.length?`<ul class="a-do">${a.list.map(x=>`<li style="display:list-item;border:0;padding:0;background:none">${esc(x)}</li>`).join("")}</ul>`:"<span></span>"}</li>`).join("")||'<li><div class="a-title">No actions stand out this week.</div><div class="a-detail">Classes are close to target across days, colours and areas.</div></li>';
 }
 function renderBoard(snap){
   const all=$("showAll").checked;

@@ -1,0 +1,15 @@
+{
+  "name": "SAADI Class Capacity",
+  "short_name": "SAADI Classes",
+  "description": "How full SAADI Gymnastics classes are, week by week.",
+  "start_url": "class-capacity.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f4f6",
+  "theme_color": "#f20779",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

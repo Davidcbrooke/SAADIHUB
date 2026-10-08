@@ -1,0 +1,29 @@
+rules_version = '2';
+// SAADI Class Capacity: password-key model.
+// Each password's SHA-256 hash is the id of a document in "keys". Nobody can list "keys" or "data",
+// so the saved weeks can only be found by someone who knows a password.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Password keys: can be looked up by exact id (never listed).
+    match /keys/{k} {
+      allow get: if k.size() == 64;
+      allow create: if k.size() == 64
+        && request.resource.data.role in ['owner', 'staff']
+        && request.resource.data.dataKey is string && request.resource.data.dataKey.size() >= 20;
+      allow update: if k.size() == 64 && request.resource.data.role == resource.data.role
+        && request.resource.data.dataKey == resource.data.dataKey;
+      allow delete: if k.size() == 64;
+
+      // Prices live under the owner key, so only the owner password reaches them.
+      match /settings/{doc} {
+        allow read, write: if k.size() == 64 && get(/databases/$(database)/documents/keys/$(k)).data.role == 'owner';
+      }
+    }
+
+    // Weekly snapshots and display settings, under a random id that only the key documents reveal.
+    match /data/{dataKey}/{rest=**} {
+      allow read, write: if dataKey.size() >= 20;
+    }
+  }
+}

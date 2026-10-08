@@ -1,0 +1,697 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f20779">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SAADI Classes">
+<title>SAADI Class Capacity</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: SAADI pink header band with logo, then summary strip, trend, and a week-at-a-glance class board — summary strip, trend, then a week-at-a-glance class board by day */
+:root{
+  --bg:#f6f4f6; --surface:#ffffff; --surface-2:#f0eaef; --ink:#1d1a1f; --muted:#6b6470; --line:#e2dbe1;
+  --brand:#f20779; --brand-ink:#ffffff; --accent:#d4066a; --accent-ink:#ffffff;
+  --good:#12917f; --warn:#e07b12; --bad:#c8242e; --good-bg:#def3ef; --warn-bg:#fcecd9; --bad-bg:#fbe2e3;
+  --b-orange:#f08a1c; --b-yellow:#e9c00f; --b-blue:#2a72d8; --b-red:#e0312f; --b-green:#2f9e57; --b-purple:#7e3a9c; --b-none:#a59eaa;
+  --display:"Jost","Futura PT",Futura,"Century Gothic",system-ui,sans-serif;
+  --body:"Figtree","Proxima Nova",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#151216; --surface:#1f1b21; --surface-2:#2a242c; --ink:#f2edf2; --muted:#a9a0ad; --line:#362f39;
+  --brand:#d10a6c; --accent:#ff4fa3; --accent-ink:#151216;
+  --good:#3fc6ad; --warn:#f3a145; --bad:#ff6b6b; --good-bg:#16332e; --warn-bg:#3a2a16; --bad-bg:#3d1a1d;
+  --b-none:#6f6773; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#151216; --surface:#1f1b21; --surface-2:#2a242c; --ink:#f2edf2; --muted:#a9a0ad; --line:#362f39;
+  --brand:#d10a6c; --accent:#ff4fa3; --accent-ink:#151216;
+  --good:#3fc6ad; --warn:#f3a145; --bad:#ff6b6b; --good-bg:#16332e; --warn-bg:#3a2a16; --bad-bg:#3d1a1d;
+  --b-none:#6f6773; color-scheme:dark}
+*{box-sizing:border-box}
+.wrap>*{min-width:0}
+#dash{width:100%}
+[hidden]{display:none!important}
+body:not(.owner) .money,body:not(.owner) .owner-only{display:none!important}
+.auth{max-width:420px;margin:24px auto 0;width:100%}
+.auth input[type=email],.auth input[type=password],.access input{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+.linkbtn{background:none;border:none;padding:0;color:var(--accent);font-weight:600;text-decoration:underline;cursor:pointer}
+.who{font-size:13px;color:rgba(255,255,255,.9)}
+.auth input[type=password]{width:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;padding-inline:16px;padding-block:20px 48px}
+.wrap{max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{font-family:var(--display);font-weight:600;margin:0;text-wrap:balance;letter-spacing:.01em}
+h1{font-size:30px;line-height:1.05}
+h2{font-size:21px}
+.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.num{font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+button,select,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--surface);padding:8px 14px;font-weight:600}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.danger{color:var(--bad);border-color:var(--bad)}
+button:disabled{opacity:.45;cursor:not-allowed}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+select,input[type=date],input[type=number]{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 10px}
+header.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;background:var(--brand);color:var(--brand-ink);border-radius:14px;padding:14px 18px}
+.brand{display:flex;align-items:center;gap:14px}
+.brand img{width:74px;height:auto;display:block}
+.brand .eyebrow{color:rgba(255,255,255,.85)}
+header.top h1{font-size:32px;text-transform:uppercase;letter-spacing:.04em}
+header.top label.f{color:var(--brand-ink)}
+header.top select{color:var(--ink)}
+header.top button{border-color:rgba(255,255,255,.6);background:transparent;color:var(--brand-ink)}
+header.top button.primary{background:#fff;color:#c4055f;border-color:#fff}
+header.top button:hover{border-color:#fff}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.panel-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px}
+.notice{border-radius:10px;padding:10px 14px;background:var(--warn-bg);font-size:14px}
+.ok{background:var(--good-bg)}
+/* KPI strip */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:2px}
+.kpi .v{font-family:var(--display);font-size:36px;font-weight:600;line-height:1}
+.kpi .s{font-size:13px;color:var(--muted)}
+.kpi.lost .v{color:var(--bad)}
+.delta{font-size:13px;font-weight:600}
+.delta.up{color:var(--good)} .delta.down{color:var(--bad)} .delta.flat{color:var(--muted)}
+.kpi.lost .delta.up{color:var(--bad)} .kpi.lost .delta.down{color:var(--good)}
+/* grids */
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px}
+@media (max-width:420px){.two{grid-template-columns:1fr}}
+/* bar rows */
+.bars{display:flex;flex-direction:column;gap:8px}
+.bar-row{display:grid;grid-template-columns:minmax(90px,150px) 1fr 108px;gap:10px;align-items:center;font-size:14px}
+.bar-track{height:18px;background:var(--surface-2);border-radius:5px;position:relative;overflow:hidden}
+.bar-fill{height:100%;border-radius:5px}
+.bar-target{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink);opacity:.35}
+.bar-row .r{text-align:right;font-variant-numeric:tabular-nums}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:baseline}
+/* tables */
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+tr.total td{font-weight:700;border-bottom:none}
+.pill{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;font-weight:600}
+.pill.bad{background:var(--bad-bg);color:var(--bad)} .pill.warn{background:var(--warn-bg);color:var(--warn)} .pill.good{background:var(--good-bg);color:var(--good)}
+/* trend */
+.trend svg{width:100%;height:auto;display:block}
+.cmp{display:flex;flex-wrap:wrap;gap:10px}
+.cmp div{background:var(--surface-2);border-radius:10px;padding:8px 12px;font-size:13px;min-width:150px}
+.cmp b{font-family:var(--display);font-size:20px;display:block}
+/* class board */
+.board-wrap{overflow-x:auto;padding-bottom:4px}
+.board{display:grid;grid-template-columns:repeat(7,minmax(160px,1fr));gap:10px;min-width:1160px}
+.day h3{font-size:17px;display:flex;justify-content:space-between;align-items:baseline;padding:0 2px 6px;border-bottom:2px solid var(--line);margin-bottom:8px}
+.day h3 span{font-family:var(--body);font-size:13px;font-weight:600;color:var(--muted)}
+.cls{display:flex;flex-direction:column;gap:6px}
+.chip{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--b-none);border-radius:8px;padding:7px 9px;font-size:13px;display:flex;flex-direction:column;gap:4px}
+.chip.full{border-left-color:var(--good)} .chip.mid{border-left-color:var(--warn)} .chip.low{border-left-color:var(--bad)}
+.chip .t{font-size:12px;color:var(--muted);display:flex;justify-content:space-between;gap:6px}
+.chip .n{font-weight:600;line-height:1.25;overflow-wrap:anywhere}
+.chip .f{display:flex;align-items:center;gap:8px}
+.chip .f .bar-track{flex:1;height:7px}
+.chip .wl{font-size:11px;font-weight:700;color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted)}
+.legend i{display:inline-block;width:14px;height:6px;border-radius:3px;margin-right:6px;vertical-align:middle}
+/* lists */
+.list{display:flex;flex-direction:column;gap:6px;font-size:14px}
+.list .it{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)}
+.list .it span:first-child{min-width:0;overflow-wrap:anywhere}
+/* paste */
+textarea{width:100%;min-height:200px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:13px;font-family:ui-monospace,Menlo,Consolas,monospace;resize:vertical}
+.steps{margin:0;padding-left:20px;font-size:14px;color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600}
+.empty{padding:40px 16px;text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center}
+.empty h2{font-size:26px}
+.set-grid td input[type=number]{width:90px}
+@media (prefers-reduced-motion:no-preference){.bar-fill{transition:width .4s ease}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <img src="data:image/png;base64,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" alt="SAADI Gymnastics" width="74" height="71">
+      <div>
+        <div class="eyebrow">SAADI Gymnastics</div>
+        <h1>Class Capacity</h1>
+      </div>
+    </div>
+    <div class="controls" id="appControls" hidden>
+      <label class="f" for="weekSel">Week
+        <select id="weekSel"></select>
+      </label>
+      <button class="primary" id="openPaste" type="button">Add this week's numbers</button>
+      <button id="openSettings" class="owner-only" type="button">Prices &amp; settings</button>
+      <span class="who" id="whoAmI"></span>
+      <button id="signOut" type="button" hidden>Lock</button>
+    </div>
+  </header>
+
+  <div id="statusNote" class="notice" hidden></div>
+
+  <section class="panel auth" id="authPanel" hidden>
+    <h2>Enter the password</h2>
+    <p class="muted" style="margin:0">Enter the SAADI Class Capacity password.</p>
+    <form id="authForm" class="wrap" style="gap:12px;margin:0;max-width:none" novalidate>
+      <label class="f" for="authPass">Password <input type="password" id="authPass" autocomplete="current-password" required></label>
+      <label class="row" for="authRemember" style="font-size:14px;gap:6px"><input type="checkbox" id="authRemember" checked> Remember on this device</label>
+      <div class="row"><button class="primary" type="submit" id="authGo">Open</button><span id="authMsg" class="muted" aria-live="polite"></span></div>
+    </form>
+    <button class="linkbtn" type="button" id="setupLink" style="align-self:flex-start;font-size:14px">First-time setup</button>
+  </section>
+
+  <section class="panel auth" id="setupPanel" hidden>
+    <h2>First-time setup</h2>
+    <p class="muted" style="margin:0">Choose the password everyone will use to open the app. It can be changed later in Prices &amp; settings, but it can't be recovered, so keep a note of it.</p>
+    <form id="setupForm" class="wrap" style="gap:12px;margin:0;max-width:none" novalidate>
+      <label class="f" for="setOwner">Password <input type="password" id="setOwner" autocomplete="new-password" minlength="8" required></label>
+      <div class="row"><button class="primary" type="submit" id="setupGo">Set up</button><button type="button" id="setupBack">Back</button><span id="setupMsg" class="muted" aria-live="polite"></span></div>
+    </form>
+  </section>
+
+  <!-- Paste panel -->
+  <section class="panel" id="pastePanel" hidden>
+    <div class="panel-head"><h2>Add this week's numbers</h2><button type="button" id="closePaste">Close</button></div>
+    <ol class="steps">
+      <li>In JustGo, open the class booking list for the current term (the one showing Booked, Available and Wait List).</li>
+      <li>Select the whole list (Ctrl+A / Cmd+A), copy it, and paste it into the box below.</li>
+      <li>Check the date and the summary, then press <b>Save week</b>.</li>
+    </ol>
+    <div class="row">
+      <label class="f" for="weekDate">Week starting (Monday)
+        <input type="date" id="weekDate">
+      </label>
+    </div>
+    <label class="f" for="pasteBox">JustGo class list
+      <textarea id="pasteBox" placeholder="Paste the JustGo class list here"></textarea>
+    </label>
+    <div id="parseSummary" class="muted" aria-live="polite">Nothing pasted yet.</div>
+    <div class="row">
+      <button class="primary" type="button" id="saveWeek" disabled>Save week</button>
+      <span id="saveMsg" class="muted" aria-live="polite"></span>
+    </div>
+  </section>
+
+  <!-- Settings panel -->
+  <section class="panel" id="settingsPanel" hidden>
+    <div class="panel-head"><h2>Prices &amp; settings</h2><button type="button" id="closeSettings">Close</button></div>
+    <p class="muted" style="margin:0">Price per class place (termly rate). "Count" includes that area in the headline figures. Play Gym is off by default because its JustGo capacity is not a real limit. Changes apply to every saved week.</p>
+    <div class="tbl-wrap"><table class="set-grid"><thead><tr><th>Class group (as in JustGo)</th><th>Price £</th><th>Count</th></tr></thead><tbody id="setRows"></tbody></table></div>
+    <div class="row">
+      <label class="f" for="termWeeks">Weeks per term <input type="number" id="termWeeks" min="1" max="20" step="1"></label>
+      <label class="f" for="lowFill">Flag classes below (% full) <input type="number" id="lowFill" min="10" max="95" step="5"></label>
+      <label class="f" for="target">Target fill % <input type="number" id="target" min="50" max="100" step="5"></label>
+    </div>
+    <div class="row">
+      <button class="primary" type="button" id="saveSettings">Save settings</button>
+      <span id="setMsg" class="muted" aria-live="polite"></span>
+    </div>
+    <hr style="border:none;border-top:1px solid var(--line);width:100%">
+    <h3 style="font-size:18px">Password</h3>
+    <p class="muted" style="margin:0">Changing the password locks every device using the old one. The saved weeks are kept.</p>
+    <div class="row">
+      <label class="f" for="newOwnerPw" style="flex:1;min-width:200px">New password <input type="password" id="newOwnerPw" autocomplete="new-password" minlength="8"></label>
+      <button type="button" id="chgOwner">Change password</button>
+    </div>
+    <span id="pwMsg" class="muted" aria-live="polite"></span>
+    <hr style="border:none;border-top:1px solid var(--line);width:100%">
+    <div class="row">
+      <span class="muted">Remove the selected week's saved numbers:</span>
+      <button class="danger" type="button" id="delWeek">Delete this week</button>
+      <span id="delConfirm" hidden><button class="danger" type="button" id="delYes">Yes, delete</button> <button type="button" id="delNo">Keep it</button></span>
+    </div>
+  </section>
+
+  <!-- Empty state -->
+  <section class="panel empty" id="emptyState" hidden>
+    <div class="eyebrow">No weeks saved yet</div>
+    <h2>Paste the first week from JustGo</h2>
+    <p class="muted" style="max-width:52ch;margin:0">Each week, paste the class booking list in. The page works out how full each class is, the places left empty and the revenue they represent, then tracks it week on week, month on month and year on year.</p>
+    <button class="primary" type="button" id="emptyPaste">Add this week's numbers</button>
+  </section>
+
+  <main id="dash" class="wrap" style="gap:20px" hidden>
+    <div>
+      <div class="eyebrow" id="weekLabel"></div>
+      <p id="headline" style="margin:4px 0 0;font-size:17px;max-width:75ch"></p>
+    </div>
+    <section class="kpis" id="kpis"></section>
+
+    <section class="panel trend">
+      <div class="panel-head"><h2>Trend</h2><span class="muted" id="trendNote"></span></div>
+      <div class="cmp" id="cmp"></div>
+      <div id="trendChart"></div>
+      <div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Weeks saved</th><th>Avg fill</th><th class="money">Avg lost / week</th><th>vs previous month</th><th>vs same month last year</th></tr></thead><tbody id="monthRows"></tbody></table></div>
+    </section>
+
+    <div class="two">
+      <section class="panel">
+        <div class="panel-head"><h2>By area</h2><span class="muted">fill<span class="money"> · lost per week</span></span></div>
+        <div class="bars" id="byArea"></div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h2>By day</h2><span class="muted">counted areas</span></div>
+        <div class="bars" id="byDay"></div>
+      </section>
+    </div>
+
+    <div class="two">
+      <section class="panel">
+        <div class="panel-head"><h2>By colour band</h2><span class="muted">counted areas</span></div>
+        <div class="bars" id="byBand"></div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h2>Needs attention</h2></div>
+        <div>
+          <div class="eyebrow" style="margin-bottom:4px" id="lowTitle"></div>
+          <div class="list" id="lowList"></div>
+        </div>
+        <div>
+          <div class="eyebrow" style="margin:10px 0 4px">Full with a waiting list</div>
+          <div class="list" id="wlList"></div>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Week at a glance</h2>
+        <label class="row" for="showAll" style="font-size:14px;gap:6px"><input type="checkbox" id="showAll"> Show all areas</label>
+      </div>
+      <div class="legend"><span><i style="background:var(--good)"></i>Full</span><span><i style="background:var(--warn)"></i>Has space</span><span><i style="background:var(--bad)"></i>Below flag level</span><span><b style="color:var(--accent)">WL</b> waiting list</span></div>
+      <div class="board-wrap"><div class="board" id="board"></div></div>
+    </section>
+  </main>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+if("serviceWorker" in navigator&&location.protocol==="https:"){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))}
+</script>
+<script>
+(function(){
+"use strict";
+const DAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const DAYNAME={Mon:"Monday",Tue:"Tuesday",Wed:"Wednesday",Thu:"Thursday",Fri:"Friday",Sat:"Saturday",Sun:"Sunday"};
+const BANDS=["Orange","Yellow","Blue","Red","Green","Purple"];
+const DEFAULT_SETTINGS={
+  termWeeks:12, lowFill:60, target:90,
+  groups:{
+    "Recreational":{price:15,include:true},
+    "Pre School":{price:10,include:true},
+    "Parent and Child":{price:8,include:true},
+    "Youth Gym":{price:16,include:true},
+    "Recreational Plus":{price:17,include:true},
+    "Advanced Recreational":{price:24,include:true},
+    "Adult":{price:8,include:true},
+    "Play Gym":{price:5,include:false},
+    "SEN Play Gym":{price:0,include:false},
+    "Home Education":{price:0,include:false},
+    "One 2 One Private Coaching":{price:0,include:false},
+    "NGL":{price:0,include:false},
+    "BIRTHDAY PARTIES":{price:0,include:false}
+  }
+};
+let db=null, isOwner=false, settings=JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+let snaps=[]; // [{id, weekOf, classes:[...]}] sorted asc
+let selected=null, parsed=null, localOnly=false;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const gbp=n=>"£"+Math.round(n).toLocaleString("en-GB");
+const pct=x=>isFinite(x)?Math.round(x*100)+"%":"–";
+const fmtDate=iso=>{const d=new Date(iso+"T12:00:00");return d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})};
+function mondayOf(d){const x=new Date(d);x.setHours(12,0,0,0);const k=(x.getDay()+6)%7;x.setDate(x.getDate()-k);return x.toISOString().slice(0,10)}
+
+/* ---------- parser for the JustGo class list ---------- */
+function parseJustGo(text){
+  const lines=text.replace(/\r/g,"").replace(/\t/g,"\n").split("\n").map(s=>s.trim()).filter(Boolean);
+  const starts=[];lines.forEach((l,i)=>{if(DAYS.includes(l))starts.push(i)});
+  const out=[],skipped=[];
+  starts.forEach((s,n)=>{
+    const blk=lines.slice(s,n+1<starts.length?starts[n+1]:lines.length);
+    const st=blk.findIndex(x=>x==="Booked"||x==="Full");
+    if(st<3||!/^\d+$/.test(blk[st-1])){skipped.push(blk.slice(0,3).join(" "));return}
+    const booked=+blk[st-1];
+    const group=blk[st-2];
+    let i=st+1, avail=0;
+    if(/^\d+$/.test(blk[i]||"")){avail=+blk[i];i++}
+    if(blk[i]==="Available")i++;
+    let trial=0,wl=0;
+    const venueIdx=blk.findIndex((x,k)=>k>i&&/^saadi$/i.test(x));
+    const tailEnd=venueIdx>0?venueIdx:blk.length-1;
+    for(let k=i;k<tailEnd;k++){
+      if(/^\d+$/.test(blk[k])){
+        if(/^trial$/i.test(blk[k+1]||"")){trial+=+blk[k];k++}else wl+=+blk[k];
+      }
+    }
+    const name=blk[2]||"";
+    const desc=blk.slice(3,st-2).join(" ");
+    let band="";
+    const m=name.match(/\b(orange|yellow|blue|red|green|purple)\b/i);
+    if(m)band=m[1][0].toUpperCase()+m[1].slice(1).toLowerCase();
+    else{const b=blk.slice(3,st-2).find(x=>BANDS.includes(x));if(b)band=b}
+    const term=venueIdx>0?(blk[venueIdx+1]||""):blk[blk.length-1];
+    out.push({day:blk[0],time:blk[1],name,group,band,booked,avail,trial,wl,term,legacy:/summer term/i.test(desc)&&!/summer/i.test(term)});
+  });
+  return {classes:out,skipped};
+}
+function cap(c){return c.booked+c.avail+c.trial}
+function gs(g){return settings.groups[g]||{price:0,include:false}}
+function startMins(t){const m=String(t).match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);if(!m)return 0;let h=+m[1]%12;if(/pm/i.test(m[3]))h+=12;return h*60+ +m[2]}
+
+/* ---------- metrics ---------- */
+function counted(classes){return classes.filter(c=>!c.legacy&&gs(c.group).include)}
+function totals(list){
+  let b=0,p=0,e=0,lost=0,earn=0,wl=0;
+  list.forEach(c=>{const pr=gs(c.group).price||0;b+=c.booked;p+=cap(c);e+=c.avail;lost+=c.avail*pr;earn+=c.booked*pr;wl+=c.wl});
+  return {booked:b,places:p,empty:e,lost,earn,wl,fill:p?b/p:NaN};
+}
+function snapTotals(s){return totals(counted(s.classes))}
+function nearest(targetIso,tolDays,excludeId){
+  const t=new Date(targetIso).getTime();let best=null,bd=Infinity;
+  snaps.forEach(s=>{if(s.id===excludeId)return;const d=Math.abs(new Date(s.weekOf).getTime()-t)/864e5;if(d<=tolDays&&d<bd){bd=d;best=s}});
+  return best;
+}
+function shiftIso(iso,days){const d=new Date(iso+"T12:00:00");d.setDate(d.getDate()+days);return d.toISOString().slice(0,10)}
+
+/* ---------- rendering ---------- */
+function deltaHtml(cur,prev,kind){
+  if(prev==null||!isFinite(prev))return '<span class="delta flat">no earlier week</span>';
+  let d=cur-prev, txt;
+  if(kind==="pct"){txt=(d>=0?"+":"")+Math.round(d*100)+" pts"}
+  else if(kind==="gbp"){txt=(d>=0?"+":"−")+gbp(Math.abs(d))}
+  else txt=(d>=0?"+":"")+Math.round(d);
+  const cls=Math.abs(d)<(kind==="pct"?0.005:0.5)?"flat":(d>0?"up":"down");
+  return `<span class="delta ${cls}">${txt} vs last week</span>`;
+}
+function fillColor(f){return f>=0.999?"var(--good)":(f*100<settings.lowFill?"var(--bad)":"var(--warn)")}
+function barRow(label,f,right,dotColor){
+  const w=isFinite(f)?Math.max(0,Math.min(1,f))*100:0;
+  return `<div class="bar-row"><span>${dotColor?`<span class="dot" style="background:${dotColor}"></span>`:""}${esc(label)}</span>
+  <div class="bar-track" role="img" aria-label="${esc(label)} ${pct(f)} full"><div class="bar-fill" style="width:${w}%;background:${fillColor(f)}"></div><div class="bar-target" style="left:${settings.target}%"></div></div>
+  <span class="r">${right}</span></div>`;
+}
+function render(){
+  const has=snaps.length>0;
+  if(!db){$("emptyState").hidden=true;$("dash").hidden=true;return}
+  $("emptyState").hidden=has; $("dash").hidden=!has;
+  // week selector
+  const sel=$("weekSel");
+  sel.innerHTML=snaps.slice().reverse().map(s=>`<option value="${esc(s.id)}">w/c ${fmtDate(s.weekOf)}</option>`).join("")||'<option value="">No weeks yet</option>';
+  if(!has)return;
+  if(!selected||!snaps.find(s=>s.id===selected))selected=snaps[snaps.length-1].id;
+  sel.value=selected;
+  const snap=snaps.find(s=>s.id===selected);
+  const idx=snaps.indexOf(snap), prev=idx>0?snaps[idx-1]:null;
+  const list=counted(snap.classes), T=totals(list), P=prev?snapTotals(prev):null;
+  const maxEarn=T.earn+T.lost;
+  $("weekLabel").textContent="Week commencing "+fmtDate(snap.weekOf);
+  $("headline").innerHTML=isOwner?`Classes are <b>${pct(T.fill)} full</b>. ${T.empty.toLocaleString("en-GB")} empty places are worth <b>${gbp(T.lost)} a week</b>, about ${gbp(T.lost*settings.termWeeks)} over a ${settings.termWeeks}-week term. You are earning ${pct(maxEarn?T.earn/maxEarn:NaN)} of what the timetable could bring in.`
+    :`Classes are <b>${pct(T.fill)} full</b>, with <b>${T.empty.toLocaleString("en-GB")} empty places</b> and ${T.wl} children on waiting lists.`;
+  $("kpis").innerHTML=[
+    `<div class="kpi"><span class="eyebrow">Fill</span><span class="v num">${pct(T.fill)}</span><span class="s">${T.booked.toLocaleString("en-GB")} of ${T.places.toLocaleString("en-GB")} places</span>${deltaHtml(T.fill,P&&P.fill,"pct")}</div>`,
+    `<div class="kpi"><span class="eyebrow">Empty places</span><span class="v num">${T.empty.toLocaleString("en-GB")}</span><span class="s">per week</span>${deltaHtml(T.empty,P&&P.empty,"n").replace(/delta (up|down)/,(m,a)=>"delta "+(a==="up"?"down":"up"))}</div>`,
+    isOwner&&`<div class="kpi lost"><span class="eyebrow">Lost revenue</span><span class="v num">${gbp(T.lost)}</span><span class="s">per week · ${gbp(T.lost*settings.termWeeks)} per term</span>${deltaHtml(T.lost,P&&P.lost,"gbp")}</div>`,
+    isOwner&&`<div class="kpi"><span class="eyebrow">Earned</span><span class="v num">${gbp(T.earn)}</span><span class="s">per week · ${gbp(T.earn*settings.termWeeks)} per term</span>${deltaHtml(T.earn,P&&P.earn,"gbp")}</div>`,
+    `<div class="kpi"><span class="eyebrow">Waiting list</span><span class="v num">${T.wl}</span><span class="s">children waiting</span>${deltaHtml(T.wl,P&&P.wl,"n")}</div>`
+  ].filter(Boolean).join("");
+  renderTrend(snap);
+  // by area (all groups present, counted first)
+  const groups={};snap.classes.filter(c=>!c.legacy).forEach(c=>{(groups[c.group]=groups[c.group]||[]).push(c)});
+  const gnames=Object.keys(groups).sort((a,b)=>(gs(b).include-gs(a).include)||(totals(groups[b]).places-totals(groups[a]).places));
+  $("byArea").innerHTML=gnames.map(g=>{const t=totals(groups[g]);const inc=gs(g).include;
+    return barRow(g+(inc?"":" (not counted)"),t.fill,isOwner?`${pct(t.fill)} · ${inc&&gs(g).price?gbp(t.lost):"–"}`:`${pct(t.fill)} · ${t.booked}/${t.places}`)}).join("");
+  // by day
+  $("byDay").innerHTML=DAYS.map(d=>{const t=totals(list.filter(c=>c.day===d));return t.places?barRow(DAYNAME[d],t.fill,`${pct(t.fill)} · ${t.booked}/${t.places}`):""}).join("");
+  // by band
+  const bandRows=BANDS.map(b=>{const t=totals(list.filter(c=>c.band===b));return t.places?barRow(b,t.fill,`${pct(t.fill)} · ${t.booked}/${t.places}`,`var(--b-${b.toLowerCase()})`):""}).join("");
+  $("byBand").innerHTML=bandRows||'<p class="muted">No colour bands found in the class names.</p>';
+  // attention
+  const low=list.filter(c=>cap(c)>0&&c.booked/cap(c)*100<settings.lowFill).sort((a,b)=>a.booked/cap(a)-b.booked/cap(b));
+  $("lowTitle").textContent=`Below ${settings.lowFill}% full (${low.length})`;
+  $("lowList").innerHTML=low.slice(0,12).map(c=>`<div class="it"><span>${esc(c.day)} ${esc(c.time.split(" - ")[0])} · ${esc(c.name)}</span><span class="num"><span class="pill bad">${c.booked}/${cap(c)}</span></span></div>`).join("")+(low.length>12?`<div class="muted" style="font-size:13px">+${low.length-12} more on the board below</div>`:"")||'<p class="muted">None. Every counted class is above the flag level.</p>';
+  const wlc=snap.classes.filter(c=>!c.legacy&&c.avail===0&&c.wl>0).sort((a,b)=>b.wl-a.wl);
+  $("wlList").innerHTML=wlc.map(c=>`<div class="it"><span>${esc(c.day)} ${esc(c.time.split(" - ")[0])} · ${esc(c.name)}</span><span class="num"><span class="pill good">${c.wl} waiting</span></span></div>`).join("")||'<p class="muted">No full classes have a waiting list.</p>';
+  renderBoard(snap);
+}
+function renderBoard(snap){
+  const all=$("showAll").checked;
+  const cls=snap.classes.filter(c=>!c.legacy&&(all||gs(c.group).include));
+  $("board").innerHTML=DAYS.map(d=>{
+    const dl=cls.filter(c=>c.day===d).sort((a,b)=>startMins(a.time)-startMins(b.time));
+    const t=totals(dl);
+    return `<div class="day"><h3>${DAYNAME[d]}<span>${dl.length?pct(t.fill):""}</span></h3><div class="cls">${dl.map(c=>{
+      const cp=cap(c),f=cp?c.booked/cp:0,state=f>=0.999?"full":(f*100<settings.lowFill?"low":"mid");
+      const short=c.name.split("|")[0].trim()||c.name;
+      return `<div class="chip ${state}" title="${esc(c.name)} · ${esc(c.group)}">
+        <div class="t"><span>${esc(c.time.split(" - ")[0])}</span><span>${c.band?`<span class="dot" style="background:var(--b-${c.band.toLowerCase()});margin:0 4px 0 0"></span>${esc(c.band)}`:esc(c.group)}</span></div>
+        <div class="n">${esc(short)}</div>
+        <div class="f"><div class="bar-track"><div class="bar-fill" style="width:${f*100}%;background:${fillColor(f)}"></div></div><span class="num">${c.booked}/${cp}</span>${c.wl?`<span class="wl">WL ${c.wl}</span>`:""}</div>
+      </div>`}).join("")||'<span class="muted" style="font-size:13px">No classes</span>'}</div></div>`;
+  }).join("");
+}
+function renderTrend(snap){
+  const T=snapTotals(snap);
+  const cmp=[["Last week",snaps[snaps.indexOf(snap)-1]||null],["About a month ago",nearest(shiftIso(snap.weekOf,-28),10,snap.id)],["Same week last year",nearest(shiftIso(snap.weekOf,-364),14,snap.id)]];
+  $("cmp").innerHTML=cmp.map(([lbl,s])=>{
+    if(!s)return `<div><span class="muted">${lbl}</span><b>–</b><span class="muted">not saved yet</span></div>`;
+    const t=snapTotals(s),d=T.fill-t.fill,dl=T.lost-t.lost;
+    return `<div><span class="muted">${lbl} (${fmtDate(s.weekOf)})</span><b class="num">${d>=0?"+":""}${Math.round(d*100)} pts</b><span class="money ${dl>0?"delta down":"delta up"}">${dl>0?"+":"−"}${gbp(Math.abs(dl))} lost / week</span></div>`;
+  }).join("");
+  // chart: fill % line + lost revenue bars, last 60 snapshots
+  const pts=snaps.slice(-60).map(s=>({s,t:snapTotals(s)}));
+  $("trendNote").textContent=pts.length<2?"The line appears once a second week is saved":`${pts.length} weeks saved`;
+  const W=900,H=240,L=46,R=60,Tp=16,B=34,iw=W-L-R,ih=H-Tp-B;
+  const fmin=0.4,fmax=1;
+  const maxLost=Math.max(1,...pts.map(p=>p.t.lost))*1.15;
+  const x=i=>L+(pts.length<=1?iw/2:i*iw/(pts.length-1));
+  const y=f=>Tp+ih-(Math.max(fmin,Math.min(fmax,f))-fmin)/(fmax-fmin)*ih;
+  const yl=v=>Tp+ih-v/maxLost*ih;
+  const bw=Math.max(4,Math.min(26,iw/Math.max(1,pts.length)*0.55));
+  let g="";
+  [0.4,0.6,0.8,1].forEach(f=>{g+=`<line x1="${L}" x2="${W-R}" y1="${y(f)}" y2="${y(f)}" stroke="var(--line)"/><text x="${L-8}" y="${y(f)+4}" text-anchor="end" font-size="12" fill="var(--muted)">${f*100}%</text>`});
+  const tl=settings.target/100;g+=`<line x1="${L}" x2="${W-R}" y1="${y(tl)}" y2="${y(tl)}" stroke="var(--good)" stroke-dasharray="4 4"/><text x="${W-R+6}" y="${y(tl)+4}" font-size="12" fill="var(--good)">target</text>`;
+  if(isOwner)pts.forEach((p,i)=>{g+=`<rect x="${x(i)-bw/2}" y="${yl(p.t.lost)}" width="${bw}" height="${Tp+ih-yl(p.t.lost)}" fill="var(--bad)" opacity=".22"><title>${fmtDate(p.s.weekOf)}: ${gbp(p.t.lost)} lost</title></rect>`});
+  const path=pts.map((p,i)=>`${i?"L":"M"}${x(i).toFixed(1)},${y(p.t.fill).toFixed(1)}`).join(" ");
+  if(pts.length>1)g+=`<path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2.5"/>`;
+  pts.forEach((p,i)=>{const sel=p.s.id===snap.id;g+=`<circle cx="${x(i)}" cy="${y(p.t.fill)}" r="${sel?6:3.5}" fill="${sel?"var(--accent)":"var(--surface)"}" stroke="var(--accent)" stroke-width="2"><title>${fmtDate(p.s.weekOf)}: ${pct(p.t.fill)} full</title></circle>`});
+  const step=Math.max(1,Math.ceil(pts.length/8));
+  pts.forEach((p,i)=>{if(i%step===0||i===pts.length-1){const d=new Date(p.s.weekOf+"T12:00:00");g+=`<text x="${x(i)}" y="${H-10}" text-anchor="middle" font-size="12" fill="var(--muted)">${d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})}${d.getMonth()===0||i===0?" "+String(d.getFullYear()).slice(2):""}</text>`}});
+  if(isOwner)g+=`<text x="${W-R+6}" y="${Tp+10}" font-size="12" fill="var(--bad)">${gbp(maxLost/1.15)}</text><text x="${W-R+6}" y="${Tp+24}" font-size="11" fill="var(--muted)">lost/wk</text>`;
+  $("trendChart").innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Weekly fill percentage and lost revenue">${g}</svg>
+  <div class="legend"><span><i style="background:var(--accent)"></i>Fill % (left scale)</span><span class="money"><i style="background:var(--bad);opacity:.35"></i>Lost revenue per week (bars)</span></div>`;
+  // monthly table
+  const months={};snaps.forEach(s=>{const k=s.weekOf.slice(0,7);(months[k]=months[k]||[]).push(snapTotals(s))});
+  const keys=Object.keys(months).sort();
+  const agg=k=>{const a=months[k];if(!a)return null;return {n:a.length,fill:a.reduce((s,t)=>s+t.fill,0)/a.length,lost:a.reduce((s,t)=>s+t.lost,0)/a.length}};
+  const prevKey=k=>{const [y,m]=k.split("-").map(Number);const d=new Date(y,m-2,1);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")};
+  const lyKey=k=>{const [y,m]=k.split("-");return (+y-1)+"-"+m};
+  const dcell=(a,b)=>{if(!b)return '<span class="muted">–</span>';const d=a.fill-b.fill;return `<span class="delta ${Math.abs(d)<.005?"flat":d>0?"up":"down"}">${d>=0?"+":""}${Math.round(d*100)} pts</span> <span class="muted money">(${a.lost-b.lost>0?"+":"−"}${gbp(Math.abs(a.lost-b.lost))})</span>`};
+  $("monthRows").innerHTML=keys.slice().reverse().map(k=>{const a=agg(k);const [y,m]=k.split("-");const nm=new Date(+y,+m-1,1).toLocaleDateString("en-GB",{month:"long",year:"numeric"});
+    return `<tr><td>${nm}</td><td>${a.n}</td><td>${pct(a.fill)}</td><td class="money">${gbp(a.lost)}</td><td>${dcell(a,agg(prevKey(k)))}</td><td>${dcell(a,agg(lyKey(k)))}</td></tr>`}).join("");
+}
+
+/* ---------- settings UI ---------- */
+function renderSettings(){
+  const present=new Set();snaps.forEach(s=>s.classes.forEach(c=>present.add(c.group)));
+  Object.keys(settings.groups).forEach(g=>present.add(g));
+  const names=[...present].sort((a,b)=>(gs(b).include-gs(a).include)||a.localeCompare(b));
+  $("setRows").innerHTML=names.map((g,i)=>{const s=gs(g);const isNew=!settings.groups[g];
+    return `<tr><td>${esc(g)}${isNew?' <span class="pill warn">new</span>':""}</td>
+    <td><input type="number" min="0" step="0.5" id="pr_${i}" data-g="${esc(g)}" value="${s.price||0}" aria-label="Price for ${esc(g)}"></td>
+    <td><input type="checkbox" id="in_${i}" data-g="${esc(g)}" ${s.include?"checked":""} aria-label="Count ${esc(g)}"></td></tr>`}).join("");
+  $("termWeeks").value=settings.termWeeks;$("lowFill").value=settings.lowFill;$("target").value=settings.target;
+}
+async function saveSettings(){
+  const groups={};
+  document.querySelectorAll('#setRows input[type=number]').forEach(inp=>{const g=inp.dataset.g;groups[g]=groups[g]||{};groups[g].price=Math.max(0,+inp.value||0)});
+  document.querySelectorAll('#setRows input[type=checkbox]').forEach(inp=>{const g=inp.dataset.g;groups[g]=groups[g]||{};groups[g].include=inp.checked});
+  settings={termWeeks:Math.max(1,+$("termWeeks").value||12),lowFill:Math.max(10,Math.min(95,+$("lowFill").value||60)),target:Math.max(50,Math.min(100,+$("target").value||90)),groups};
+  render();
+  if(!db){$("setMsg").textContent="Not signed in.";return}
+  const display={termWeeks:settings.termWeeks,lowFill:settings.lowFill,target:settings.target,include:{}},prices={};
+  Object.keys(groups).forEach(g=>{display.include[g]=!!groups[g].include;prices[g]=groups[g].price||0});
+  try{await db.doc("config/display").set(display);await db.doc("config/prices").set({prices});$("setMsg").textContent="Saved."}
+  catch(e){$("setMsg").textContent="Couldn't save settings ("+(e&&e.code||"error")+"). Try again in a moment."}
+}
+
+/* ---------- paste flow ---------- */
+function onPaste(){
+  const txt=$("pasteBox").value;
+  if(!txt.trim()){parsed=null;$("parseSummary").textContent="Nothing pasted yet.";$("saveWeek").disabled=true;return}
+  parsed=parseJustGo(txt);
+  const c=parsed.classes;
+  if(!c.length){$("parseSummary").innerHTML='<span style="color:var(--bad)">No classes found. Make sure you copied the class booking list that shows Booked, Available and Wait List for each class.</span>';$("saveWeek").disabled=true;return}
+  const t=totals(c.filter(x=>gs(x.group).include&&!x.legacy));
+  const days=new Set(c.map(x=>x.day)).size;
+  const unknown=[...new Set(c.map(x=>x.group))].filter(g=>!settings.groups[g]);
+  $("parseSummary").innerHTML=`Found <b>${c.length} classes</b> across ${days} days: ${t.booked} booked of ${t.places} places (${pct(t.fill)}) in the counted areas.`+
+    (parsed.skipped.length?` <span style="color:var(--warn)">${parsed.skipped.length} entries couldn't be read and will be left out.</span>`:"")+
+    (unknown.length?` <span style="color:var(--warn)">New class group${unknown.length>1?"s":""}: ${unknown.map(esc).join(", ")}. Set a price in Prices &amp; settings.</span>`:"");
+  const wk=$("weekDate").value;
+  $("saveWeek").disabled=!wk;
+  $("saveWeek").textContent=snaps.find(s=>s.id===wk)?"Replace this week":"Save week";
+}
+async function saveWeek(){
+  if(!parsed||!parsed.classes.length)return;
+  const wk=mondayOf(new Date($("weekDate").value+"T12:00:00"));
+  const doc={weekOf:wk,savedAt:new Date().toISOString(),classes:parsed.classes};
+  $("saveWeek").disabled=true;
+  if(!db){$("saveMsg").textContent="Sign in to save.";$("saveWeek").disabled=false;return}
+  try{
+    await db.doc("snapshots/"+wk).set(doc);
+    selected=wk;$("saveMsg").textContent="Saved week commencing "+fmtDate(wk)+".";
+    $("pasteBox").value="";parsed=null;$("parseSummary").textContent="Nothing pasted yet.";
+    setTimeout(()=>{$("pastePanel").hidden=true;$("saveMsg").textContent=""},1200);
+  }catch(e){
+    $("saveWeek").disabled=false;
+    $("saveMsg").textContent=e&&e.code==="permission-denied"?"This sign-in can't save weeks. Ask an owner to check your access.":"Couldn't save ("+(e&&e.code||"error")+"). Try again in a moment.";
+  }
+}
+
+/* ---------- wiring ---------- */
+$("weekDate").value=mondayOf(new Date());
+$("openPaste").onclick=$("emptyPaste").onclick=()=>{$("pastePanel").hidden=false;$("settingsPanel").hidden=true;$("pasteBox").focus()};
+$("closePaste").onclick=()=>{$("pastePanel").hidden=true};
+$("openSettings").onclick=()=>{renderSettings();$("settingsPanel").hidden=false;$("pastePanel").hidden=true};
+$("closeSettings").onclick=()=>{$("settingsPanel").hidden=true};
+$("pasteBox").addEventListener("input",onPaste);
+$("weekDate").addEventListener("change",onPaste);
+$("saveWeek").onclick=saveWeek;
+$("saveSettings").onclick=saveSettings;
+$("weekSel").onchange=e=>{selected=e.target.value;render()};
+$("showAll").onchange=()=>{const s=snaps.find(x=>x.id===selected);if(s)renderBoard(s)};
+$("delWeek").onclick=()=>{if(selected){$("delConfirm").hidden=false}};
+$("delNo").onclick=()=>{$("delConfirm").hidden=true};
+$("delYes").onclick=async()=>{
+  $("delConfirm").hidden=true;const id=selected;if(!id)return;
+  if(db){try{await db.doc("snapshots/"+id).delete();$("setMsg").textContent="Deleted week commencing "+fmtDate(id)+"."}catch(e){$("setMsg").textContent="Couldn't delete ("+(e&&e.code||"error")+")."}}
+};
+$("emptyState").hidden=true;
+
+/* ---------- Firebase: password keys, live data ----------
+   A password never leaves the device. Its SHA-256 hash is the id of a "key" document that
+   holds the role and where the data lives. Without the password the data can't be found. */
+let remote={display:null,prices:null}, unsubs=[], fs=null, keyId=null, keyDoc=null;
+const KEY_STORE="saadiCapacityKey";
+async function hashPw(pw){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode("saadi-class-capacity|"+pw.trim()));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
+function randId(n){const a=new Uint8Array(n);crypto.getRandomValues(a);return [...a].map(x=>"abcdefghijklmnopqrstuvwxyz0123456789"[x%36]).join("")}
+function mapPath(p){return p==="config/prices"?`keys/${keyId}/settings/prices`:`data/${keyDoc.dataKey}/${p}`}
+function applyRemoteSettings(){
+  const d=remote.display||{}, p=(remote.prices&&remote.prices.prices)||{};
+  const groups=JSON.parse(JSON.stringify(DEFAULT_SETTINGS.groups));
+  Object.entries(d.include||{}).forEach(([g,v])=>{groups[g]=groups[g]||{price:0,include:false};groups[g].include=!!v});
+  Object.entries(p).forEach(([g,v])=>{groups[g]=groups[g]||{price:0,include:false};groups[g].price=+v||0});
+  if(!isOwner)Object.values(groups).forEach(g=>g.price=0);
+  settings={termWeeks:d.termWeeks||DEFAULT_SETTINGS.termWeeks,lowFill:d.lowFill||DEFAULT_SETTINGS.lowFill,target:d.target||DEFAULT_SETTINGS.target,groups};
+  render();
+}
+function showNote(t){const n=$("statusNote");n.hidden=!t;n.textContent=t||""}
+function stopAll(){unsubs.forEach(u=>{try{u()}catch(e){}});unsubs=[];snaps=[];remote={display:null,prices:null}}
+function lockedView(){
+  stopAll();db=null;isOwner=false;keyId=null;keyDoc=null;document.body.classList.remove("owner");
+  $("appControls").hidden=true;$("signOut").hidden=true;$("whoAmI").textContent="";
+  $("authPanel").hidden=false;$("setupPanel").hidden=true;$("emptyState").hidden=true;$("dash").hidden=true;$("pastePanel").hidden=true;$("settingsPanel").hidden=true;
+  $("authPass").value="";
+}
+function rememberKey(id,yes){try{yes?localStorage.setItem(KEY_STORE,id):localStorage.removeItem(KEY_STORE)}catch(e){}}
+async function openWithKey(id,remember){
+  let k;
+  try{k=await fs.doc("keys/"+id).get()}catch(e){return "Couldn't reach the database. Check the internet connection and try again."}
+  if(!k.exists)return "That password isn't right.";
+  keyId=id;keyDoc=k.data();isOwner=keyDoc.role==="owner";
+  rememberKey(id,remember);
+  db={doc:p=>fs.doc(mapPath(p)),collection:p=>fs.collection(mapPath(p))};
+  document.body.classList.toggle("owner",isOwner);
+  $("authPanel").hidden=true;$("setupPanel").hidden=true;$("appControls").hidden=false;$("signOut").hidden=false;
+  $("whoAmI").textContent="";showNote("");stopAll();
+  unsubs.push(db.doc("config/display").onSnapshot(s=>{remote.display=s.exists?s.data():null;applyRemoteSettings()},()=>{}));
+  if(isOwner)unsubs.push(db.doc("config/prices").onSnapshot(s=>{remote.prices=s.exists?s.data():null;applyRemoteSettings()},()=>{}));
+  unsubs.push(db.collection("snapshots").orderBy("weekOf","asc").onSnapshot(q=>{
+    snaps=q.docs.map(d=>({id:d.id,...d.data()})).filter(x=>Array.isArray(x.classes));render();
+  },()=>showNote("Lost connection to the saved weeks. Reload the page to reconnect.")));
+  applyRemoteSettings();
+  return "";
+}
+async function changePw(role){
+  const inp=role==="owner"?$("newOwnerPw"):$("newStaffPw"), pw=inp.value.trim();
+  if(pw.length<8){$("pwMsg").textContent="Use at least 8 characters.";return}
+  const newId=await hashPw(pw);
+  try{
+    const clash=await fs.doc("keys/"+newId).get();if(clash.exists){$("pwMsg").textContent="That password is already in use. Choose a different one.";return}
+    if(role==="staff"){
+      const old=keyDoc.staffKey;
+      await fs.doc("keys/"+newId).set({role:"staff",dataKey:keyDoc.dataKey,createdAt:new Date().toISOString()});
+      await fs.doc("keys/"+keyId).update({staffKey:newId});
+      if(old&&old!==newId)await fs.doc("keys/"+old).delete();
+      keyDoc.staffKey=newId;
+    }else{
+      const prices=await fs.doc(`keys/${keyId}/settings/prices`).get();
+      await fs.doc("keys/"+newId).set({role:"owner",dataKey:keyDoc.dataKey,staffKey:keyDoc.staffKey||null,createdAt:new Date().toISOString()});
+      if(prices.exists)await fs.doc(`keys/${newId}/settings/prices`).set(prices.data());
+      await fs.doc(`keys/${keyId}/settings/prices`).delete();
+      await fs.doc("keys/"+keyId).delete();
+      rememberKey(newId,true);await openWithKey(newId,true);
+    }
+    inp.value="";$("pwMsg").textContent="Password changed.";
+  }catch(e){$("pwMsg").textContent="Couldn't change the password ("+(e.code||"error")+"). Try again."}
+}
+
+(function startFirebase(){
+  const cfg=window.SAADI_FIREBASE_CONFIG;
+  if(!window.firebase||!cfg||!cfg.apiKey||/PASTE/.test(cfg.apiKey)){
+    showNote("Setup needed: add your Firebase settings to firebase-config.js (see the setup guide).");return;
+  }
+  firebase.initializeApp(cfg);fs=firebase.firestore();
+  $("authForm").addEventListener("submit",async e=>{
+    e.preventDefault();const pw=$("authPass").value;if(!pw.trim()){$("authMsg").textContent="Type the password first.";return}
+    $("authGo").disabled=true;$("authMsg").textContent="Checking…";
+    const err=await openWithKey(await hashPw(pw),$("authRemember").checked);
+    $("authMsg").textContent=err;$("authGo").disabled=false;if(!err)$("authPass").value="";
+  });
+  $("signOut").onclick=()=>{rememberKey(null,false);lockedView()};
+  $("setupLink").onclick=()=>{$("authPanel").hidden=true;$("setupPanel").hidden=false;$("setupMsg").textContent=""};
+  $("setupBack").onclick=()=>{$("setupPanel").hidden=true;$("authPanel").hidden=false};
+  $("chgOwner").onclick=()=>changePw("owner");
+  $("setupForm").addEventListener("submit",async e=>{
+    e.preventDefault();const o=$("setOwner").value.trim();
+    if(o.length<8){$("setupMsg").textContent="Use at least 8 characters.";return}
+    $("setupGo").disabled=true;$("setupMsg").textContent="Setting up…";
+    try{
+      const oid=await hashPw(o);
+      const a=await fs.doc("keys/"+oid).get();
+      if(a.exists){$("setupMsg").textContent="That password is already set up. Use it to open the app instead.";$("setupGo").disabled=false;return}
+      const dataKey=randId(24),now=new Date().toISOString();
+      await fs.doc("keys/"+oid).set({role:"owner",dataKey,createdAt:now});
+      const display={termWeeks:DEFAULT_SETTINGS.termWeeks,lowFill:DEFAULT_SETTINGS.lowFill,target:DEFAULT_SETTINGS.target,include:{}},prices={};
+      Object.entries(DEFAULT_SETTINGS.groups).forEach(([g,v])=>{display.include[g]=v.include;prices[g]=v.price});
+      await fs.doc(`data/${dataKey}/config/display`).set(display);
+      await fs.doc(`keys/${oid}/settings/prices`).set({prices});
+      $("setOwner").value="";$("setupGo").disabled=false;
+      await openWithKey(oid,true);
+    }catch(err){$("setupMsg").textContent="Setup failed ("+(err.code||"error")+"). Check the Firestore rules were published, then try again.";$("setupGo").disabled=false}
+  });
+  let saved=null;try{saved=localStorage.getItem(KEY_STORE)}catch(e){}
+  lockedView();
+  if(saved)openWithKey(saved,true).then(err=>{if(err){rememberKey(null,false);lockedView()}});
+})();
+})();
+</script>
+</body>
+</html>

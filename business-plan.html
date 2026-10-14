@@ -77,7 +77,7 @@ dialog::backdrop{background:rgba(20,10,18,.45)}
       <div><div class="eyebrow">SAADI Business Hub</div><h1>Business Plan</h1></div>
     </a>
     <div class="head-right">
-      <nav class="hubnav needs-auth" aria-label="Hub pages"><a href="index.html">Hub</a><a href="class-capacity.html">Class Capacity</a><a href="business-plan.html" aria-current="page">Business Plan</a></nav>
+      <nav class="hubnav needs-auth" aria-label="Hub pages"><a href="index.html">Hub</a><a href="class-capacity.html">Class Capacity</a><a href="business-plan.html" aria-current="page">Business Plan</a><a href="calendar.html">Club Calendar</a></nav>
       <label class="me needs-auth" for="myName">Updating as <input type="text" id="myName" placeholder="your name" autocomplete="name"></label>
       <button type="button" class="needs-auth" data-lock>Lock</button>
     </div>
@@ -92,6 +92,18 @@ dialog::backdrop{background:rgba(20,10,18,.45)}
       <label class="f" for="authPass">Password <input type="password" id="authPass" autocomplete="current-password" required></label>
       <label class="row" for="authRemember" style="font-size:14px;gap:6px"><input type="checkbox" id="authRemember" checked> Remember on this device</label>
       <div class="row"><button class="primary" type="submit" id="authGo">Open</button><span id="authMsg" class="muted" aria-live="polite"></span></div>
+    </form>
+  </section>
+
+  <section class="panel auth" id="planPanel" hidden>
+    <div class="eyebrow">Business Plan</div>
+    <h2 id="planTitle">Enter the Business Plan password</h2>
+    <p class="muted" style="margin:0" id="planIntro">The Business Plan has its own password, separate from the Hub password.</p>
+    <form id="planForm" class="wrap" style="gap:12px;margin:0" novalidate>
+      <label class="f" for="planPass">Business Plan password <input type="password" id="planPass" autocomplete="off" required></label>
+      <label class="f" for="planPass2" id="planPass2Row" hidden>Type it again <input type="password" id="planPass2" autocomplete="off"></label>
+      <label class="row" for="planRemember" style="font-size:14px;gap:6px"><input type="checkbox" id="planRemember" checked> Remember on this device</label>
+      <div class="row"><button class="primary" type="submit" id="planGo">Open the plan</button><span id="planMsg" class="muted" aria-live="polite"></span></div>
     </form>
   </section>
 
@@ -454,7 +466,7 @@ function ready(){
   },()=>note("Lost connection to the plan. Reload the page to reconnect."));
 }
 Hub.tooltips();
-Hub.gate(ready);
+Hub.gate(()=>Hub.planGate(()=>{Hub.dataKey=Hub.planKey;ready()}));
 })();
 </script>
 </body>

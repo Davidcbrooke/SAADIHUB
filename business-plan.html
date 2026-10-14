@@ -66,7 +66,7 @@ dialog::backdrop{background:rgba(20,10,18,.45)}
 .dlg textarea[name=title]{min-height:64px}
 .dlg-foot{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center;border-top:1px solid var(--line);padding-top:12px}
 .me{font-size:13px;color:rgba(255,255,255,.9);display:flex;gap:6px;align-items:center}
-.me input{width:110px;padding:4px 8px;font-size:13px;color:var(--ink)}
+.me input,.me select{width:120px;padding:4px 8px;font-size:13px;color:var(--ink);background:var(--surface)}
 </style>
 </head>
 <body>
@@ -78,7 +78,7 @@ dialog::backdrop{background:rgba(20,10,18,.45)}
     </a>
     <div class="head-right">
       <nav class="hubnav needs-auth" aria-label="Hub pages"><a href="index.html">Hub</a><a href="class-capacity.html">Class Capacity</a><a href="business-plan.html" aria-current="page">Business Plan</a><a href="calendar.html">Club Calendar</a></nav>
-      <label class="me needs-auth" for="myName">Updating as <input type="text" id="myName" placeholder="your name" autocomplete="name"></label>
+      <label class="me needs-auth" for="myName">Updating as <select id="myName" aria-label="Your name"><option value="">Choose…</option><option>Dave</option><option>Mel</option><option>Derek</option><option>Ash</option><option>Kayleigh</option><option>Kasia</option><option>Carol</option><option>Julie</option><option>Cat</option></select></label>
       <button type="button" class="needs-auth" data-lock>Lock</button>
     </div>
   </header>

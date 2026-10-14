@@ -167,15 +167,20 @@ async function loadPlan(){
     headline();
   },()=>{$("planNote").textContent="Couldn't load the plan."});
 }
+let calOwn=[],calSheet=[];
 function loadCalendar(){
-  Hub.col("calendar").onSnapshot(q=>{
-    const ev=q.docs.map(d=>d.data()),t=todayIso(),m=t.slice(0,7);
+  Hub.doc("config/calendarSheets").get().then(d=>CalLoadSheets((d.exists&&d.data().links)||[])).then(r=>{calSheet=r.events;showCal()}).catch(()=>{});
+  Hub.col("calendar").onSnapshot(q=>{calOwn=q.docs.map(d=>d.data());showCal()},()=>{$("calNote").textContent="Couldn't load the calendar."});
+}
+function showCal(){
+  {
+    const ev=calOwn.concat(calSheet).filter(e=>e.start),t=todayIso(),m=t.slice(0,7);
     const thisMonth=ev.filter(e=>(e.start||"").slice(0,7)<=m&&(e.end||e.start||"").slice(0,7)>=m&&e.type!=="term").length;
     const comps=ev.filter(e=>e.type==="competition"&&(e.end||e.start)>=t).sort((a,b)=>a.start<b.start?-1:1);
     const nClash=(window.CalClash?CalClash(ev.filter(e=>(e.end||e.start)>=t)).length:0);
     $("calMini").innerHTML=`<div><b>${thisMonth}</b><span>events this month</span></div><div><b>${comps.length}</b><span>competitions ahead</span></div><div class="${nClash?"bad":"good"}"><b>${nClash}</b><span>${nClash===1?"clash":"clashes"}</span></div>`;
     $("calNote").textContent=comps[0]?`Next competition: ${comps[0].title}, ${fmtDate(comps[0].start,{day:"numeric",month:"short"})}`:(ev.length?"No competitions coming up.":"No events added yet.");
-  },()=>{$("calNote").textContent="Couldn't load the calendar."});
+  }
 }
 Hub.gate(()=>{loadCapacity();loadPlan();loadCalendar()});
 })();

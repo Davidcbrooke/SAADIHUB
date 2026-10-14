@@ -122,9 +122,11 @@ dialog::backdrop{background:rgba(20,10,18,.45)}
         </div>
         <div class="row">
           <div class="seg" role="group" aria-label="View"><button type="button" id="vMonth" aria-pressed="true">Month</button><button type="button" id="vList" aria-pressed="false">List</button></div>
-          <button type="button" class="primary" id="addBtn">+ Add event</button>
+          <button type="button" id="sheetBtn">Google Sheet</button><button type="button" class="primary" id="addBtn">+ Add event</button>
         </div>
       </div>
+      <div class="row" id="sheetNote" style="font-size:13px;color:var(--muted)" hidden></div>
+      <div class="notice" id="presetBox" hidden style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between"><span>Add SAADI's <b>2026–27 term dates</b>: Autumn and Spring terms, breaks and the Autumn Skills Progression weeks.</span><button type="button" class="primary" id="presetGo">Add the term dates</button></div>
       <div id="filters" class="wrap" style="gap:8px">
         <div class="fchips" id="fPath" role="group" aria-label="Show pathways"><span class="lab">Pathways</span></div>
         <div class="fchips" id="fType" role="group" aria-label="Show types"><span class="lab">Show</span></div>
@@ -173,6 +175,17 @@ dialog::backdrop{background:rgba(20,10,18,.45)}
   </form>
 </dialog>
 
+<dialog id="sheetDlg" aria-labelledby="sheetTitle">
+  <form class="dlg" id="sheetForm" method="dialog" novalidate>
+    <h2 id="sheetTitle">Linked Google Sheets</h2>
+    <p class="muted" style="margin:0">Competitions from these sheets appear on the calendar automatically and are checked for clashes. Edit them in Google Sheets; changes show here within about 10 minutes (or press <b>Refresh</b>).</p>
+    <p class="muted" style="margin:0;font-size:13px">In the sheet: <b>File → Share → Publish to web</b>, choose the tab, choose <b>Comma-separated values (.csv)</b>, press Publish and paste the link here. The pathway comes from a tag in each cell, e.g. <b>[WAG]</b>, <b>[MAG]</b>, <b>[GAG]</b> (General), <b>[REC]</b>, <b>[Schools]</b>. Cells without a tag use the pathway chosen for that link.</p>
+    <div id="sheetRows" class="wrap" style="gap:10px"></div>
+    <button type="button" id="sheetAdd">+ Add another link</button>
+    <div class="dlg-foot"><span class="muted" id="sheetMsg" aria-live="polite"></span><div class="row"><button type="button" id="sheetCancel">Cancel</button><button type="submit" class="primary">Save</button></div></div>
+  </form>
+</dialog>
+
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
@@ -184,7 +197,8 @@ if("serviceWorker" in navigator&&location.protocol==="https:"){window.addEventLi
 "use strict";
 const {$,esc,fmtDate,todayIso}=Hub;
 const PW=CalPW,TY=CalTY,NKEY="saadiHubName",VKEY="saadiCalView";
-let events=[],cur=new Date(),view="month",editing=null;
+let events=[],own=[],sheetEv=[],links=[],sheetAt=null,sheetErr=[],cur=new Date(),view="month",editing=null;
+const merge=()=>{events=own.concat(sheetEv)};
 let showP=new Set(CalPathways.map(p=>p.k)),showT=new Set(CalTypes.map(t=>t.k));
 cur.setDate(1);
 try{$("myName").value=localStorage.getItem(NKEY)||""}catch(e){}
@@ -273,6 +287,9 @@ function render(){
   computeClashes();
   view==="month"?renderMonth():renderList();
   $("emptyNote").hidden=!!events.length;
+  $("presetBox").hidden=own.some(e=>e.type==="term")||!ownLoaded;
+  $("sheetNote").hidden=!links.length;
+  $("sheetNote").innerHTML=links.length?(sheetErr.length?`<span style="color:var(--bad)">⚠ Couldn't read ${sheetErr.length} linked sheet${sheetErr.length>1?"s":""}. Check it's still published.</span>`:`From Google Sheets: <b>${sheetEv.length}</b> events${sheetAt?`, updated ${new Date(sheetAt).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}`:""}`)+` <button type="button" id="sheetRefresh" style="padding:3px 10px;font-size:13px">Refresh</button>`:"";
 }
 $("prev").onclick=()=>{cur.setMonth(cur.getMonth()-1);render()};
 $("next").onclick=()=>{cur.setMonth(cur.getMonth()+1);render()};
@@ -316,7 +333,11 @@ function openEdit(ev,day){
   syncAllDay();if(ev)$("eAllDay").checked=!!ev.allDay,$("timeRow").hidden=!!ev.allDay;
   $("delBtn").hidden=!ev;$("delYes").hidden=true;$("dlgMsg").textContent="";
   $("dlgStamp").textContent=ev&&ev.updatedAt?`Last updated ${fmtDate(ev.updatedAt.slice(0,10))}${ev.updatedBy?" by "+ev.updatedBy:""}`:"";
-  liveClash();$("dlg").showModal();$("eTitle").focus();
+  const ro=!!(ev&&ev.sheet);
+  $("evForm").querySelectorAll("input,select,textarea").forEach(x=>x.disabled=ro);
+  $("saveBtn").hidden=ro;if(ro)$("delBtn").hidden=true;
+  if(ro){$("dlgTitle").textContent="From the Google Sheet";$("dlgStamp").textContent="This comes from the linked Google Sheet. Change it there.";$("cancelBtn").textContent="Close"}else $("cancelBtn").textContent="Cancel";
+  liveClash();$("dlg").showModal();if(!ro)$("eTitle").focus();
 }
 $("addBtn").onclick=()=>openEdit(null);
 $("cancelBtn").onclick=()=>$("dlg").close();
@@ -336,9 +357,43 @@ $("evForm").addEventListener("submit",async e=>{
 });
 $("dlg").addEventListener("close",()=>{if(!editing)return;});
 
+let ownLoaded=false;
+async function refreshSheets(force){
+  const r=await CalLoadSheets(links,force);sheetEv=r.events;sheetAt=r.at;sheetErr=r.errors;merge();render();
+}
+document.addEventListener("click",e=>{if(e.target&&e.target.id==="sheetRefresh"){e.target.disabled=true;e.target.textContent="Refreshing…";refreshSheets(true)}});
+/* linked sheets dialog */
+const pathOpts=sel=>CalPathways.map(p=>`<option value="${p.k}" ${p.k===sel?"selected":""}>${esc(p.label)}</option>`).join("");
+const sheetRow=l=>`<div class="row sheet-row" style="align-items:flex-end"><label class="f" style="flex:1;min-width:220px">Published CSV link <input type="text" class="sUrl" value="${esc(l.url||"")}" placeholder="https://docs.google.com/spreadsheets/d/e/…/pub?…output=csv"></label><label class="f">Untagged cells are <select class="sPath">${pathOpts(l.pathway||"all")}</select></label><button type="button" class="ghost sDel" aria-label="Remove link">✕</button></div>`;
+$("sheetBtn").onclick=()=>{$("sheetRows").innerHTML=(links.length?links:[{}]).map(sheetRow).join("");$("sheetMsg").textContent="";$("sheetDlg").showModal()};
+$("sheetAdd").onclick=()=>$("sheetRows").insertAdjacentHTML("beforeend",sheetRow({}));
+$("sheetRows").addEventListener("click",e=>{const b=e.target.closest(".sDel");if(b)b.closest(".sheet-row").remove()});
+$("sheetCancel").onclick=()=>$("sheetDlg").close();
+$("sheetForm").addEventListener("submit",async e=>{e.preventDefault();
+  const ls=[...document.querySelectorAll(".sheet-row")].map(r=>({url:r.querySelector(".sUrl").value.trim(),pathway:r.querySelector(".sPath").value})).filter(l=>l.url);
+  if(ls.some(l=>!/^https:\/\/docs\.google\.com\/spreadsheets\//.test(l.url))){$("sheetMsg").textContent="Each link should start https://docs.google.com/spreadsheets/";return}
+  $("sheetMsg").textContent="Checking the sheets…";
+  const r=await CalLoadSheets(ls,true);
+  if(r.errors.length){$("sheetMsg").textContent=`Couldn't read ${r.errors.length} of the links. Is the tab published as CSV?`;return}
+  try{await Hub.doc("config/calendarSheets").set({links:ls,updatedAt:new Date().toISOString(),updatedBy:$("myName").value.trim()});$("sheetDlg").close()}
+  catch(x){$("sheetMsg").textContent="Couldn't save ("+(x.code||"error")+")."}
+});
+/* SAADI 2026–27 term dates */
+const PRESET=[
+  {title:"Autumn term 2026",type:"term",start:"2026-09-01",end:"2026-12-20",notes:"15 teaching weeks (14 Mondays). Christmas holiday starts Mon 21 Dec."},
+  {title:"Autumn break",type:"holiday",start:"2026-10-26",end:"2026-11-01"},
+  {title:"Skills Progression Weeks",type:"assessment",start:"2026-12-07",end:"2026-12-20"},
+  {title:"Christmas holiday",type:"holiday",start:"2026-12-21",end:"2027-01-01"},
+  {title:"Spring term 2027",type:"term",start:"2027-01-02",end:"2027-03-25",notes:"11 teaching weeks (10 Fridays)."},
+  {title:"Spring break",type:"holiday",start:"2027-03-08",end:"2027-03-21"}
+];
+$("presetGo").onclick=async()=>{$("presetGo").disabled=true;$("presetGo").textContent="Adding…";
+  try{const b=Hub.fs.batch(),now=new Date().toISOString();PRESET.forEach(p=>b.set(Hub.col("calendar").doc(),{location:"",notes:"",startTime:"",endTime:"",...p,pathway:"all",allDay:true,createdAt:now,updatedAt:now,updatedBy:$("myName").value.trim()||"Term dates"}));await b.commit()}
+  catch(e){$("presetGo").disabled=false;$("presetGo").textContent="Try again"}};
 Hub.tooltips();
 Hub.gate(()=>{
-  Hub.col("calendar").onSnapshot(q=>{events=q.docs.map(d=>({id:d.id,...d.data()})).filter(e=>e.start);render()},()=>{$("statusNote").hidden=false;$("statusNote").textContent="Couldn't load the calendar. Check the internet connection."});
+  Hub.doc("config/calendarSheets").onSnapshot(d=>{links=(d.exists&&d.data().links)||[];refreshSheets(false)},()=>{});
+  Hub.col("calendar").onSnapshot(q=>{own=q.docs.map(d=>({id:d.id,...d.data()})).filter(e=>e.start);ownLoaded=true;merge();render()},()=>{$("statusNote").hidden=false;$("statusNote").textContent="Couldn't load the calendar. Check the internet connection."});
   render();
 });
 })();

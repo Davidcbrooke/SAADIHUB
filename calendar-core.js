@@ -45,3 +45,68 @@ function CalClash(events){
 window.CalPathways=PATHWAYS;window.CalTypes=TYPES;window.CalPW=PW;window.CalTY=TY;
 window.CalClash=CalClash;window.CalOverlap=overlap;window.CalEnd=endOf;window.CalClashable=CLASHABLE;
 })();
+
+/* ---------- Google Sheets (published as CSV) ----------
+   Reads a month-grid sheet: a "September 2026" heading row, then rows of day numbers with event cells underneath.
+   The pathway comes from a tag in the cell, e.g. "Bury Spectrum [WAG]"; untagged cells use the link's default pathway. */
+(function(){
+const MONTHS=["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+const TAGS={wag:"wag",mag:"mag",gag:"general",gen:"general",general:"general",gl:"general",rec:"recreational",recreational:"recreational",
+  schools:"schools",school:"schools",preschool:"preschool","pre-school":"preschool",pre:"preschool",perf:"performance",performance:"performance",pl:"performance",all:"all",club:"all"};
+function parseCSV(t){
+  const rows=[];let row=[],f="",q=false;
+  for(let i=0;i<t.length;i++){const c=t[i];
+    if(q){if(c==='"'){if(t[i+1]==='"'){f+='"';i++}else q=false}else f+=c}
+    else if(c==='"')q=true;else if(c===","){row.push(f);f=""}else if(c==="\n"){row.push(f);rows.push(row);row=[];f=""}else if(c!=="\r")f+=c}
+  if(f||row.length){row.push(f);rows.push(row)}
+  return rows;
+}
+const pad=n=>String(n).padStart(2,"0");
+function monthOf(cell){const m=String(cell||"").trim().match(/^([A-Za-z]{3,9})\.?\s+(\d{4})$/);if(!m)return null;const i=MONTHS.indexOf(m[1].slice(0,3).toLowerCase());return i<0?null:{y:+m[2],m:i}}
+function typeOf(t){return /squad|training|camp|course|meeting|clinic|session|judging|judge/i.test(t)?"event":"competition"}
+function parseGrid(text,defPath){
+  const rows=parseCSV(text),hits=[];let cur=null,days=null;
+  for(const r of rows){
+    const mo=r.map(monthOf).find(Boolean);
+    if(mo){cur=mo;days=null;continue}
+    if(!cur)continue;
+    const filled=r.map((c,i)=>[String(c).trim(),i]).filter(([c])=>c);
+    if(!filled.length)continue;
+    if(filled.every(([c])=>/^\d{1,2}$/.test(c)&&+c>=1&&+c<=31)){days={};filled.forEach(([c,i])=>days[i]=+c);continue}
+    if(!days||filled.every(([c])=>/^(mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)/i.test(c)))continue;
+    filled.forEach(([c,i])=>{if(days[i]==null)return;
+      const tags=[...c.matchAll(/\[([^\]]+)\]/g)].map(x=>x[1].trim().toLowerCase().replace(/\s+/g,""));
+      const path=tags.map(t=>TAGS[t]).find(Boolean)||defPath||"all";
+      const title=c.replace(/\[[^\]]*\]/g,"").replace(/\s+/g," ").trim()||c;
+      hits.push({title,pathway:path,date:`${cur.y}-${pad(cur.m+1)}-${pad(days[i])}`,raw:c});
+    });
+  }
+  // merge the same event on consecutive days
+  hits.sort((a,b)=>(a.title+a.pathway).localeCompare(b.title+b.pathway)||a.date.localeCompare(b.date));
+  const out=[];
+  hits.forEach(h=>{const last=out[out.length-1];
+    const next=last&&last.title===h.title&&last.pathway===h.pathway?(()=>{const d=new Date(last.end+"T12:00:00");d.setDate(d.getDate()+1);return d.toISOString().slice(0,10)})():null;
+    if(next&&(h.date===next||h.date===last.end))last.end=h.date;
+    else out.push({id:"sheet:"+h.pathway+":"+h.date+":"+h.title.slice(0,40),title:h.title,pathway:h.pathway,type:typeOf(h.title),start:h.date,end:h.date,allDay:true,sheet:true,location:"",notes:""});
+  });
+  out.forEach(e=>{if(e.end===e.start)e.end=""});
+  return out;
+}
+const CACHE="saadiCalSheets";
+async function loadSheets(links,force){
+  links=(links||[]).filter(l=>l&&l.url);
+  if(!links.length)return {events:[],at:null,errors:[]};
+  const sig=JSON.stringify(links);
+  if(!force){try{const c=JSON.parse(sessionStorage.getItem(CACHE)||"null");if(c&&c.sig===sig&&Date.now()-c.t<10*60*1000)return {events:c.events,at:c.t,errors:[]}}catch(e){}}
+  const events=[],errors=[];
+  await Promise.all(links.map(async l=>{
+    try{const r=await fetch(l.url+(l.url.includes("?")?"&":"?")+"_="+Date.now());if(!r.ok)throw new Error(r.status);
+      events.push(...parseGrid(await r.text(),l.pathway))}
+    catch(e){errors.push(l.url)}
+  }));
+  const seen=new Set(),uniq=events.filter(e=>!seen.has(e.id)&&seen.add(e.id));
+  if(!errors.length)try{sessionStorage.setItem(CACHE,JSON.stringify({sig,t:Date.now(),events:uniq}))}catch(e){}
+  return {events:uniq,at:Date.now(),errors};
+}
+window.CalParseGrid=parseGrid;window.CalLoadSheets=loadSheets;
+})();

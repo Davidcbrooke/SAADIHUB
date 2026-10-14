@@ -65,6 +65,15 @@
 @media (max-width:640px){.row-ev{grid-template-columns:1fr}.row-ev>.pills{justify-self:start;align-items:flex-start!important;flex-direction:row!important;flex-wrap:wrap}}
 /* clashes */
 .clashes{border-left:5px solid var(--bad)}
+.clashes{padding:12px 18px;gap:0}
+.clashes summary{list-style:none;cursor:pointer;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;justify-content:space-between}
+.clashes summary::-webkit-details-marker{display:none}
+.clashes summary::before{content:"▸";color:var(--bad);font-weight:700;margin-right:-6px}
+.clashes[open] summary::before{content:"▾"}
+.clashes .ctitle{font-family:var(--display);font-weight:600;font-size:18px;color:var(--bad);flex:1}
+.clashes .chint{font-size:13px}.clashes .cshow,.clashes .chide{text-decoration:underline;font-weight:600}
+.clashes:not([open]) .chide,.clashes[open] .cshow{display:none}
+.clashes[open] ul{margin-top:12px}
 .clashes ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:14px}
 .clashes button.link{background:none;border:0;padding:0;font-weight:600;color:inherit;text-decoration:underline;cursor:pointer}
 /* dialog */
@@ -133,10 +142,10 @@ dialog::backdrop{background:rgba(20,10,18,.45)}
       </div>
     </section>
 
-    <section class="panel clashes" id="clashPanel" hidden>
-      <div class="panel-head"><h2 id="clashTitle">Clashes</h2><span class="muted">upcoming events that overlap</span></div>
+    <details class="panel clashes" id="clashPanel" hidden>
+      <summary><span class="ctitle" id="clashTitle">Clashes</span><span class="muted chint">upcoming events that overlap · <span class="cshow">show</span><span class="chide">hide</span></span></summary>
       <ul id="clashList"></ul>
-    </section>
+    </details>
 
     <section id="monthView" aria-label="Month view"></section>
     <section id="listView" class="agenda" aria-label="List of events" hidden></section>
@@ -233,6 +242,8 @@ function computeClashes(){
     const d=c.a.start>c.b.start?c.a.start:c.b.start;
     return `<li><b>${fmtDate(d,{weekday:"short",day:"numeric",month:"short"})}</b>: <button type="button" class="link" data-id="${c.a.id}">${esc(c.a.title)}</button> (${esc(pv(c.a).label)}, ${timeTxt(c.a)}) overlaps <button type="button" class="link" data-id="${c.b.id}">${esc(c.b.title)}</button> (${esc(pv(c.b).label)}, ${timeTxt(c.b)})${c.same?" · same pathway":""}</li>`}).join("");
 }
+try{if(localStorage.getItem("saadiClashOpen")==="1")$("clashPanel").open=true}catch(e){}
+$("clashPanel").addEventListener("toggle",()=>{try{localStorage.setItem("saadiClashOpen",$("clashPanel").open?"1":"0")}catch(e){}});
 $("clashList").addEventListener("click",e=>{const b=e.target.closest("[data-id]");if(b)openEdit(events.find(x=>x.id===b.dataset.id))});
 
 /* ---------- month view ---------- */

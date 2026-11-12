@@ -55,5 +55,15 @@ Open the full-screen link (not the Squarespace page) on the device:
 
 ## Weekly routine (for reception)
 
-1. In JustGo, open the class booking list. Select all, then copy.
-2. In the app, click **Add this week's numbers**, paste, check the summary line (about 125 classes across 7 days), and press **Save week**.
+**Once per computer:** open the app, click **Add this week's numbers**, and drag the red **Send to SAADI Hub** button onto the browser's bookmarks bar (Ctrl+Shift+B / Cmd+Shift+B shows the bar).
+
+Each week:
+1. In JustGo (MyBG), open **Class Management** for the current term.
+2. Click **Send to SAADI Hub** in the bookmarks bar. It loads every class (this takes a few seconds), then opens the hub with the numbers filled in.
+3. Check the summary line (about 125 classes across 7 days) and press **Save week**.
+
+The bookmark only reads the class list. It doesn't change anything in JustGo and doesn't read member details. If the browser blocks the new tab, allow pop-ups for mybg.british-gymnastics.org.
+
+If the bookmark ever stops working (for example after a JustGo redesign), use **Or paste the list by hand** in the same panel: select all in JustGo, copy, and paste.
+
+To change the bookmark's code, edit `justgo-sync-bookmarklet.js`, run `node build-bookmarklet.js`, and commit. Everyone then needs to drag the new button to their bookmarks bar again.

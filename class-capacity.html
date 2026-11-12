@@ -129,6 +129,10 @@ tr.total td{font-weight:700;border-bottom:none}
 .list .it{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)}
 .list .it span:first-child{min-width:0;overflow-wrap:anywhere}
 /* paste */
+.sync-box{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--surface)}
+.sync-box h3{margin:0 0 6px;font-size:15px}
+.bm{display:inline-block;margin:6px 6px 2px 0;padding:7px 14px;border-radius:999px;background:var(--accent);color:#fff;font-weight:700;text-decoration:none;cursor:grab}
+details.manual summary{cursor:pointer;font-weight:600;margin:4px 0}
 textarea{width:100%;min-height:200px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:13px;font-family:ui-monospace,Menlo,Consolas,monospace;resize:vertical}
 .steps{margin:0;padding-left:20px;font-size:14px;color:var(--muted)}
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
@@ -220,11 +224,25 @@ label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:60
   <!-- Paste panel -->
   <section class="panel" id="pastePanel" hidden>
     <div class="panel-head"><h2>Add this week's numbers</h2><button type="button" id="closePaste">Close</button></div>
-    <ol class="steps">
-      <li>In JustGo, open the class booking list for the current term (the one showing Booked, Available and Wait List).</li>
-      <li>Select the whole list (Ctrl+A / Cmd+A), copy it, and paste it into the box below.</li>
-      <li>Check the date and the summary, then press <b>Save week</b>.</li>
-    </ol>
+    <div id="syncNote" class="notice" hidden></div>
+    <div class="sync-box">
+      <h3>Sync straight from JustGo</h3>
+      <ol class="steps">
+        <li><b>Once per computer:</b> drag this button onto your browser's bookmarks bar
+          <a id="jgBookmarklet" class="bm" href="javascript:(async%20()%20%3D%3E%20%7Bconst%20HUB%20%3D%20%22https%3A%2F%2Fhub.saadigymnastics.co.uk%2Fclass-capacity.html%22%3Bconst%20w%20%3D%20window.open(%22about%3Ablank%22%2C%20%22saadiHubSync%22)%3Blet%20doc%20%3D%20document%3Bconst%20fr%20%3D%20document.querySelector('iframe%5Bsrc*%3D%22ClassManagement%22%5D')%3Btry%20%7B%20if%20(fr%20%26%26%20fr.contentDocument)%20doc%20%3D%20fr.contentDocument%3B%20%7D%20catch%20(e)%20%7B%7Dconst%20rows%20%3D%20()%20%3D%3E%20doc.querySelectorAll(%22tbody%20tr%22)%3Bif%20(!%2FClassManagement%2Fi.test(location.href)%20%7C%7C%20!rows().length)%20%7Bif%20(w)%20w.close()%3Balert(%22Open%20JustGo%20%3E%20Class%20Management%20(the%20class%20list)%20first%2C%20then%20click%20'Send%20to%20SAADI%20Hub'%20again.%22)%3Breturn%3B%7Dconst%20m%20%3D%20(doc.body.innerText.match(%2F%5Cd%2B%5Cs*-%5Cs*%5Cd%2B%5Cs%2Bof%5Cs%2B(%5Cd%2B)%2F)%20%7C%7C%20%5B%5D)%5B1%5D%3Bconst%20total%20%3D%20%2Bm%20%7C%7C%200%3Bconst%20box%20%3D%20%5B...doc.querySelectorAll(%22*%22)%5D.filter(e%20%3D%3E%20e.scrollHeight%20%3E%20e.clientHeight%20%2B%2020%20%26%26%20%2Fauto%7Cscroll%2F.test(getComputedStyle(e).overflowY)).sort((a%2C%20b)%20%3D%3E%20b.querySelectorAll(%22tr%22).length%20-%20a.querySelectorAll(%22tr%22).length)%5B0%5D%3Blet%20last%20%3D%20-1%2C%20same%20%3D%200%3Bwhile%20(same%20%3C%204%20%26%26%20!(total%20%26%26%20rows().length%20%3E%3D%20total))%20%7Bif%20(box)%20box.scrollTop%20%3D%20box.scrollHeight%3Bawait%20new%20Promise(r%20%3D%3E%20setTimeout(r%2C%20700))%3Bconst%20n%20%3D%20rows().length%3Bsame%20%3D%20n%20%3D%3D%3D%20last%20%3F%20same%20%2B%201%20%3A%200%3Blast%20%3D%20n%3B%7Dconst%20text%20%3D%20%5B...rows()%5D.map(r%20%3D%3E%20r.innerText).join(%22%5Cn%22).split(%22%5Cn%22).map(s%20%3D%3E%20s.trim()).filter(Boolean).join(%22%5Cn%22)%3Bconst%20url%20%3D%20HUB%20%2B%20%22%23jg%3D%22%20%2B%20encodeURIComponent(JSON.stringify(%7B%20v%3A%201%2C%20at%3A%20new%20Date().toISOString()%2C%20n%3A%20rows().length%2C%20total%2C%20text%20%7D))%3Bif%20(w%20%26%26%20!w.closed)%20w.location.href%20%3D%20url%3Belse%20alert(%22Your%20browser%20blocked%20the%20SAADI%20Hub%20tab.%20Allow%20pop-ups%20for%20this%20site%2C%20then%20click%20'Send%20to%20SAADI%20Hub'%20again.%22)%3B%7D)()%3B" title="Drag me to the bookmarks bar">Send to SAADI Hub</a>
+          <span class="muted">(Ctrl+Shift+B / Cmd+Shift+B shows the bar).</span></li>
+        <li>In JustGo, open <b>Class Management</b> for the current term.</li>
+        <li>Click <b>Send to SAADI Hub</b> in your bookmarks bar. The hub opens with every class loaded. Check the summary and press <b>Save week</b>.</li>
+      </ol>
+    </div>
+    <details class="manual">
+      <summary>Or paste the list by hand</summary>
+      <ol class="steps">
+        <li>In JustGo, open the class booking list for the current term (the one showing Booked, Available and Wait List).</li>
+        <li>Select the whole list (Ctrl+A / Cmd+A), copy it, and paste it into the box below.</li>
+        <li>Check the date and the summary, then press <b>Save week</b>.</li>
+      </ol>
+    </details>
     <div class="row">
       <label class="f" for="weekDate">Week starting (Monday)
         <input type="date" id="weekDate">
@@ -383,6 +401,15 @@ let db=null, isOwner=false, settings=JSON.parse(JSON.stringify(DEFAULT_SETTINGS)
 let snaps=[]; // [{id, weekOf, classes:[...]}] sorted asc
 let selected=null, parsed=null, localOnly=false;
 const $=id=>document.getElementById(id);
+/* ---------- JustGo sync: the "Send to SAADI Hub" bookmark opens this page with the class list after #jg= ---------- */
+let pendingImport=null;
+function readSyncHash(){
+  const h=location.hash;if(!h.startsWith("#jg="))return false;
+  try{const p=JSON.parse(decodeURIComponent(h.slice(4)));if(p&&typeof p.text==="string")pendingImport=p}catch(e){}
+  history.replaceState(null,"",location.pathname+location.search);
+  return !!pendingImport;
+}
+readSyncHash();
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const gbp=n=>"£"+Math.round(n).toLocaleString("en-GB");
 const pct=x=>isFinite(x)?Math.round(x*100)+"%":"–";
@@ -682,6 +709,19 @@ function onPaste(){
   $("saveWeek").disabled=!wk;
   $("saveWeek").textContent=snaps.find(s=>s.id===wk)?"Replace this week":"Save week";
 }
+function applyImport(){
+  if(!pendingImport||!db)return;
+  const p=pendingImport;pendingImport=null;
+  $("settingsPanel").hidden=true;$("pastePanel").hidden=false;
+  $("weekDate").value=mondayOf(new Date());
+  $("pasteBox").value=p.text;onPaste();
+  const at=new Date(p.at||Date.now()).toLocaleString("en-GB",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
+  const short=p.total&&p.n<p.total;
+  const n=$("syncNote");n.hidden=false;
+  n.textContent=`Loaded from JustGo (${at}). Check the summary below, then press Save week.`+
+    (short?` Only ${p.n} of ${p.total} classes came through, so go back to JustGo and click Send to SAADI Hub again.`:"");
+  $("pastePanel").scrollIntoView({behavior:"smooth",block:"start"});
+}
 async function saveWeek(){
   if(!parsed||!parsed.classes.length)return;
   const wk=mondayOf(new Date($("weekDate").value+"T12:00:00"));
@@ -702,7 +742,9 @@ async function saveWeek(){
 /* ---------- wiring ---------- */
 $("weekDate").value=mondayOf(new Date());
 $("openPaste").onclick=$("emptyPaste").onclick=()=>{$("pastePanel").hidden=false;$("settingsPanel").hidden=true;$("pasteBox").focus()};
-$("closePaste").onclick=()=>{$("pastePanel").hidden=true};
+$("closePaste").onclick=()=>{$("pastePanel").hidden=true;$("syncNote").hidden=true};
+$("jgBookmarklet").onclick=e=>{e.preventDefault();const n=$("syncNote");n.hidden=false;n.textContent="Drag the Send to SAADI Hub button onto your bookmarks bar, rather than clicking it here. Then click it while you're on JustGo Class Management."};
+window.addEventListener("hashchange",()=>{if(readSyncHash()){if(db)applyImport();else $("authMsg").textContent="Enter the password to load the numbers from JustGo."}});
 $("openSettings").onclick=()=>{renderSettings();$("settingsPanel").hidden=false;$("pastePanel").hidden=true};
 $("closeSettings").onclick=()=>{$("settingsPanel").hidden=true};
 $("pasteBox").addEventListener("input",onPaste);
@@ -743,6 +785,7 @@ function lockedView(){
   $("appControls").hidden=true;$("signOut").hidden=true;$("whoAmI").textContent="";$("hubNav").hidden=true;
   $("authPanel").hidden=false;$("setupPanel").hidden=true;$("emptyState").hidden=true;$("dash").hidden=true;$("pastePanel").hidden=true;$("settingsPanel").hidden=true;
   $("authPass").value="";
+  if(pendingImport)$("authMsg").textContent="Enter the password to load the numbers from JustGo.";
 }
 function rememberKey(id,yes){try{yes?localStorage.setItem(KEY_STORE,id):localStorage.removeItem(KEY_STORE)}catch(e){}}
 async function openWithKey(id,remember){
@@ -761,6 +804,7 @@ async function openWithKey(id,remember){
     snaps=q.docs.map(d=>({id:d.id,...d.data()})).filter(x=>Array.isArray(x.classes));render();
   },()=>showNote("Lost connection to the saved weeks. Reload the page to reconnect.")));
   applyRemoteSettings();
+  if(pendingImport)setTimeout(applyImport,0);
   return "";
 }
 async function changePw(role){

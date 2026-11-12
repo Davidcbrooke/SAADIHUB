@@ -59,8 +59,8 @@ Open the full-screen link (not the Squarespace page) on the device:
 
 Each week:
 1. In JustGo (MyBG), open **Class Management** for the current term.
-2. Click **Send to SAADI Hub** in the bookmarks bar. It loads every class (this takes a few seconds), then opens the hub with the numbers filled in.
-3. Check the summary line (about 125 classes across 7 days) and press **Save week**.
+2. Click **Send to SAADI Hub** in the bookmarks bar. It loads every class in the current term plus the Rolling Term squads (WAG, Boys, GAG; about 20 seconds), then opens the hub with the numbers filled in.
+3. Check the summary line (about 200 classes across 7 days) and press **Save week**.
 
 The bookmark only reads the class list. It doesn't change anything in JustGo and doesn't read member details. If the browser blocks the new tab, allow pop-ups for mybg.british-gymnastics.org.
 

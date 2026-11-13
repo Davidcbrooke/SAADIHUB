@@ -96,13 +96,15 @@
     const termly = t => !t.IsDeleted && len(t) >= 28 && len(t) <= 200 && !/full\s*year/i.test(t.Name);
     const cur = (termList || []).filter(t => termly(t) && new Date(t.StartDate) <= now && new Date(t.EndDate) >= now);
     const curEnd = Math.max(0, ...cur.map(t => +new Date(t.EndDate)));
-    const nxt = (termList || []).filter(t => termly(t) && new Date(t.StartDate) > now && +new Date(t.StartDate) <= curEnd + 45 * day);
+    // Next term: starts once this term has (nearly) finished, so one-off terms running alongside this one aren't counted.
+    const nxt = (termList || []).filter(t => termly(t) && new Date(t.StartDate) > now && +new Date(t.StartDate) >= curEnd - 7 * day && +new Date(t.StartDate) <= curEnd + 45 * day);
     if (cur.length && nxt.length && alive()) {
       const nextList = await loadList(nxt.map(t => String(t.ClassTermId)), "Loading next term's classes…");
       const nextData = nextList ? (tableData(nextList.d, o => o.SessionGuid) || []) : [];
       if (nextList) nextList.fr.remove();
       const curIds = new Set(cur.map(t => t.ClassTermId)), nxtIds = new Set(nxt.map(t => t.ClassTermId));
       const sessions = data.filter(o => curIds.has(o.TermId)).map(o => [o, "c"]).concat(nextData.filter(o => nxtIds.has(o.TermId)).map(o => [o, "n"]));
+      sessions.forEach(([o, k]) => { o.__k = k; });
       // JustGo's register service needs the same sign-in headers its own register page sends: open one register and borrow them.
       say("Reading the class registers…");
       let H = null;
@@ -149,8 +151,10 @@
               (await get(o.SessionGuid)).forEach(a => {
                 if (a.isCancelled) return;
                 const id = String(a.memberId || a.entityid);
-                if (!kids[id]) kids[id] = [a.firstName || "", a.lastName || "", a.parentFirstname || "", a.parentEmailAddress || a.emailAddress || "", a.age || ""];
-                rows.push([i, id, a.hasTrial ? "T" : String(a.chipStatus || "").toUpperCase() === "PAYG" ? "P" : ""]);
+                const fl = a.hasTrial ? "T" : String(a.chipStatus || "").toUpperCase() === "PAYG" ? "P" : "";
+                // Names and emails only for termly places this term and bookings next term; trials and pay-as-you-go are just counted.
+                if (!kids[id] && (fl === "" || o.__k === "n")) kids[id] = [a.firstName || "", a.lastName || "", a.parentFirstname || "", a.parentEmailAddress || a.emailAddress || "", a.age || ""];
+                rows.push([i, fl === "" || o.__k === "n" ? id : "", fl]);
               });
             } catch (e) {}
             done++;

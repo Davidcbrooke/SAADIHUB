@@ -68,7 +68,7 @@ The bookmark only reads the class list. It doesn't change anything in JustGo and
 
 If the bookmark ever stops working (for example after a JustGo redesign), use **Or paste the list by hand** in the same panel: select all in JustGo, copy, and paste.
 
-To change the bookmark's code, edit `justgo-sync-bookmarklet.js`, run `node build-bookmarklet.js`, and commit. Everyone then needs to drag the new button to their bookmarks bar again.
+The bookmark is a small launcher that loads `justgo-sync-bookmarklet.js` from the hub each time it's clicked. To change what it does, edit that file and commit; everyone gets the change straight away, with no need to drag the button again. (Only changing the launcher itself, in `build-bookmarklet.js`, would need a new drag.)
 
 # Enquiry Desk
 
@@ -120,5 +120,6 @@ The desk saves enquiries under the hub's private data area, using the same prote
 `term-renewals.html` shows how many children on a termly place this term have booked for next term: overall, by area (Recreational, Pre-School, Novice) and class by class. Click a class to see who has booked and who hasn't. It also sends reminder emails, from reception@, to families who haven't booked yet.
 
 - **Where the data comes from:** the morning **Send to SAADI Hub** button. Once next term's classes are set up in JustGo, it also reads this term's and next term's class registers: each child, their parent's email, and whether the place is a trial or pay-as-you-go. It reads only; it doesn't change anything in JustGo. Press **Save week** as usual and the renewals update.
+- **Which classes:** the Recreational and Pre-School terms, as with the termly renewal emails (Novice's separate term isn't read).
 - **Who counts:** children on a termly place this term. Trials and pay-as-you-go places (e.g. Pre-School PAYG, Play Gym) aren't counted. A child has renewed once they're booked into any class next term.
 - **Reminders:** one email per family, with a button to book each child's matching class next term (same day, time and colour). Families reminded in the last few days, and families whose class has no match next term yet, are hidden by default. Every reminder is logged, so the list shows who was reminded and when. The wording can be changed under **Change the wording**.

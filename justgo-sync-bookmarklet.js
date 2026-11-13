@@ -1,6 +1,6 @@
-// "Send to SAADI Hub" bookmarklet: readable source.
-// The hub page (class-capacity.html) builds the bookmark link from this file's code, so edit here
-// and run `node build-bookmarklet.js` to refresh the link in class-capacity.html.
+// "Send to SAADI Hub" bookmarklet: the code it runs.
+// The bookmark itself is a small launcher (see build-bookmarklet.js) that loads this file from the hub each time it's clicked,
+// so changes here reach everyone as soon as they're published: nobody needs to drag the button again.
 // Keep every comment on a line of its own, and end every statement with ; or }: the build joins the code into one line.
 //
 // What it does, from anywhere in JustGo > Class Management:
@@ -11,8 +11,8 @@
 //   3. loads all of those terms together in a copy of the class list behind the panel and scrolls it until every class has loaded,
 //   4. takes the same text a select-all copy would give (class, time, group, Booked / Available / Trial / Wait List, term),
 //      plus each class's public booking link (what JustGo's "Copy Link" gives), for the Enquiry Desk emails,
-//   5. Term Renewals: when next term's classes are set up (e.g. Spring), reads the registers of this term's termly classes
-//      and next term's classes (child, parent's first name and email, trial / pay-as-you-go), so the hub can show who has renewed,
+//   5. Term Renewals: when next term's classes are set up (e.g. Spring), reads the registers of this term's Recreational and
+//      Pre-School classes and next term's (child, parent's first name and email, trial / pay-as-you-go), so the hub can show who has renewed,
 //   6. only when every class is in, offers an "Open SAADI Hub" button, which sends it all to the hub
 //      in the address after "#jg=" (that part never leaves the browser).
 // It reads only; it never clicks Book, Cancel or anything that changes JustGo.
@@ -97,7 +97,9 @@
   let ren = null, renNote = "";
   try {
     const day = 864e5, len = t => (new Date(t.EndDate) - new Date(t.StartDate)) / day;
-    const termly = t => !t.IsDeleted && len(t) >= 28 && len(t) <= 200 && !/full\s*year/i.test(t.Name);
+    // Renewals cover the same terms as the termly renewal emails: Recreational and Pre-School
+    // (e.g. Autumn Term 2026 Recreational -> Spring Term 2027 - Recreational). Novice's separate term isn't read.
+    const termly = t => !t.IsDeleted && len(t) >= 28 && len(t) <= 200 && !/full\s*year/i.test(t.Name) && /recreational|pre\s*-?\s*school/i.test(t.Name);
     const cur = (termList || []).filter(t => termly(t) && new Date(t.StartDate) <= now && new Date(t.EndDate) >= now);
     const curEnd = Math.max(0, ...cur.map(t => +new Date(t.EndDate)));
     // Next term: starts once this term has (nearly) finished, so one-off terms running alongside this one aren't counted.

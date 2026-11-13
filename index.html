@@ -50,7 +50,7 @@ a.card p{margin:0;color:var(--muted)}
       <div><div class="eyebrow">SAADI Gymnastics</div><h1>Business Hub</h1></div>
     </a>
     <div class="head-right">
-      <nav class="hubnav needs-auth" aria-label="Hub pages"><a href="index.html" aria-current="page">Hub</a><a href="enquiry-desk.html">Enquiry Desk</a><a href="class-capacity.html">Class Capacity</a><a href="business-plan.html">Business Plan</a><a href="calendar.html">Club Calendar</a></nav>
+      <nav class="hubnav needs-auth" aria-label="Hub pages"><a href="index.html" aria-current="page">Hub</a><a href="enquiry-desk.html">Enquiry Desk</a><a href="term-renewals.html">Term Renewals</a><a href="class-capacity.html">Class Capacity</a><a href="business-plan.html">Business Plan</a><a href="calendar.html">Club Calendar</a></nav>
       <button type="button" class="needs-auth" data-lock>Lock</button>
     </div>
   </header>
@@ -79,6 +79,12 @@ a.card p{margin:0;color:var(--muted)}
         <p>"Any space for a 6-year-old girl?" answered in seconds, trial invites emailed, and every follow-up until they join.</p>
         <div class="mini" id="enqMini"><div class="bad"><b>–</b><span>follow-ups due</span></div><div><b>–</b><span>trials coming up</span></div><div class="good"><b>–</b><span>joined (30 days)</span></div></div>
         <div class="muted" style="font-size:13px" id="enqNote">No enquiries yet.</div>
+      </a>
+      <a class="card" href="term-renewals.html">
+        <h2>Term Renewals <span aria-hidden="true">→</span></h2>
+        <p>Who has booked next term, class by class, and one-click reminder emails to families who haven't.</p>
+        <div class="mini" id="renMini"><div><b>–</b><span>renewed</span></div><div class="bad"><b>–</b><span>still to book</span></div><div><b>–</b><span>families to remind</span></div></div>
+        <div class="muted" style="font-size:13px" id="renNote">Comes in with the morning JustGo sync.</div>
       </a>
       <a class="card" href="class-capacity.html">
         <h2>Class Capacity Report <span aria-hidden="true">→</span></h2>
@@ -135,6 +141,13 @@ function headline(){
   if(cap)bits.push(`Classes are <b>${pct(cap.fill)} full</b> (w/c ${fmtDate(cap.weekOf,{day:"numeric",month:"short"})})`);
   if(plan)bits.push(`<b>${plan.done} of ${plan.total}</b> plan objectives are completed${plan.od?`, and <b style="color:var(--bad)">${plan.od} ${plan.od===1?"is":"are"} overdue</b>`:""}`);
   $("headline").innerHTML=bits.length?bits.join(". ")+".":"Choose a report below.";
+}
+function loadRenewals(){
+  Hub.doc("renewals/latest").get().then(d=>{
+    if(!d.exists)return;const R=EQ.renewals(JSON.parse(d.data().json));if(!R)return;
+    $("renMini").innerHTML=`<div class="${R.rate>=.8?"good":""}"><b>${isFinite(R.rate)?Math.round(R.rate*100)+"%":"–"}</b><span>renewed</span></div><div class="bad"><b>${R.kids-R.renewed}</b><span>still to book</span></div><div><b>${R.families.length}</b><span>families to remind</span></div>`;
+    $("renNote").textContent=`${R.next.map(t=>t.name).join(" and ")}: ${R.renewed} of ${R.kids} children booked.`;
+  }).catch(()=>{});
 }
 function loadEnquiries(){
   Promise.all([Hub.doc("config/enquiryDesk").get().catch(()=>null),Hub.col("enquiries").get()]).then(([d,q])=>{
@@ -200,7 +213,7 @@ function showCal(){
     $("calNote").textContent=comps[0]?`Next competition: ${comps[0].title}, ${fmtDate(comps[0].start,{day:"numeric",month:"short"})}`:(ev.length?"No competitions coming up.":"No events added yet.");
   }
 }
-Hub.gate(()=>{loadCapacity();loadPlan();loadCalendar();loadEnquiries()});
+Hub.gate(()=>{loadCapacity();loadPlan();loadCalendar();loadEnquiries();loadRenewals()});
 })();
 </script>
 <!-- NGL pull-to-refresh: iPhone home-screen apps have no pull-to-refresh, so this adds one (only when installed). -->

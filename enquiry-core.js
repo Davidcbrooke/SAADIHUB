@@ -250,17 +250,7 @@ EQ.email=function(type,r,s){
     if(p.trim()==="\u0000book\u0000")return btn(joinLink,"Book "+(r.childName?r.childName+"'s":"the")+" place");
     return `<p style="margin:0 0 14px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.55;color:#1d1a1f">${escH(p).replace(/\n/g,"<br>")}</p>`;
   }).join("");
-  const html=`<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escH(subject)}</title></head>
-<body style="margin:0;padding:0;background:#f6f4f6">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f4f6"><tr><td align="center" style="padding:24px 12px">
-<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:14px;overflow:hidden">
-<tr><td style="background:#f20779;padding:22px 28px" align="left"><table role="presentation" cellpadding="0" cellspacing="0"><tr>
-<td style="padding-right:16px"><img src="${escH(s.logoUrl)}" width="72" alt="SAADI Gymnastics" style="display:block;width:72px;height:auto;border:0"></td>
-<td style="font-family:Arial,Helvetica,sans-serif;font-size:24px;line-height:1.2;font-weight:700;color:#ffffff">${escH(EQ.fill(t.heading,r,s))}</td></tr></table></td></tr>
-<tr><td style="padding:28px">${paras}
-<p style="margin:22px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:#1d1a1f">Best wishes,<br><b>${escH(s.signOff)}</b></p></td></tr>
-<tr><td style="background:#f0eaef;padding:16px 28px;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;color:#6b6470">SAADI Gymnastics · <a href="mailto:${escH(s.replyTo)}" style="color:#d4066a">${escH(s.replyTo)}</a><br>You're receiving this because you asked us about gymnastics classes. Reply STOP and we won't email you again about this enquiry.</td></tr>
-</table></td></tr></table></body></html>`;
+  const html=EQ.shell(subject,EQ.fill(t.heading,r,s),paras,s);
   const text=bodyTxt.replace("\u0000classes\u0000",(r.classes||[]).map(c=>`- ${EQ.classWhen(c)}: ${EQ.classTitle(c)} ${EQ.linkFor(c,s)}`).join("\n"))
     .replace("\u0000book\u0000",joinLink||"(reply to this email to book)")+`\n\nBest wishes,\n${s.signOff}`;
   return{subject,html,text};
@@ -314,6 +304,76 @@ EQ.parseImport=function(text){
       stage:/join/.test(st)?"joined":/invite|sent/.test(st)?"invited":/ask|book.*place|24/.test(st)?"booking_sent":"trial_booked"});
   });
   return{rows:out,bad};
+};
+
+/* The SAADI email frame (pink header, logo, sign-off, footer) around some content. */
+EQ.shell=function(subject,heading,paras,s,footNote){
+  return `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escH(subject)}</title></head>
+<body style="margin:0;padding:0;background:#f6f4f6">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f4f6"><tr><td align="center" style="padding:24px 12px">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:14px;overflow:hidden">
+<tr><td style="background:#f20779;padding:22px 28px" align="left"><table role="presentation" cellpadding="0" cellspacing="0"><tr>
+<td style="padding-right:16px"><img src="${escH(s.logoUrl)}" width="72" alt="SAADI Gymnastics" style="display:block;width:72px;height:auto;border:0"></td>
+<td style="font-family:Arial,Helvetica,sans-serif;font-size:24px;line-height:1.2;font-weight:700;color:#ffffff">${escH(heading)}</td></tr></table></td></tr>
+<tr><td style="padding:28px">${paras}
+<p style="margin:22px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:#1d1a1f">Best wishes,<br><b>${escH(s.signOff)}</b></p></td></tr>
+<tr><td style="background:#f0eaef;padding:16px 28px;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;color:#6b6470">SAADI Gymnastics · <a href="mailto:${escH(s.replyTo)}" style="color:#d4066a">${escH(s.replyTo)}</a><br>${escH(footNote||"You're receiving this because you asked us about gymnastics classes. Reply STOP and we won't email you again about this enquiry.")}</td></tr>
+</table></td></tr></table></body></html>`;
+};
+const paraHtml=p=>`<p style="margin:0 0 14px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.55;color:#1d1a1f">${escH(p).replace(/\n/g,"<br>")}</p>`;
+
+/* ---------- term renewal reminder ---------- */
+EQ.RENEWAL={subject:"Book {childNames}'s {place} for {nextTerm}",heading:"Time to book {nextTermShort}!",
+  body:"Hi {parentName},\n\nWe've loved having {childNames} with us this term. {nextTerm} starts on {startDate} and booking is now open, so here's how to book {childNames}'s {place}:\n\n{classes}\n\nPlaces aren't kept automatically from one term to the next, so please book soon to keep {childNames}'s {spot}. If you've already booked, thank you, and please ignore this email.\n\nIf you have any questions, or would like a different day or time, just reply to this email."};
+const joinNames=a=>a.length<2?(a[0]||"your child"):a.slice(0,-1).join(", ")+" and "+a[a.length-1];
+/* family = {parentName, email, kids:[{first, cur:{day,start,name}, next:{day,start,end,name,term,link,colour}|null}]} */
+EQ.renewalEmail=function(family,s,tpl,term){
+  const t=Object.assign({},EQ.RENEWAL,tpl||{});
+  const names=family.kids.map(k=>k.first||"your child");
+  const vals={parentName:family.parentName||"there",childNames:joinNames(names),nextTerm:term.name,nextTermShort:term.short||term.name,startDate:term.startText||"",place:names.length>1?"places":"place",spot:names.length>1?"spots":"spot"};
+  const fill=x=>String(x).replace(/\{(\w+)\}/g,(m,k)=>k in vals?vals[k]:m);
+  const subject=fill(t.subject);
+  const cards=family.kids.map(k=>{const n=k.next,col=EQ.BAND_COLOURS[(n&&n.colour)||""]||"#f20779";
+    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 12px;border:1px solid #eadfe7;border-left:6px solid ${col};border-radius:10px"><tr><td style="padding:14px 16px;font-family:Arial,Helvetica,sans-serif">
+      <div style="font-size:17px;font-weight:700;color:#1d1a1f">${escH(k.first||"Your child")}${n?`: ${escH(EQ.DAYNAME[n.day]||n.day)} ${escH(EQ.prettyTime(n.start+(n.end?" - "+n.end:"")))}`:""}</div>
+      <div style="font-size:15px;color:#4a444e;margin:2px 0 10px">${n?escH(String(n.name).split("|")[0].trim())+" · "+escH(n.term):"Reply to this email and we'll help you choose the right class."}</div>
+      ${n&&n.link?`<a href="${escH(n.link)}" style="display:inline-block;padding:9px 18px;background:#d4066a;color:#ffffff;font-weight:700;font-size:14px;text-decoration:none;border-radius:999px">Book ${escH(k.first||"")}'s place</a>`:""}
+    </td></tr></table>`}).join("");
+  const body=fill(t.body);
+  const paras=body.split(/\n{2,}/).map(p=>p.trim()==="{classes}"?cards:paraHtml(p)).join("");
+  const text=body.replace("{classes}",family.kids.map(k=>`- ${k.first}: ${k.next?(EQ.DAYNAME[k.next.day]||k.next.day)+" "+EQ.prettyTime(k.next.start+(k.next.end?" - "+k.next.end:""))+" "+String(k.next.name).split("|")[0].trim()+" "+(k.next.link||""):"reply to choose a class"}`).join("\n"))+`\n\nBest wishes,\n${s.signOff}`;
+  return{subject,html:EQ.shell(subject,fill(t.heading),paras,s,"You're receiving this because your child has a class at SAADI Gymnastics this term."),text};
+};
+
+/* ---------- term renewals: who has booked next term ---------- */
+EQ.renewals=function(ren){
+  if(!ren||!ren.cls)return null;
+  const link=g=>`https://mybg.british-gymnastics.org/Workbench/i/r/Public/ClassBookingsPublic/${ren.club}/class/${g}`;
+  const cls=ren.cls.map(([g,k,term,day,start,end,name,colour,age],i)=>({i,g,kind:k,term,day,start,end,name,colour:colour||(String(name).match(/\b(orange|yellow|blue|red|green|purple)\b/i)||[])[1]||"",age,link:link(g)}));
+  cls.forEach(c=>{c.colour=c.colour?c.colour[0].toUpperCase()+c.colour.slice(1).toLowerCase():"";c.area=/novice/i.test(c.term+" "+c.name)?"Novice":/pre\s*-?\s*school/i.test(c.term)?"Pre-School":"Recreational"});
+  const nextOf={};ren.rows.forEach(([i,id,f])=>{const c=cls[i];if(c&&c.kind==="n"&&f!=="T")(nextOf[id]=nextOf[id]||[]).push(c)});
+  const norm=t=>String(t||"").replace(/\s+/g,"").toUpperCase();
+  const nextCls=cls.filter(c=>c.kind==="n");
+  const matchNext=c=>nextCls.find(n=>n.day===c.day&&norm(n.start)===norm(c.start)&&n.colour&&n.colour===c.colour&&n.area===c.area)
+    ||nextCls.find(n=>n.day===c.day&&norm(n.start)===norm(c.start)&&n.area===c.area)||null;
+  const per=cls.filter(c=>c.kind==="c").map(c=>({...c,kids:[],payg:0,trial:0}));
+  const byIdx={};per.forEach(c=>byIdx[c.i]=c);
+  const kidsCur={};
+  ren.rows.forEach(([i,id,f])=>{const c=byIdx[i];if(!c)return;if(f==="T"){c.trial++;return}if(f==="P"){c.payg++;return}
+    const k=ren.kids[id]||[];const renewedTo=nextOf[id]||[];
+    const kid={id,first:k[0]||"",last:k[1]||"",parentName:k[2]||"",email:(k[3]||"").trim(),age:k[4]||"",renewed:renewedTo.length>0,nextBooked:renewedTo,cur:c,next:matchNext(c)};
+    c.kids.push(kid);(kidsCur[id]=kidsCur[id]||[]).push(kid)});
+  per.forEach(c=>{c.eligible=c.kids.length;c.renewed=c.kids.filter(k=>k.renewed).length;c.rate=c.eligible?c.renewed/c.eligible:NaN;c.match=matchNext(c)});
+  const ids=Object.keys(kidsCur);
+  const renewedIds=ids.filter(id=>kidsCur[id][0].renewed);
+  // families still to renew, by parent email
+  const fam={};ids.forEach(id=>{const k=kidsCur[id][0];if(k.renewed)return;const key=(k.email||"no-email:"+id).toLowerCase();
+    (fam[key]=fam[key]||{key,email:k.email,parentName:k.parentName,kids:[]}).kids.push({id,first:k.first,last:k.last,age:k.age,cur:k.cur,next:k.next})});
+  const areas={};per.forEach(c=>{const a=areas[c.area]=areas[c.area]||{area:c.area,eligible:0,renewed:0,classes:0};a.eligible+=c.eligible;a.renewed+=c.renewed;a.classes++});
+  return{cls,per,kids:ids.length,renewed:renewedIds.length,rate:ids.length?renewedIds.length/ids.length:NaN,families:Object.values(fam),areas:Object.values(areas),
+    nextBooked:ren.rows.filter(([i,,f])=>cls[i]&&cls[i].kind==="n"&&f!=="T").length,
+    newToNext:Object.keys(nextOf).filter(id=>!kidsCur[id]).length,
+    cur:(ren.cur||[]).map(t=>({id:t[0],name:t[1],start:t[2],end:t[3]})),next:(ren.next||[]).map(t=>({id:t[0],name:t[1],start:t[2],end:t[3]})),at:ren.at};
 };
 
 /* ---------- the Google mailer (runs in the reception@ Google account) ---------- */

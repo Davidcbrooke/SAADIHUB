@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f20779">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="favicon.ico" sizes="48x48">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>SAADI Term Renewals</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="hub.css">
+<style>
+.hero{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:20px;align-items:stretch}
+@media (max-width:800px){.hero{grid-template-columns:1fr}}
+.big{display:flex;flex-direction:column;justify-content:center;gap:4px;border-top:6px solid var(--brand)}
+.big .v{font-family:var(--display);font-size:64px;font-weight:700;line-height:1}
+.big .v.good{color:var(--good)}.big .v.warn{color:var(--warn)}.big .v.bad{color:var(--bad)}
+.ring{display:flex;gap:16px;align-items:center}
+.areas{display:flex;flex-direction:column;gap:12px}
+.arow{display:grid;grid-template-columns:120px 1fr 120px;gap:12px;align-items:center;font-size:14px}
+.abar{height:18px;background:var(--surface-2);border-radius:6px;overflow:hidden;display:flex}
+.abar i{display:block;height:100%;background:var(--good)}
+.arow .n{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+.arow .n b{color:var(--ink)}
+table.t{width:100%;border-collapse:collapse;font-size:14px}
+table.t th{text-align:left;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:6px 8px;border-bottom:2px solid var(--line);cursor:pointer;white-space:nowrap}
+table.t td{padding:8px;border-bottom:1px solid var(--line);vertical-align:middle}
+table.t tr.cl{cursor:pointer} table.t tr.cl:hover td{background:var(--surface-2)}
+table.t tr.kids td{background:var(--bg);padding:6px 8px 12px 28px}
+.tbl-wrap{overflow-x:auto}
+.chip{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px;background:var(--bc,var(--none))}
+.mini{display:flex;align-items:center;gap:8px}
+.mini .bar{flex:1;min-width:60px;height:10px;background:var(--surface-2);border-radius:5px;overflow:hidden}
+.mini .bar i{display:block;height:100%}
+.pct{font-weight:700;font-variant-numeric:tabular-nums;min-width:44px;text-align:right}
+.kidlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px 18px;font-size:13px}
+.kidlist div{display:flex;gap:6px;align-items:baseline}
+.fam{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:10px;align-items:start;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface)}
+.fam input{width:18px;height:18px;margin-top:2px;accent-color:var(--accent)}
+.fam .who{font-weight:700}
+.fam .kids{font-size:13px;color:var(--muted)}
+.fam .last{font-size:12px;text-align:right;white-space:nowrap}
+.fams{display:flex;flex-direction:column;gap:8px;max-height:640px;overflow:auto;padding-right:4px}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;border-radius:0;padding:7px 12px;font-weight:600;background:transparent}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink)}
+.preview{width:100%;height:520px;border:1px solid var(--line);border-radius:10px;background:#f6f4f6}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:10px 18px;border-radius:99px;font-weight:600;z-index:60}
+.hint{font-size:13px;color:var(--muted);margin:0}
+.small{font-size:13px}
+input[type=text]{width:100%}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="index.html">
+      <img src="saadi-logo-white.png" alt="SAADI Gymnastics" width="64" height="61">
+      <div><div class="eyebrow">SAADI Gymnastics</div><h1>Term Renewals</h1></div>
+    </a>
+    <div class="head-right">
+      <nav class="hubnav needs-auth" aria-label="Hub pages"><a href="index.html">Hub</a><a href="enquiry-desk.html">Enquiry Desk</a><a href="term-renewals.html" aria-current="page">Term Renewals</a><a href="class-capacity.html">Class Capacity</a><a href="business-plan.html">Business Plan</a><a href="calendar.html">Club Calendar</a></nav>
+      <button type="button" class="needs-auth" data-lock>Lock</button>
+    </div>
+  </header>
+
+  <div id="statusNote" class="notice" hidden></div>
+
+  <section class="panel auth" id="authPanel" hidden>
+    <h2>Enter the password</h2>
+    <p class="muted" style="margin:0">Term Renewals uses the SAADI Hub password.</p>
+    <form id="authForm" class="wrap" style="gap:12px;margin:0" novalidate>
+      <label class="f" for="authPass">Password <input type="password" id="authPass" autocomplete="current-password" required></label>
+      <label class="row" for="authRemember" style="font-size:14px;gap:6px"><input type="checkbox" id="authRemember" checked> Remember on this device</label>
+      <div class="row"><button class="primary" type="submit" id="authGo">Open</button><span id="authMsg" class="muted" aria-live="polite"></span></div>
+    </form>
+  </section>
+
+  <main class="wrap needs-auth" id="main">
+    <section class="panel" id="empty" hidden>
+      <h2>No renewal data yet</h2>
+      <p>The renewals come in with the morning JustGo sync, once next term's classes are set up in JustGo. In JustGo <b>Class Management</b>, click <b>Send to SAADI Hub</b>, then <b>Open SAADI Hub</b> and <b>Save week</b>. If the button is the old one, drag the new red <b>Send to SAADI Hub</b> button from the <a href="class-capacity.html">Class Capacity</a> page onto the bookmarks bar first.</p>
+    </section>
+
+    <div id="content" class="wrap" hidden>
+      <div class="row" style="justify-content:space-between"><div class="eyebrow" id="termLine"></div><span class="muted small" id="asOf"></span></div>
+
+      <div class="hero">
+        <section class="panel big"><span class="eyebrow">Renewed so far</span><span class="v" id="bigPct">–</span><span class="muted" id="bigSub"></span></section>
+        <div class="kpis" id="kpis"></div>
+      </div>
+
+      <section class="panel">
+        <div class="panel-head"><h2>By area</h2><span class="muted small">children booked for next term, out of those on a termly place now</span></div>
+        <div class="areas" id="areas"></div>
+      </section>
+
+      <section class="panel">
+        <div class="toolbar">
+          <h2>By class</h2>
+          <div class="row"><div class="seg" id="fArea"></div><select id="fDay"><option value="">Every day</option></select><span class="muted small">Click a class to see who has and hasn't booked</span></div>
+        </div>
+        <div class="tbl-wrap"><table class="t"><thead><tr><th data-sort="day">Day</th><th data-sort="time">Time</th><th data-sort="name">Class this term</th><th data-sort="rate">Renewed</th><th data-sort="left">Still to book</th><th>Next term's class</th></tr></thead><tbody id="tBody"></tbody></table></div>
+        <p class="hint">Trial and pay-as-you-go places aren't counted, as they don't renew termly.</p>
+      </section>
+
+      <div class="grid2">
+        <section class="panel">
+          <div class="panel-head"><h2>Remind families who haven't booked</h2><span class="pill none" id="mailState"></span></div>
+          <div class="toolbar">
+            <div class="row small"><label class="row" style="gap:6px"><input type="checkbox" id="onlyNew" checked> Hide families reminded in the last <input type="number" id="days" value="5" min="0" max="60" style="width:56px"> days</label></div>
+            <div class="row"><button type="button" id="selAll">Select all</button><button type="button" id="selNone">None</button></div>
+          </div>
+          <div class="fams" id="fams"></div>
+          <div class="row"><button type="button" class="primary" id="sendSel" disabled>Send reminder</button><span class="small" id="sendMsg" aria-live="polite"></span></div>
+          <p class="hint">One email per family, from <b id="fromAddr">reception@</b>, with a button to book each child's matching class for next term. Families without an email address in JustGo can't be selected.</p>
+        </section>
+        <section class="panel">
+          <div class="panel-head"><h2>Email preview</h2><span class="muted small" id="prevSubj"></span></div>
+          <iframe class="preview" id="preview" title="Email preview" sandbox="allow-same-origin"></iframe>
+          <details><summary class="small">Change the wording</summary>
+            <div class="wrap" style="gap:10px;margin-top:10px">
+              <label class="f">Subject <input type="text" id="tSubject"></label>
+              <label class="f">Heading <input type="text" id="tHeading"></label>
+              <label class="f">Message <textarea id="tText" style="min-height:220px"></textarea></label>
+              <p class="hint">Use {parentName}, {childNames}, {place}, {spot}, {nextTerm}, {nextTermShort}, {startDate} and {classes} (where the booking buttons go).</p>
+              <div class="row"><button type="button" class="primary" id="tSave">Save wording</button><button type="button" id="tReset">Back to the original</button><span class="small muted" id="tMsg"></span></div>
+            </div>
+          </details>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="hub-core.js"></script>
+<script src="enquiry-core.js"></script>
+<script>
+if("serviceWorker" in navigator&&location.protocol==="https:"){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))}
+(function(){
+"use strict";
+const {$,esc}=Hub;
+let S=EQ.settings({}),R=null,logs=[],tpl={},area="",sortKey="rate",sortDir=1,open=new Set(),sel=new Set(),previewKey=null;
+const pct=x=>isFinite(x)?Math.round(x*100)+"%":"–";
+const tone=x=>!isFinite(x)?"none":x>=.8?"good":x>=.5?"warn":"bad";
+const toneVar=x=>`var(--${tone(x)==="none"?"none":tone(x)})`;
+const toast=t=>{const d=document.createElement("div");d.className="toast";d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),3200)};
+const fmtDay=iso=>new Date(iso).toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"});
+const timeOf=c=>EQ.prettyTime(c.start+(c.end?" - "+c.end:""));
+const title=c=>String(c.name).split("|")[0].trim();
+const mailerReady=()=>!!(S.mailerUrl&&S.mailerToken&&String(S.mailerFrom).toLowerCase()===String(S.sender).toLowerCase());
+
+function load(){
+  Hub.doc("config/enquiryDesk").onSnapshot(d=>{S=EQ.settings(d.exists?d.data():{});mailState();renderPreview()},()=>{});
+  Hub.doc("config/renewals").onSnapshot(d=>{tpl=(d.exists&&d.data().template)||{};fillTpl();renderPreview()},()=>{});
+  Hub.doc("renewals/latest").onSnapshot(d=>{
+    let ren=null;try{ren=d.exists?JSON.parse(d.data().json):null}catch(e){}
+    R=ren?EQ.renewals(ren):null;render();
+  },e=>{$("statusNote").hidden=false;$("statusNote").textContent="Couldn't load the renewals ("+(e.code||"error")+")."});
+  Hub.col("renewalEmails").onSnapshot(q=>{logs=q.docs.map(d=>d.data());renderFams()},()=>{});
+}
+function mailState(){const ok=mailerReady();$("mailState").className="pill "+(ok?"good":"warn");$("mailState").textContent=ok?"✓ Sends from "+S.mailerFrom:"Sending not set up";$("fromAddr").textContent=S.sender;updateSendBtn()}
+
+/* ---------- headline ---------- */
+function render(){
+  $("empty").hidden=!!R;$("content").hidden=!R;if(!R)return;
+  const nx=R.next.map(t=>t.name).join(" and ");
+  $("termLine").textContent=`${R.cur.map(t=>t.name).join(" + ")}  →  ${nx}`;
+  $("asOf").textContent="Bookings as of "+new Date(R.at).toLocaleString("en-GB",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+" (from JustGo)";
+  $("bigPct").textContent=pct(R.rate);$("bigPct").className="v "+tone(R.rate);
+  $("bigSub").innerHTML=`<b>${R.renewed}</b> of <b>${R.kids}</b> children on a termly place this term have booked for next term`;
+  const left=R.kids-R.renewed,famLeft=R.families.length,start=R.next.length?fmtDay(R.next.map(t=>t.start).sort()[0]):"";
+  const daysTo=R.next.length?Math.ceil((new Date(R.next.map(t=>t.start).sort()[0])-new Date())/864e5):NaN;
+  $("kpis").innerHTML=[[left,"children still to book",left?"bad":"good"],[famLeft,"families to remind",""],[R.nextBooked,"places booked for next term",""],[R.newToNext,"new children booked for next term","good"],[isFinite(daysTo)?Math.max(0,daysTo):"–",`days until next term (${start})`,""]]
+    .map(([v,s,c])=>`<div class="kpi ${c}"><span class="v">${v}</span><span class="s">${esc(s)}</span></div>`).join("");
+  $("areas").innerHTML=R.areas.map(a=>{const r=a.eligible?a.renewed/a.eligible:NaN;return `<div class="arow"><b>${esc(a.area)}</b><div class="abar" data-tip="${esc(a.area)}: ${a.renewed} of ${a.eligible} booked"><i style="width:${(r||0)*100}%;background:${toneVar(r)}"></i></div><span class="n"><b>${pct(r)}</b> · ${a.renewed}/${a.eligible}</span></div>`}).join("");
+  const areas=["",...R.areas.map(a=>a.area)];
+  $("fArea").innerHTML=areas.map(a=>`<button type="button" data-a="${esc(a)}" aria-pressed="${a===area}">${a||"All"}</button>`).join("");
+  $("fArea").querySelectorAll("button").forEach(b=>b.onclick=()=>{area=b.dataset.a;render()});
+  const days=EQ.DAYS.filter(d=>R.per.some(c=>c.day===d)),dv=$("fDay").value;
+  $("fDay").innerHTML='<option value="">Every day</option>'+days.map(d=>`<option value="${d}">${EQ.DAYNAME[d]}</option>`).join("");$("fDay").value=dv;
+  renderTable();renderFams();
+}
+$("fDay").onchange=()=>renderTable();
+document.querySelectorAll("th[data-sort]").forEach(th=>th.onclick=()=>{const k=th.dataset.sort;sortDir=sortKey===k?-sortDir:1;sortKey=k;renderTable()});
+function renderTable(){
+  const day=$("fDay").value;
+  let list=R.per.filter(c=>c.eligible&&(!area||c.area===area)&&(!day||c.day===day));
+  const val={day:c=>EQ.DAYS.indexOf(c.day)*1e4+EQ.mins(c.start),time:c=>EQ.mins(c.start),name:c=>c.name,rate:c=>c.rate,left:c=>c.eligible-c.renewed};
+  list.sort((a,b)=>{const x=val[sortKey](a),y=val[sortKey](b);return (x<y?-1:x>y?1:0)*sortDir||val.day(a)-val.day(b)});
+  $("tBody").innerHTML=list.map(c=>{
+    const col=EQ.BAND_COLOURS[c.colour]||"var(--none)",k=c.g;
+    let h=`<tr class="cl" data-g="${k}"><td>${esc(c.day)}</td><td class="num">${esc(timeOf(c))}</td><td><span class="chip" style="--bc:${col}"></span>${esc(title(c))} <span class="muted small">${esc(c.area)}</span></td>
+      <td><div class="mini"><div class="bar"><i style="width:${(c.rate||0)*100}%;background:${toneVar(c.rate)}"></i></div><span class="pct" style="color:${toneVar(c.rate)}">${pct(c.rate)}</span><span class="muted small num">${c.renewed}/${c.eligible}</span></div></td>
+      <td class="num">${c.eligible-c.renewed||'<span class="pill good">✓ all booked</span>'}</td>
+      <td class="small">${c.match?`${esc(title(c.match))} · ${esc(timeOf(c.match))}`:'<span class="muted">No matching class found</span>'}${c.payg||c.trial?`<div class="muted">${c.payg?c.payg+" pay-as-you-go":""}${c.payg&&c.trial?", ":""}${c.trial?c.trial+" on trial":""} not counted</div>`:""}</td></tr>`;
+    if(open.has(k))h+=`<tr class="kids"><td colspan="6"><div class="kidlist">${c.kids.slice().sort((a,b)=>a.renewed-b.renewed||a.first.localeCompare(b.first)).map(x=>`<div>${x.renewed?'<span class="pill good">✓ booked</span>':'<span class="pill bad">✕ not yet</span>'} <span><b>${esc(x.first)} ${esc(x.last)}</b>${x.renewed?` <span class="muted">→ ${esc(x.nextBooked.map(n=>title(n)+" "+n.day).join(", "))}</span>`:` <span class="muted">${esc(x.email||"no email")}</span>`}</span></div>`).join("")}</div></td></tr>`;
+    return h}).join("")||'<tr><td colspan="6" class="muted">No classes to show.</td></tr>';
+  $("tBody").querySelectorAll("tr.cl").forEach(tr=>tr.onclick=()=>{const g=tr.dataset.g;open.has(g)?open.delete(g):open.add(g);renderTable()});
+}
+
+/* ---------- reminders ---------- */
+const lastSent=f=>{const l=logs.filter(x=>String(x.email||"").toLowerCase()===String(f.email||"").toLowerCase()).map(x=>x.at).sort().pop();return l||null};
+function famList(){
+  if(!R)return[];
+  const lim=+$("days").value||0,cut=Date.now()-lim*864e5;
+  return R.families.filter(f=>(!area||f.kids.some(k=>k.cur.area===area))&&(!$("onlyNew").checked||!lastSent(f)||new Date(lastSent(f))<cut))
+    .sort((a,b)=>(a.parentName||"").localeCompare(b.parentName||""));
+}
+function renderFams(){
+  if(!R)return;const list=famList();
+  [...sel].forEach(k=>{if(!list.some(f=>f.key===k))sel.delete(k)});
+  $("fams").innerHTML=list.map(f=>{const ls=lastSent(f),ok=/@/.test(f.email||"");
+    return `<label class="fam"><input type="checkbox" data-k="${esc(f.key)}" ${sel.has(f.key)?"checked":""} ${ok?"":"disabled"}>
+      <div><div class="who">${esc(f.parentName||"Parent")} <span class="muted" style="font-weight:400">${esc(f.email||"no email in JustGo")}</span></div>
+      <div class="kids">${f.kids.map(k=>`${esc(k.first)} · ${esc(k.cur.day)} ${esc(timeOf(k.cur))} ${esc(title(k.cur))}${k.next?"":" (no matching class)"}`).join("<br>")}</div></div>
+      <div class="last">${ls?`<span class="pill warn">Reminded ${new Date(ls).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</span>`:'<span class="pill none">Not reminded</span>'}</div></label>`}).join("")||'<p class="muted">No families to remind. Brilliant!</p>';
+  $("fams").querySelectorAll("input[data-k]").forEach(i=>{i.onchange=()=>{i.checked?sel.add(i.dataset.k):sel.delete(i.dataset.k);previewKey=i.dataset.k;updateSendBtn();renderPreview()}});
+  $("fams").querySelectorAll(".fam").forEach(l=>l.addEventListener("mouseenter",()=>{const k=l.querySelector("input").dataset.k;if(previewKey!==k){previewKey=k;renderPreview()}}));
+  if(!previewKey&&list.length)previewKey=list[0].key;
+  updateSendBtn();renderPreview();
+}
+$("onlyNew").onchange=renderFams;$("days").oninput=renderFams;
+$("selAll").onclick=()=>{famList().filter(f=>/@/.test(f.email||"")).forEach(f=>sel.add(f.key));renderFams()};
+$("selNone").onclick=()=>{sel.clear();renderFams()};
+function updateSendBtn(){const n=sel.size;$("sendSel").disabled=!n||!mailerReady();$("sendSel").textContent=n?`Send reminder to ${n} famil${n===1?"y":"ies"}`:"Send reminder";
+  if(!mailerReady())$("sendMsg").innerHTML='Set up sending first: <a href="enquiry-desk.html">Enquiry Desk</a> &gt; Emails &amp; settings.'}
+function termFor(f){
+  const a=f.kids[0].cur.area,t=R.next.find(t=>a==="Pre-School"?/pre\s*-?\s*school/i.test(t.name):!/pre\s*-?\s*school/i.test(t.name))||R.next[0];
+  const short=(t.name.match(/^(spring|summer|autumn)/i)||[""])[0];
+  return{name:t.name.replace(/\s*-\s*(recreational|preschool|pre-school)$/i,""),short:short?short[0].toUpperCase()+short.slice(1).toLowerCase()+" term":t.name,startText:fmtDay(t.start)};
+}
+function emailFor(f){return EQ.renewalEmail({parentName:f.parentName,email:f.email,kids:f.kids.map(k=>({first:k.first,cur:k.cur,next:k.next}))},S,tpl,termFor(f))}
+function renderPreview(){
+  if(!R)return;const f=R.families.find(x=>x.key===previewKey)||R.families[0];if(!f){$("preview").srcdoc="";return}
+  const e=emailFor(f);$("preview").srcdoc=e.html;$("prevSubj").textContent=e.subject;
+}
+$("sendSel").onclick=async()=>{
+  if(!mailerReady())return;
+  const list=R.families.filter(f=>sel.has(f.key)&&/@/.test(f.email||""));
+  if(!list.length)return;
+  if(!confirm(`Send the renewal reminder to ${list.length} famil${list.length===1?"y":"ies"} from ${S.mailerFrom}?`))return;
+  $("sendSel").disabled=true;let ok=0,bad=[];
+  for(const f of list){
+    $("sendMsg").textContent=`Sending ${ok+bad.length+1} of ${list.length}…`;
+    const e=emailFor(f);
+    try{const r=await fetch(S.mailerUrl,{method:"POST",body:JSON.stringify({token:S.mailerToken,to:f.email,subject:e.subject,html:e.html,text:e.text,fromName:S.fromName})});const j=await r.json();
+      if(!j.ok)throw new Error(j.error||"not sent");
+      await Hub.col("renewalEmails").add({at:new Date().toISOString(),email:f.email,parentName:f.parentName||"",kids:f.kids.map(k=>k.id),childNames:f.kids.map(k=>k.first).join(", "),term:R.next.map(t=>t.name).join(" / "),subject:e.subject,via:S.mailerFrom});
+      ok++;sel.delete(f.key)}
+    catch(x){bad.push(`${f.email} (${x.message})`)}
+  }
+  $("sendMsg").innerHTML=`<b style="color:var(--good)">✓ Sent ${ok}.</b>`+(bad.length?` <b style="color:var(--bad)">${bad.length} not sent:</b> ${esc(bad.slice(0,3).join("; "))}`:"");
+  toast(`Sent ${ok} reminder${ok===1?"":"s"}`);renderFams();
+};
+
+/* ---------- wording ---------- */
+function fillTpl(){const t=Object.assign({},EQ.RENEWAL,tpl);$("tSubject").value=t.subject;$("tHeading").value=t.heading;$("tText").value=t.body}
+$("tSave").onclick=async()=>{const t={subject:$("tSubject").value,heading:$("tHeading").value,body:$("tText").value};
+  try{await Hub.doc("config/renewals").set({template:t},{merge:true});$("tMsg").textContent="Saved ✓"}catch(e){$("tMsg").textContent="Couldn't save"}};
+$("tReset").onclick=()=>{tpl={};$("tSubject").value=EQ.RENEWAL.subject;$("tHeading").value=EQ.RENEWAL.heading;$("tText").value=EQ.RENEWAL.body;renderPreview()};
+["tSubject","tHeading","tText"].forEach(id=>$(id).addEventListener("input",()=>{tpl={subject:$("tSubject").value,heading:$("tHeading").value,body:$("tText").value};renderPreview()}));
+
+Hub.gate(load);
+Hub.tooltips();
+})();
+</script>
+</body>
+</html>

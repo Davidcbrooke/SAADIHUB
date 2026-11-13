@@ -74,13 +74,25 @@ To change the bookmark's code, edit `justgo-sync-bookmarklet.js`, run `node buil
 
 `enquiry-desk.html` answers "Do you have space for a boy or girl aged X?" from the latest JustGo class numbers (the same ones the Class Capacity page saves). It sends HTML trial emails and keeps a follow-up list until each family joins. It uses the hub password, so there's nothing new to sign in to.
 
-## Before the first use (about 10 minutes)
+## Setting up the reception PC (once, about 15 minutes)
 
-1. **Class numbers:** run **Send to SAADI Hub** from JustGo (see the weekly routine above). The desk always uses the most recent week, so do this weekly.
-2. **The mailer** (emails sent from reception@): follow the steps at the top of `enquiry-mailer.gs`. Then in the desk, go to **Emails & settings > Sending emails**, paste the web app address and key, send yourself a test, and press **Save settings**. Until then, **Copy email to send myself** copies the HTML email and opens Gmail to paste it into, and the desk still logs it.
-3. **Booking links:** in **Emails & settings > Booking links**, add the page parents use to book a trial and the page they use to book a place. You can set a different trial link for each class area. Without a link, the emails ask parents to reply to book.
-4. **Which classes to offer:** Recreational, Pre School, Parent and Child, Youth Gym and Adult are offered by default. Squads, Novice and Advanced aren't. Change these on the same page.
-5. **People already on trials:** add them in **Trials & enquiries**, either one at a time or by pasting a list.
+Do all of this on the reception PC, in Chrome.
+
+1. **Open the desk:** go to https://hub.saadigymnastics.co.uk/enquiry-desk.html, type the hub password and tick **Remember on this device**. To install it as an app, click the install icon at the right of the address bar.
+2. **Update the JustGo button:** open **Class Capacity > Add this week's numbers** and drag the red **Send to SAADI Hub** button onto the bookmarks bar again, replacing the old one. The new button also brings each class's JustGo booking link, so the emails link straight to the right class.
+3. **Fetch the numbers and links:** in JustGo, open **Class Management**, click **Send to SAADI Hub**, then **Open SAADI Hub**, and press **Save week** (or **Replace this week**). In the desk, **Emails & settings > Booking links** should say "All … classes have links".
+4. **Send emails from reception@:** sign in to Chrome's Google account as reception@saadigymnastics.co.uk. Then follow the 5 steps in the desk under **Emails & settings > Sending emails from reception@**:
+   - copy the mailer code, which opens Google Apps Script;
+   - paste the code and save;
+   - run **allowSending** and allow the permissions;
+   - deploy it as a web app (Execute as: Me; Who has access: Anyone);
+   - paste the URL into the desk and press **Check and connect**.
+
+   It must say **Sending as reception@saadigymnastics.co.uk**. The desk won't send from any other account. Emails appear in reception@'s Gmail **Sent** folder, and parents' replies come back to reception@.
+
+The settings are saved centrally, so any other PC that opens the desk with the hub password sends from reception@ too. Until step 4 is done, **Copy email to send myself** copies the email and opens Gmail as reception@ to paste it into.
+
+Trial classes: Recreational, Pre School, Parent and Child, Youth Gym and Adult are offered by default. Squads, Novice and Advanced aren't. Change these under **Emails & settings > Which classes to offer**.
 
 ## How the follow-ups work
 

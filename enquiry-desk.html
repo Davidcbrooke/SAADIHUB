@@ -76,6 +76,8 @@ details summary{cursor:pointer;font-weight:600}
 .small{font-size:13px}
 [data-pane]{width:100%}
 .hint{font-size:13px;color:var(--muted);margin:0}
+.steps{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:12px}
+.steps li::marker{font-weight:700;color:var(--accent)}
 </style>
 </head>
 <body>
@@ -200,26 +202,32 @@ details summary{cursor:pointer;font-weight:600}
 
     <!-- ============ SETTINGS ============ -->
     <section data-pane="settings" class="wrap" hidden>
-      <section class="panel">
-        <div class="panel-head"><h2>Sending emails</h2><span class="pill none" id="mailerState">Not connected</span></div>
-        <p class="hint">Emails go out from SAADI's own Google account through a small Google Apps Script (see <b>enquiry-mailer.gs</b> and the setup notes). Until it's connected, use <b>Copy email to send myself</b> and paste it into Gmail: the desk still logs it.</p>
-        <div class="form2">
-          <label class="f" for="sMailerUrl">Mailer web app address <input type="url" id="sMailerUrl" placeholder="https://script.google.com/macros/s/…/exec"></label>
-          <label class="f" for="sMailerToken">Mailer key <input type="password" id="sMailerToken" autocomplete="off"></label>
-          <label class="f" for="sFromName">From name <input type="text" id="sFromName"></label>
-          <label class="f" for="sReplyTo">Replies go to <input type="email" id="sReplyTo"></label>
-          <label class="f" for="sSignOff">Signed by <input type="text" id="sSignOff"></label>
-        </div>
-        <div class="row"><input type="email" id="testTo" placeholder="your email"><button type="button" id="sendTest">Send a test email</button><span class="muted small" id="testMsg"></span></div>
+      <section class="panel" id="mailerPanel">
+        <div class="panel-head"><h2>Sending emails from <span id="senderShow">reception@</span></h2><span class="pill none" id="mailerState">Not set up</span></div>
+        <p class="hint">Do this once, <b>on the reception PC</b>, in Chrome signed in to Google as <b id="senderShow2">reception@saadigymnastics.co.uk</b>. It takes about 5 minutes. After that, emails go out from that account on any PC that opens the desk, and copies appear in its Gmail <i>Sent</i> folder.</p>
+        <ol class="steps">
+          <li><button type="button" id="copyCode">Copy the mailer code</button> <span class="muted small" id="copyCodeMsg"></span><br><span class="small">This also opens a new Google Apps Script project. If Google asks which account to use, choose reception@.</span></li>
+          <li class="small">In the new project, select everything in the editor (Ctrl+A), paste (Ctrl+V), then press the <b>Save</b> (disk) button. Name it <i>SAADI Enquiry Desk mailer</i>.</li>
+          <li class="small">At the top, choose <b>allowSending</b> next to Run and press <b>Run</b>. Click <b>Review permissions</b>, choose reception@, then <b>Advanced &gt; Go to SAADI Enquiry Desk mailer &gt; Allow</b>.</li>
+          <li class="small">Press <b>Deploy &gt; New deployment</b>, click the cog and choose <b>Web app</b>. Set <b>Execute as: Me</b> and <b>Who has access: Anyone</b>, then press <b>Deploy</b> and copy the <b>Web app URL</b>.</li>
+          <li><label class="f" for="sMailerUrl">Paste the Web app URL here <input type="url" id="sMailerUrl" placeholder="https://script.google.com/macros/s/…/exec" style="width:100%"></label>
+            <div class="row" style="margin-top:8px"><button type="button" class="primary" id="connectMailer">Check and connect</button><span class="small" id="testMsg"></span></div></li>
+        </ol>
+        <details><summary class="small">Sender details</summary>
+          <div class="form2" style="margin-top:10px">
+            <label class="f" for="sSender">Send from (Google account) <input type="email" id="sSender"></label>
+            <label class="f" for="sFromName">From name <input type="text" id="sFromName"></label>
+            <label class="f" for="sSignOff">Signed by <input type="text" id="sSignOff"></label>
+          </div>
+          <div class="row" style="margin-top:10px"><input type="email" id="testTo" placeholder="send a test to…"><button type="button" id="sendTest">Send a test email</button></div>
+        </details>
       </section>
       <section class="panel">
-        <div class="panel-head"><h2>Booking links</h2></div>
-        <div class="form2">
-          <label class="f" for="sTrialLink">Book a trial (all classes) <input type="url" id="sTrialLink" placeholder="https://…"></label>
-          <label class="f" for="sJoinLink">Book a place after the trial <input type="url" id="sJoinLink" placeholder="blank = same as the trial link"></label>
-        </div>
-        <p class="hint">Optional: a different trial link for each class area. Leave blank to use the link above.</p>
-        <div class="form2" id="sGroupLinks"></div>
+        <div class="panel-head"><h2>Booking links</h2><span class="pill none" id="linkState"></span></div>
+        <p class="hint">Each email links to that class's own JustGo booking page, where parents can <b>Book a trial session</b> or <b>pay for the term</b>. The links come in automatically every time you press <b>Send to SAADI Hub</b> in JustGo and save the week on the Class Capacity page.</p>
+        <details><summary class="small">Backup link, only used if a class has no JustGo link</summary>
+          <label class="f" for="sTrialLink" style="margin-top:10px">Backup booking page <input type="url" id="sTrialLink" placeholder="https://…"></label>
+        </details>
       </section>
       <section class="panel">
         <div class="panel-head"><h2>Which classes to offer</h2></div>
@@ -360,7 +368,7 @@ function ask(){
   $("sendArea").hidden=false;$("logWait").hidden=!(!m.space.length&&m.full.length);
   updatePreview();
 }
-function pickedClasses(){const all=lastMatch?[...lastMatch.space,...lastMatch.full]:[];return all.filter(c=>picked.has(c.key)).map(c=>({day:c.day,time:c.time,name:c.name,group:c.group,band:c.band||"",term:c.term||"",key:c.key}))}
+function pickedClasses(){const all=lastMatch?[...lastMatch.space,...lastMatch.full]:[];return all.filter(c=>picked.has(c.key)).map(c=>({day:c.day,time:c.time,name:c.name,group:c.group,band:c.band||"",term:c.term||"",key:c.key,link:c.link||""}))}
 function draft(){return{parentName:$("fParent").value.trim(),childName:$("fChild").value.trim(),email:$("fEmail").value.trim(),phone:$("fPhone").value.trim(),
   source:$("fSource").value,notes:$("fNotes").value.trim(),age:q.dob?EQ.ageOn(q.dob):(q.age===""?"":+q.age),dob:q.dob||"",gender:q.gender,classes:pickedClasses()}}
 ["fParent","fChild","fEmail"].forEach(id=>$(id).addEventListener("input",updatePreview));
@@ -369,8 +377,9 @@ function updatePreview(){
   $("preview").srcdoc=e.html;$("prevSubject").textContent=e.subject;
   $("quickReply").textContent=EQ.quickReply(lastMatch,{childName:d.childName,gender:q.gender});
   $("pickNote").textContent=d.classes.length?`${d.classes.length} class${d.classes.length>1?"es":""} in the email`:"No class ticked: the email will link to the general trial page";
-  const miss=[];if(!S.trialLink&&!d.classes.some(c=>EQ.linkFor(c,S)))miss.push("no trial booking link is set yet (Emails & settings), so the email asks parents to reply to book");
-  if(!S.mailerUrl)miss.push("the mailer isn't connected yet, so use Copy email");
+  const miss=[],noLink=d.classes.filter(c=>!EQ.linkFor(c,S));
+  if(noLink.length)miss.push(`${noLink.length} ticked class${noLink.length>1?"es have":" has"} no JustGo booking link yet, so the email asks parents to reply to book that one. Run Send to SAADI Hub from JustGo to fetch the links`);
+  if(!mailerReady())miss.push("sending from reception@ isn't set up yet, so use Copy email");
   $("sendHint").textContent=miss.length?"Note: "+miss.join("; ")+".":"";
 }
 $("copyReply").onclick=()=>{navigator.clipboard.writeText($("quickReply").textContent);toast("Reply copied")};
@@ -386,30 +395,41 @@ $("logOnly").onclick=async()=>{const d=draft();if(!d.email&&!d.phone){toast("Add
 $("logWait").onclick=async()=>{const d=draft();if(!d.email&&!d.phone){toast("Add an email or phone number");return}const r=newRec(d,"waitlist");r.events.push({at:nowIso(),text:"Added to waiting list for "+d.classes.map(classLabel).join(", ")});await save(newId(),r);toast("Logged on the waiting list. Add them in JustGo too.");clearForm()};
 
 /* ---------- sending ---------- */
+const sameAddr=(a,b)=>String(a||"").toLowerCase()===String(b||"").toLowerCase();
+function mailerReady(){return !!(S.mailerUrl&&S.mailerToken&&sameAddr(S.mailerFrom,S.sender))}
+/* Fill in the family's own JustGo booking page before building an email. */
+function prepare(r,type){
+  const rr={...r};if(type==="booking")rr.bookingFrom=today();
+  const tc=EQ.findClass(r.trialClass,classes);
+  rr.joinLink=EQ.joinLinkFor(r,classes,S);
+  if((type==="noshow"||type==="reminder")&&!(rr.classes||[]).length&&tc)rr.classes=[{day:tc.day,time:tc.time,name:tc.name,group:tc.group,band:tc.band||"",term:tc.term||"",link:tc.link||""}];
+  return rr;
+}
 async function sendEmail(r,type){
   if(!r.email||!validEmail(r.email)){toast("No valid email address for "+(r.parentName||"this family"));return false}
-  if(!S.mailerUrl||!S.mailerToken){return copyEmail(r,type)}
-  const rr={...r};if(type==="booking")rr.bookingFrom=today();
+  if(!mailerReady()){return copyEmail(r,type)}
+  const rr=prepare(r,type);
   const e=EQ.email(type,rr,S);
   try{
-    const res=await fetch(S.mailerUrl,{method:"POST",body:JSON.stringify({token:S.mailerToken,to:r.email,subject:e.subject,html:e.html,text:e.text,fromName:S.fromName,replyTo:S.replyTo})});
+    const res=await fetch(S.mailerUrl,{method:"POST",body:JSON.stringify({token:S.mailerToken,to:r.email,subject:e.subject,html:e.html,text:e.text,fromName:S.fromName})});
     const j=await res.json();if(!j.ok)throw new Error(j.error||"not sent");
   }catch(err){toast("Couldn't send ("+err.message+"). Copied the email instead.");return copyEmail(r,type)}
-  await logEmail(r,type,e,"Sent from the desk");return true;
+  await logEmail(r,type,e,"Sent from "+S.mailerFrom);return true;
 }
 async function copyEmail(r,type){
-  const rr={...r};if(type==="booking")rr.bookingFrom=today();
+  const rr=prepare(r,type);
   const e=EQ.email(type,rr,S);
   try{await navigator.clipboard.write([new ClipboardItem({"text/html":new Blob([e.html],{type:"text/html"}),"text/plain":new Blob([e.text],{type:"text/plain"})})])}
   catch(x){try{await navigator.clipboard.writeText(e.text)}catch(y){}}
-  window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(r.email)}&su=${encodeURIComponent(e.subject)}`,"_blank");
-  toast("Email copied. Paste it into the Gmail window (Ctrl+V)");
+  window.open(`https://mail.google.com/mail/?authuser=${encodeURIComponent(S.sender)}&view=cm&fs=1&to=${encodeURIComponent(r.email)}&su=${encodeURIComponent(e.subject)}`,"_blank");
+  toast(`Email copied. In the Gmail window (signed in as ${S.sender}), click in the message and press Ctrl+V`);
   await logEmail(r,type,e,"Copied to send by hand");return true;
 }
 async function logEmail(r,type,e,via){
   const em={type,at:nowIso(),to:r.email,subject:e.subject,via};
-  const upd={emails:[...(r.emails||[]),em],stage:EQ.AFTER[type]||r.stage,events:event(r,`${EQ.TEMPLATES[type].label.replace(/^\d\.\s*/,"")} email ${via==="Sent from the desk"?"sent":"copied"} to ${r.email}`)};
+  const upd={emails:[...(r.emails||[]),em],stage:EQ.AFTER[type]||r.stage,events:event(r,`${EQ.TEMPLATES[type].label.replace(/^\d\.\s*/,"")} email ${/^Sent/.test(via)?"sent":"copied"} to ${r.email}`)};
   if(type==="booking")upd.bookingFrom=today();
+  const jl=EQ.joinLinkFor(r,classes,S);if(jl&&!r.joinLink)upd.joinLink=jl;
   if(type==="noshow"){upd.trialDate="";upd.events.push({at:nowIso(),text:"Didn't attend the trial"})}
   await save(r.id,upd);
 }
@@ -460,7 +480,8 @@ function askTrial(r){
 }
 $("tSave").onclick=async()=>{
   const d=$("tDate").value;if(!d){toast("Choose the trial date");return}const r=trialFor;
-  await save(r.id,{stage:"trial_booked",trialDate:d,trialClass:$("tClass").value,trialBookedAt:r.trialBookedAt||nowIso(),events:event(r,`Trial booked for ${EQ.fmt(d)}${$("tClass").value?", "+$("tClass").value:""}`)});
+  const tc=EQ.findClass($("tClass").value,classes);
+  await save(r.id,{stage:"trial_booked",trialDate:d,trialClass:$("tClass").value,joinLink:(tc&&tc.link)||r.joinLink||"",trialBookedAt:r.trialBookedAt||nowIso(),events:event(r,`Trial booked for ${EQ.fmt(d)}${$("tClass").value?", "+$("tClass").value:""}`)});
   $("tdlg").close();toast("Trial saved. The book-your-place email will be due on "+EQ.fmt(d));
 };
 
@@ -531,36 +552,66 @@ function renderResults(){
 }
 
 /* ---------- 5. Settings ---------- */
-function updateMailerState(){const on=!!(S.mailerUrl&&S.mailerToken);$("mailerState").className="pill "+(on?"good":"warn");$("mailerState").textContent=on?"✓ Connected":"Not connected"}
+function updateMailerState(){
+  const ok=mailerReady(),bad=S.mailerFrom&&!sameAddr(S.mailerFrom,S.sender);
+  $("mailerState").className="pill "+(ok?"good":bad?"bad":"warn");
+  $("mailerState").textContent=ok?"✓ Sending as "+S.mailerFrom:bad?"✕ Set up in the wrong account ("+S.mailerFrom+")":"Not set up yet";
+  $("senderShow").textContent=S.sender;$("senderShow2").textContent=S.sender;
+  const n=classes.filter(c=>S.offerGroups[c.group]).length,w=classes.filter(c=>S.offerGroups[c.group]&&c.link).length;
+  $("linkState").className="pill "+(n&&w===n?"good":w?"warn":"bad");
+  $("linkState").textContent=!n?"No classes yet":w===n?`✓ All ${n} classes have links`:w?`${w} of ${n} classes have links`:"No links yet: run Send to SAADI Hub";
+}
+async function saveCfg(part){const n=Object.assign({},await currentCfg(),part);await Hub.doc("config/enquiryDesk").set(n);S=EQ.settings(n);updateMailerState()}
+async function currentCfg(){try{const d=await Hub.doc("config/enquiryDesk").get();return d.exists?d.data():{}}catch(e){return{}}}
+$("copyCode").onclick=async()=>{
+  let key=S.mailerToken;if(!key){key=EQ.newKey();await saveCfg({mailerToken:key,mailerFrom:""})}
+  const code=EQ.mailerCode(key,S.sender);
+  try{await navigator.clipboard.writeText(code);$("copyCodeMsg").textContent="✓ Copied"}catch(e){$("copyCodeMsg").textContent="Couldn't copy automatically"}
+  window.open(`https://script.google.com/create?authuser=${encodeURIComponent(S.sender)}`,"_blank");
+};
+async function ping(url,extra){const r=await fetch(url,{method:"POST",body:JSON.stringify(Object.assign({token:S.mailerToken},extra))});return r.json()}
+$("connectMailer").onclick=async()=>{
+  const url=$("sMailerUrl").value.trim();
+  if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)){$("testMsg").textContent="Paste the Web app URL (it starts https://script.google.com and ends /exec).";return}
+  if(!S.mailerToken){$("testMsg").textContent="Press Copy the mailer code first (step 1).";return}
+  $("testMsg").textContent="Checking…";
+  try{const j=await ping(url,{ping:1});
+    if(j.from&&!sameAddr(j.from,S.sender)){await saveCfg({mailerUrl:url,mailerFrom:j.from});$("testMsg").innerHTML=`<b style="color:var(--bad)">This mailer is in ${esc(j.from)}'s Google account.</b> Sign in to Chrome as ${esc(S.sender)} and repeat steps 1 to 4.`;return}
+    if(!j.ok){$("testMsg").innerHTML=`<b style="color:var(--bad)">${j.error==="wrong key"?"The code in Google doesn't match this desk. Repeat steps 1 and 2.":esc(j.error||"Not connected")}</b>`;return}
+    await saveCfg({mailerUrl:url,mailerFrom:j.from});
+    $("testMsg").innerHTML=`<b style="color:var(--good)">✓ Connected. Emails will be sent from ${esc(j.from)}.</b>`;
+  }catch(x){$("testMsg").innerHTML='<b style="color:var(--bad)">Couldn\'t reach it. Check the URL, and that step 4 says Who has access: Anyone.</b>'}
+};
 function areas(){return [...new Set(Object.keys(S.offerGroups).concat(classes.map(c=>c.group)))].filter(Boolean).sort()}
 function renderSettings(){
-  [["sMailerUrl","mailerUrl"],["sMailerToken","mailerToken"],["sFromName","fromName"],["sReplyTo","replyTo"],["sSignOff","signOff"],["sTrialLink","trialLink"],["sJoinLink","joinLink"],["sRem","reminderDays"],["sNoRep","noReplyCloseDays"],["sQ","questionsDays"],["sLost","lostCloseDays"]].forEach(([i,k])=>$(i).value=S[k]==null?"":S[k]);
+  [["sMailerUrl","mailerUrl"],["sSender","sender"],["sFromName","fromName"],["sSignOff","signOff"],["sTrialLink","trialLink"],["sRem","reminderDays"],["sNoRep","noReplyCloseDays"],["sQ","questionsDays"],["sLost","lostCloseDays"]].forEach(([i,k])=>$(i).value=S[k]==null?"":S[k]);
+  updateMailerState();
   const gs=areas();
   $("sGroups").innerHTML=gs.map(g=>{const a=S.groupAges[g]||["",""];return `<tr><td><input type="checkbox" data-offer="${esc(g)}" ${S.offerGroups[g]?"checked":""}></td><td>${esc(g)}</td><td><input type="number" style="width:80px" data-amin="${esc(g)}" value="${a[0]}"></td><td><input type="number" style="width:80px" data-amax="${esc(g)}" value="${a[1]}"></td></tr>`}).join("");
-  $("sGroupLinks").innerHTML=gs.filter(g=>S.offerGroups[g]).map(g=>`<label class="f">${esc(g)} <input type="url" data-glink="${esc(g)}" value="${esc(S.groupLinks[g]||"")}" placeholder="use the main trial link"></label>`).join("");
   $("sTemplates").innerHTML=Object.entries(EQ.TEMPLATES).map(([k,t0])=>{const t=EQ.template(k,S);return `<details><summary>${esc(t0.label)}</summary><div class="form2" style="margin-top:10px"><label class="f">Subject <input type="text" data-tpl="${k}" data-f="subject" value="${esc(t.subject)}"></label><label class="f">Heading <input type="text" data-tpl="${k}" data-f="heading" value="${esc(t.heading)}"></label></div><label class="f" style="margin-top:10px">Message <textarea style="min-height:200px" data-tpl="${k}" data-f="body">${esc(t.body)}</textarea></label><button type="button" data-reset="${k}" style="margin-top:6px">Reset to the original wording</button></details>`}).join("");
   $("sTemplates").querySelectorAll("[data-reset]").forEach(b=>b.onclick=()=>{const t=EQ.TEMPLATES[b.dataset.reset];$("sTemplates").querySelectorAll(`[data-tpl="${b.dataset.reset}"]`).forEach(i=>i.value=t[i.dataset.f])});
 }
 $("saveSettings").onclick=async()=>{
-  const n={mailerUrl:$("sMailerUrl").value.trim(),mailerToken:$("sMailerToken").value.trim(),fromName:$("sFromName").value.trim()||EQ.DEFAULTS.fromName,replyTo:$("sReplyTo").value.trim()||EQ.DEFAULTS.replyTo,
-    signOff:$("sSignOff").value.trim()||EQ.DEFAULTS.signOff,trialLink:$("sTrialLink").value.trim(),joinLink:$("sJoinLink").value.trim(),
+  const sender=$("sSender").value.trim()||EQ.DEFAULTS.sender;
+  const n=Object.assign(await currentCfg(),{sender,fromName:$("sFromName").value.trim()||EQ.DEFAULTS.fromName,replyTo:sender,
+    signOff:$("sSignOff").value.trim()||EQ.DEFAULTS.signOff,trialLink:$("sTrialLink").value.trim(),
     reminderDays:+$("sRem").value||3,noReplyCloseDays:+$("sNoRep").value||7,questionsDays:+$("sQ").value||2,lostCloseDays:+$("sLost").value||7,
-    offerGroups:{},groupAges:{},groupLinks:{},templates:{}};
+    offerGroups:{},groupAges:{},templates:{}});
   document.querySelectorAll("[data-offer]").forEach(i=>n.offerGroups[i.dataset.offer]=i.checked);
   document.querySelectorAll("[data-amin]").forEach(i=>{const g=i.dataset.amin,mx=document.querySelector(`[data-amax="${CSS.escape(g)}"]`).value;if(i.value!==""&&mx!=="")n.groupAges[g]=[+i.value,+mx]});
-  document.querySelectorAll("[data-glink]").forEach(i=>{if(i.value.trim())n.groupLinks[i.dataset.glink]=i.value.trim()});
   document.querySelectorAll("[data-tpl]").forEach(i=>{const k=i.dataset.tpl,f=i.dataset.f;if(i.value!==EQ.TEMPLATES[k][f])(n.templates[k]=n.templates[k]||{})[f]=i.value});
   try{await Hub.doc("config/enquiryDesk").set(n);S=EQ.settings(n);updateMailerState();renderSettings();$("setMsg").textContent="Saved ✓";toast("Settings saved")}
   catch(e){$("setMsg").textContent="Couldn't save ("+(e.code||"error")+")"}
 };
 $("sendTest").onclick=async()=>{
-  const to=$("testTo").value.trim();if(!validEmail(to)){$("testMsg").textContent="Type an email address";return}
-  const url=$("sMailerUrl").value.trim(),token=$("sMailerToken").value.trim();if(!url||!token){$("testMsg").textContent="Add the mailer address and key first";return}
-  const e=EQ.email("invite",{parentName:"Test",childName:"Test Child",classes:(lastMatch&&lastMatch.space.slice(0,2))||[]},S);
+  const to=$("testTo").value.trim();if(!validEmail(to)){$("testMsg").textContent="Type an email address to send the test to.";return}
+  if(!mailerReady()){$("testMsg").textContent="Connect the mailer first (steps 1 to 5).";return}
+  const sample=(lastMatch&&lastMatch.space.slice(0,2))||classes.filter(c=>S.offerGroups[c.group]&&c.avail>0).slice(0,2);
+  const e=EQ.email("invite",{parentName:"Test",childName:"Test Child",classes:sample},S);
   $("testMsg").textContent="Sending…";
-  try{const r=await fetch(url,{method:"POST",body:JSON.stringify({token,to,subject:"[TEST] "+e.subject,html:e.html,text:e.text,fromName:$("sFromName").value||S.fromName,replyTo:$("sReplyTo").value||S.replyTo})});const j=await r.json();
-    $("testMsg").textContent=j.ok?"✓ Sent. Check the inbox, then press Save settings.":"Not sent: "+(j.error||"unknown error")}
-  catch(x){$("testMsg").textContent="Couldn't reach the mailer. Check the address, and that it's deployed for 'Anyone'."}
+  try{const j=await ping(S.mailerUrl,{to,subject:"[TEST] "+e.subject,html:e.html,text:e.text,fromName:S.fromName});
+    $("testMsg").textContent=j.ok?`✓ Sent from ${j.from}. Check the inbox.`:"Not sent: "+(j.error||"unknown error")}
+  catch(x){$("testMsg").textContent="Couldn't reach the mailer."}
 };
 
 Hub.gate(load);

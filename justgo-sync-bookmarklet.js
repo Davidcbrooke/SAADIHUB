@@ -10,6 +10,7 @@
 //      the Rolling Term with the WAG / MAG squads, and whatever view is open now,
 //   3. loads all of those terms together in a copy of the class list behind the panel and scrolls it until every class has loaded,
 //   4. takes the same text a select-all copy would give (class, time, group, Booked / Available / Trial / Wait List, term),
+//      plus each class's public booking link (what JustGo's "Copy Link" gives), for the Enquiry Desk emails,
 //   5. only when every class is in, offers an "Open SAADI Hub" button, which sends the list to the hub
 //      in the address after "#jg=" (that part never leaves the browser).
 // It reads only; it never clicks or changes anything in JustGo. No member names or personal details are read.
@@ -64,8 +65,18 @@
   const n = rows().length;
   if (total && n < total) { say("Only " + n + " of " + total + " classes loaded.", "Close this, keep the JustGo tab in front, and click Send to SAADI Hub again."); return; }
   const text = [...rows()].map(r => r.innerText).join("\n").split("\n").map(s => s.trim()).filter(Boolean).join("\n");
+  // Each class's public booking page (the same link as JustGo's "Copy Link"): read from the class list's own data.
+  let links = [], club = "";
+  try {
+    const fib = el => el[Object.keys(el).find(k => k.startsWith("__reactFiber"))];
+    let fb = fib(doc.querySelector("tbody tr"));
+    for (let i = 0; i < 25 && fb; i++, fb = fb.return) {
+      const pr = fb.memoizedProps;
+      if (pr && Array.isArray(pr.data) && pr.data[0] && pr.data[0].SessionGuid) { club = pr.data[0].OwningEntitySyncGuid || ""; links = pr.data.map(o => [o.DayOfWeek, o.SessionName, o.SessionGuid]); break; }
+    }
+  } catch (e) {}
   frames.forEach(x => x.remove());
-  const url = HUB + "#jg=" + encodeURIComponent(JSON.stringify({ v: 3, at: new Date().toISOString(), n, total, terms: [...terms], text }));
+  const url = HUB + "#jg=" + encodeURIComponent(JSON.stringify({ v: 4, at: new Date().toISOString(), n, total, terms: [...terms], text, club, links }));
   say("All " + n + " classes are ready.", "Open the hub, check the summary and press Save week.");
   ov.querySelector("#saadiSyncBtns").innerHTML = "";
   btn("Open SAADI Hub", () => { const w = window.open(url, "saadiHubSync"); if (!w) location.href = url; close(); }, true);

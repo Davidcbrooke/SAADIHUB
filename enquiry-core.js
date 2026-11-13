@@ -12,12 +12,14 @@ EQ.BAND_COLOURS={Orange:"#f28c28",Yellow:"#f2c200",Blue:"#2f7de1",Red:"#d62d3b",
 /* ---------- settings ---------- */
 EQ.DEFAULTS={
   fromName:"SAADI Gymnastics",
+  sender:"reception@saadigymnastics.co.uk",  // emails must go out from this Google account
+  mailerFrom:"",            // the account the connected mailer actually sends from (filled in by the test)
   replyTo:"reception@saadigymnastics.co.uk",
   signOff:"The SAADI Gymnastics team",
   mailerUrl:"", mailerToken:"",
   logoUrl:"https://hub.saadigymnastics.co.uk/saadi-logo-white.png",
-  trialLink:"",            // the page parents use to book a trial
-  joinLink:"",             // the page parents use to book a place after the trial (blank = same as trial link)
+  trialLink:"",            // fallback only: each class's own JustGo booking page is used automatically
+  joinLink:"",             // fallback only
   groupLinks:{},           // optional per-group trial links, e.g. {"Pre School":"https://..."}
   reminderDays:3,          // trial not booked: send the reminder this many days after the invite
   noReplyCloseDays:7,      // close as "no response" this many days after the reminder
@@ -101,6 +103,23 @@ EQ.classTitle=c=>(String(c.name||"").split("|")[0].trim()||c.group);
 EQ.prettyTime=t=>{const parts=String(t||"").split(/\s*-\s*/).map(x=>{const m=x.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);if(!m)return{t:x,ap:""};return{t:(+m[1])+(m[2]==="00"?"":":"+m[2]),ap:(m[3]||"").toLowerCase()}});
   if(parts.length===2&&parts[0].ap===parts[1].ap)return `${parts[0].t}–${parts[1].t}${parts[1].ap}`;return parts.map(p=>p.t+p.ap).join("–")};
 EQ.classWhen=c=>`${DAYNAME[c.day]||c.day} ${EQ.prettyTime(c.time)}`;
+
+/* Find the JustGo class a free-text label refers to, e.g. "Mon 4-5pm Year 1 Yellow". */
+EQ.findClass=function(label,classes){
+  if(!label)return null;const L=String(label);
+  const exact=(classes||[]).find(c=>`${c.day} ${EQ.prettyTime(c.time)} ${EQ.classTitle(c)}`===L);if(exact)return exact;
+  const day=(L.match(/\b(mon|tue|wed|thu|fri|sat|sun)/i)||[])[1];
+  const words=(L.toUpperCase().replace(/\b\d{1,2}([:.]\d{2})?\s*(AM|PM)?\s*[-–]\s*\d{1,2}([:.]\d{2})?\s*(AM|PM)\b/g," ").match(/[A-Z]{2,}|\d+\+?/g)||[])
+    .filter(w=>!/^(MON|TUE|TUES|WED|WEDS|THU|THUR|THURS|FRI|SAT|SUN|MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|SATURDAY|SUNDAY|AND|THE|TO|AM|PM)$/.test(w));
+  let best=null,bs=0;
+  (classes||[]).forEach(c=>{if(day&&String(c.day).toLowerCase()!==day.toLowerCase())return;
+    const n=" "+String(c.name||"").toUpperCase().replace(/[|&,]/g," ").replace(/\s+/g," ")+" ";
+    const sc=words.filter(w=>n.includes(" "+w+" ")||n.includes(" "+w.replace("+"," +")+" ")).length;
+    if(sc>bs){bs=sc;best=c}});
+  return bs>=Math.min(2,words.length)?best:null;
+};
+/* The booking page for a family: their trial class's JustGo page. */
+EQ.joinLinkFor=(r,classes,s)=>r.joinLink||((EQ.findClass(r.trialClass,classes)||{}).link)||((r.classes||[])[0]||{}).link||s.joinLink||s.trialLink||"";
 
 /* ---------- the answer: which classes could this child join? ----------
    q = {age|dob, gender: "girl"|"boy"|"", term?}. Returns {child, space:[...], full:[...], other:[...]} */
@@ -223,7 +242,7 @@ EQ.fill=(t,r,s,extra)=>{
 EQ.email=function(type,r,s){
   const t=EQ.template(type,s);
   const subject=EQ.fill(t.subject,r,s);
-  const joinLink=r.joinLink||s.joinLink||EQ.linkFor((r.classes||[])[0],s);
+  const joinLink=r.joinLink||((r.classes||[])[0]||{}).link||s.joinLink||s.trialLink||"";
   const blocks={classes:"\u0000classes\u0000",bookButton:"\u0000book\u0000"};
   const bodyTxt=EQ.fill(t.body,r,s,blocks);
   const paras=bodyTxt.split(/\n{2,}/).map(p=>{
@@ -296,6 +315,39 @@ EQ.parseImport=function(text){
   });
   return{rows:out,bad};
 };
+
+/* ---------- the Google mailer (runs in the reception@ Google account) ---------- */
+EQ.newKey=()=>{const a=new Uint8Array(24);(globalThis.crypto||require("crypto").webcrypto).getRandomValues(a);return [...a].map(x=>x.toString(16).padStart(2,"0")).join("")};
+EQ.mailerCode=(key,sender)=>`/**
+ * SAADI Enquiry Desk mailer. Sends the desk's emails from ${sender}.
+ * Set up from the desk: Emails & settings > Sending emails. Don't share this code: it contains the desk's key.
+ */
+var KEY = '${key}';
+var SENDER = '${sender}';
+
+function doPost(e) {
+  try {
+    var p = JSON.parse(e.postData.contents);
+    if (p.token !== KEY) return reply({ ok: false, error: 'wrong key' });
+    var me = Session.getEffectiveUser().getEmail();
+    if (me.toLowerCase() !== SENDER.toLowerCase()) return reply({ ok: false, from: me, error: 'this mailer is in ' + me + "'s Google account, not " + SENDER });
+    if (p.ping) return reply({ ok: true, from: me, left: MailApp.getRemainingDailyQuota() });
+    if (!p.to || !/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(p.to)) return reply({ ok: false, error: 'email address missing or not valid' });
+    if (!p.subject || !p.html) return reply({ ok: false, error: 'nothing to send' });
+    GmailApp.sendEmail(p.to, p.subject, p.text || '', { htmlBody: p.html, name: p.fromName || 'SAADI Gymnastics', replyTo: SENDER });
+    return reply({ ok: true, from: me, left: MailApp.getRemainingDailyQuota() });
+  } catch (err) {
+    return reply({ ok: false, error: String(err.message || err) });
+  }
+}
+
+function doGet() { return reply({ ok: true, service: 'SAADI Enquiry Desk mailer' }); }
+
+/** Press Run on this once after pasting, so Google asks for permission to send email. */
+function allowSending() { Logger.log('Ready to send as ' + Session.getEffectiveUser().getEmail() + '. ' + MailApp.getRemainingDailyQuota() + ' emails left today.'); }
+
+function reply(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
+`;
 
 root.EQ=EQ;
 if(typeof module!=="undefined")module.exports=EQ;

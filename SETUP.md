@@ -114,3 +114,11 @@ The desk doesn't update itself: it shows the spaces from the last time someone p
 You can change all of these timings in **Emails & settings**. When a family books a trial or a place in JustGo, press **Trial booked** or **Booked a place** on the **Follow-ups** tab. The **Results** tab shows enquiries, trials and joiners by month, by source and by class, plus a log of every email sent.
 
 The desk saves enquiries under the hub's private data area, using the same protection as the weekly numbers. It stores children's first names and ages, and parents' names, emails and phone numbers. Delete records you no longer need from the record's **Delete** button.
+
+# Term Renewals
+
+`term-renewals.html` shows how many children on a termly place this term have booked for next term: overall, by area (Recreational, Pre-School, Novice) and class by class. Click a class to see who has booked and who hasn't. It also sends reminder emails, from reception@, to families who haven't booked yet.
+
+- **Where the data comes from:** the morning **Send to SAADI Hub** button. Once next term's classes are set up in JustGo, it also reads this term's and next term's class registers: each child, their parent's email, and whether the place is a trial or pay-as-you-go. It reads only; it doesn't change anything in JustGo. Press **Save week** as usual and the renewals update.
+- **Who counts:** children on a termly place this term. Trials and pay-as-you-go places (e.g. Pre-School PAYG, Play Gym) aren't counted. A child has renewed once they're booked into any class next term.
+- **Reminders:** one email per family, with a button to book each child's matching class next term (same day, time and colour). Families reminded in the last few days, and families whose class has no match next term yet, are hidden by default. Every reminder is logged, so the list shows who was reminded and when. The wording can be changed under **Change the wording**.

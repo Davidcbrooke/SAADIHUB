@@ -108,14 +108,14 @@ input[type=text]{width:100%}
           <div class="row"><div class="seg" id="fArea"></div><select id="fDay"><option value="">Every day</option></select><span class="muted small">Click a class to see who has and hasn't booked</span></div>
         </div>
         <div class="tbl-wrap"><table class="t"><thead><tr><th data-sort="day">Day</th><th data-sort="time">Time</th><th data-sort="name">Class this term</th><th data-sort="rate">Renewed</th><th data-sort="left">Still to book</th><th>Next term's class</th></tr></thead><tbody id="tBody"></tbody></table></div>
-        <p class="hint">Trial and pay-as-you-go places aren't counted, as they don't renew termly.</p>
+        <p class="hint">Trial and pay-as-you-go places aren't counted, as they don't renew termly. "No matching class found" means next term has no class on the same day and time yet (for example, Novice isn't set up for Spring yet).</p>
       </section>
 
       <div class="grid2">
         <section class="panel">
           <div class="panel-head"><h2>Remind families who haven't booked</h2><span class="pill none" id="mailState"></span></div>
           <div class="toolbar">
-            <div class="row small"><label class="row" style="gap:6px"><input type="checkbox" id="onlyNew" checked> Hide families reminded in the last <input type="number" id="days" value="5" min="0" max="60" style="width:56px"> days</label></div>
+            <div class="wrap small" style="gap:4px;margin:0"><label class="row" style="gap:6px"><input type="checkbox" id="onlyNew" checked> Hide families reminded in the last <input type="number" id="days" value="5" min="0" max="60" style="width:56px"> days</label><label class="row" style="gap:6px"><input type="checkbox" id="onlyMatched" checked> Hide families with no class to book next term yet</label></div>
             <div class="row"><button type="button" id="selAll">Select all</button><button type="button" id="selNone">None</button></div>
           </div>
           <div class="fams" id="fams"></div>
@@ -175,7 +175,7 @@ function mailState(){const ok=mailerReady();$("mailState").className="pill "+(ok
 function render(){
   $("empty").hidden=!!R;$("content").hidden=!R;if(!R)return;
   const nx=R.next.map(t=>t.name).join(" and ");
-  $("termLine").textContent=`${R.cur.map(t=>t.name).join(" + ")}  →  ${nx}`;
+  $("termLine").textContent=`This term → ${nx}`;
   $("asOf").textContent="Bookings as of "+new Date(R.at).toLocaleString("en-GB",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+" (from JustGo)";
   $("bigPct").textContent=pct(R.rate);$("bigPct").className="v "+tone(R.rate);
   $("bigSub").innerHTML=`<b>${R.renewed}</b> of <b>${R.kids}</b> children on a termly place this term have booked for next term`;
@@ -214,7 +214,7 @@ const lastSent=f=>{const l=logs.filter(x=>String(x.email||"").toLowerCase()===St
 function famList(){
   if(!R)return[];
   const lim=+$("days").value||0,cut=Date.now()-lim*864e5;
-  return R.families.filter(f=>(!area||f.kids.some(k=>k.cur.area===area))&&(!$("onlyNew").checked||!lastSent(f)||new Date(lastSent(f))<cut))
+  return R.families.filter(f=>(!area||f.kids.some(k=>k.cur.area===area))&&(!$("onlyMatched").checked||f.kids.some(k=>k.next))&&(!$("onlyNew").checked||!lastSent(f)||new Date(lastSent(f))<cut))
     .sort((a,b)=>(a.parentName||"").localeCompare(b.parentName||""));
 }
 function renderFams(){
@@ -222,15 +222,15 @@ function renderFams(){
   [...sel].forEach(k=>{if(!list.some(f=>f.key===k))sel.delete(k)});
   $("fams").innerHTML=list.map(f=>{const ls=lastSent(f),ok=/@/.test(f.email||"");
     return `<label class="fam"><input type="checkbox" data-k="${esc(f.key)}" ${sel.has(f.key)?"checked":""} ${ok?"":"disabled"}>
-      <div><div class="who">${esc(f.parentName||"Parent")} <span class="muted" style="font-weight:400">${esc(f.email||"no email in JustGo")}</span></div>
-      <div class="kids">${f.kids.map(k=>`${esc(k.first)} · ${esc(k.cur.day)} ${esc(timeOf(k.cur))} ${esc(title(k.cur))}${k.next?"":" (no matching class)"}`).join("<br>")}</div></div>
+      <div><div class="who">${esc(f.kids.map(k=>k.first+" "+k.last).join(", "))} <span class="muted" style="font-weight:400">${esc(f.parentName?f.parentName+" · ":"")}${esc(f.email||"no email in JustGo")}</span></div>
+      <div class="kids">${f.kids.map(k=>`${esc(k.first)}: ${esc(k.cur.day)} ${esc(timeOf(k.cur))} ${esc(title(k.cur))}${k.next?"":" (no matching class)"}`).join("<br>")}</div></div>
       <div class="last">${ls?`<span class="pill warn">Reminded ${new Date(ls).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</span>`:'<span class="pill none">Not reminded</span>'}</div></label>`}).join("")||'<p class="muted">No families to remind. Brilliant!</p>';
   $("fams").querySelectorAll("input[data-k]").forEach(i=>{i.onchange=()=>{i.checked?sel.add(i.dataset.k):sel.delete(i.dataset.k);previewKey=i.dataset.k;updateSendBtn();renderPreview()}});
   $("fams").querySelectorAll(".fam").forEach(l=>l.addEventListener("mouseenter",()=>{const k=l.querySelector("input").dataset.k;if(previewKey!==k){previewKey=k;renderPreview()}}));
   if(!previewKey&&list.length)previewKey=list[0].key;
   updateSendBtn();renderPreview();
 }
-$("onlyNew").onchange=renderFams;$("days").oninput=renderFams;
+$("onlyNew").onchange=renderFams;$("onlyMatched").onchange=renderFams;$("days").oninput=renderFams;
 $("selAll").onclick=()=>{famList().filter(f=>/@/.test(f.email||"")).forEach(f=>sel.add(f.key));renderFams()};
 $("selNone").onclick=()=>{sel.clear();renderFams()};
 function updateSendBtn(){const n=sel.size;$("sendSel").disabled=!n||!mailerReady();$("sendSel").textContent=n?`Send reminder to ${n} famil${n===1?"y":"ies"}`:"Send reminder";

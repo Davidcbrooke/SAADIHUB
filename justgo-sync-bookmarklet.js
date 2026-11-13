@@ -6,8 +6,8 @@
 // What it does, from anywhere in JustGo > Class Management:
 //   1. covers the JustGo page with a small progress panel, so the tab stays in front while it works
 //      (Chrome stops loading lists in background tabs, which is why it no longer opens the hub straight away),
-//   2. works out which terms to read: the term view pinned as the default (e.g. Autumn 2026),
-//      the Rolling Term with the WAG / MAG squads, and whatever view is open now,
+//   2. works out which terms to read: every term running today from JustGo's Term list (Recreational, Pre-school, Novice...),
+//      the term view pinned as the default, the Rolling Term with the WAG / MAG squads, and whatever view is open now,
 //   3. loads all of those terms together in a copy of the class list behind the panel and scrolls it until every class has loaded,
 //   4. takes the same text a select-all copy would give (class, time, group, Booked / Available / Trial / Wait List, term),
 //      plus each class's public booking link (what JustGo's "Copy Link" gives), for the Enquiry Desk emails,
@@ -39,6 +39,22 @@
   // The default (pinned) view: open the class list with no term and see which terms it picks.
   let f = frame(path);
   for (let i = 0; i < 30; i++) { await wait(500); try { const t = termsOf(f.contentWindow.location.search); if (t.length) { t.forEach(x => terms.add(x)); break; } } catch (e) {} }
+  f.remove();
+  if (!document.getElementById("saadiSync")) return;
+  // Every term running today (e.g. Novice has its own term, and Spring terms take over in January), read from JustGo's own Term list.
+  say("Finding this term's classes…", "Keep this tab open until it finishes.");
+  f = frame(path + "term");
+  for (let i = 0; i < 30; i++) {
+    await wait(500);
+    try {
+      const d = f.contentDocument.querySelector("iframe").contentDocument;
+      const tr = d.querySelector("tbody tr");
+      if (!tr) continue;
+      let fb = tr[Object.keys(tr).find(k => k.startsWith("__reactFiber"))], list = null;
+      for (let j = 0; j < 25 && fb; j++, fb = fb.return) { const pr = fb.memoizedProps; if (pr && Array.isArray(pr.data) && pr.data[0] && "ClassTermId" in pr.data[0]) { list = pr.data; break; } }
+      if (list) { const now = new Date(); list.forEach(t => { if (!t.IsDeleted && new Date(t.StartDate) <= now && new Date(t.EndDate) >= now) terms.add(String(t.ClassTermId)); }); break; }
+    } catch (e) {}
+  }
   f.remove();
   if (!document.getElementById("saadiSync")) return;
   say("Loading every class…", "Keep this tab open until it finishes.");

@@ -345,17 +345,22 @@ function showTab(t){document.querySelectorAll(".tabs button").forEach(b=>b.setAt
 /* ---------- data ---------- */
 async function load(){
   try{const d=await Hub.doc("config/enquiryDesk").get();S=EQ.settings(d.exists?d.data():{})}catch(e){S=EQ.settings({})}
-  try{
-    const q1=await Hub.col("snapshots").orderBy("weekOf","desc").limit(1).get();
+  // Live: new JustGo numbers and links appear as soon as anyone saves them, without reloading.
+  Hub.col("snapshots").orderBy("weekOf","desc").limit(1).onSnapshot(q1=>{
     if(!q1.empty){const s=q1.docs[0].data();snapWeek=s.weekOf;snapSaved=s.savedAt||null;classes=(s.classes||[]).filter(c=>!c.legacy)}
-  }catch(e){}
-  const terms=[...new Set(classes.map(c=>c.term).filter(Boolean))];
-  $("qTerm").innerHTML='<option value="">All terms</option>'+terms.map(t=>`<option>${esc(t)}</option>`).join("");
+    showClasses();
+  },()=>showClasses());
+  Hub.doc("config/enquiryDesk").onSnapshot(d=>{if(d.exists){S=EQ.settings(d.data());updateMailerState();if(lastMatch)updatePreview()}},()=>{});
+  Hub.col("enquiries").onSnapshot(qs=>{recs=qs.docs.map(d=>({id:d.id,...d.data()}));refresh()},err=>{$("statusNote").hidden=false;$("statusNote").textContent="Couldn't load the enquiries ("+(err.code||"error")+")."});
+}
+function showClasses(){
+  const terms=[...new Set(classes.map(c=>c.term).filter(Boolean))],cur=$("qTerm").value;
+  $("qTerm").innerHTML='<option value="">All terms</option>'+terms.map(t=>`<option>${esc(t)}</option>`).join("");$("qTerm").value=terms.includes(cur)?cur:"";
   $("classList").innerHTML=classes.filter(c=>S.offerGroups[c.group]).map(c=>`<option value="${esc(classLabel(c))}">`).join("");
   $("snapNote").innerHTML=snapWeek?`Spaces as of ${snapSaved?new Date(snapSaved).toLocaleString("en-GB",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"w/c "+EQ.fmt(snapWeek,{day:"numeric",month:"short"})} (from JustGo)`:`<span style="color:var(--bad)">No class numbers yet. Send them from JustGo on the <a href="class-capacity.html">Class Capacity</a> page first.</span>`;
   if(snapSaved&&EQ.iso(new Date(snapSaved))!==today())$("snapNote").innerHTML+=` <span class="pill warn">⚠ not updated today</span>`;
-  Hub.col("enquiries").onSnapshot(qs=>{recs=qs.docs.map(d=>({id:d.id,...d.data()}));refresh()},err=>{$("statusNote").hidden=false;$("statusNote").textContent="Couldn't load the enquiries ("+(err.code||"error")+")."});
   updateMailerState();renderSod();
+  if(lastMatch){const keep=new Set(picked);ask();if(keep.size){picked.clear();[...lastMatch.space,...lastMatch.full].forEach(c=>{if(keep.has(c.key))picked.add(c.key)});document.querySelectorAll("#answer input[data-k]").forEach(i=>i.checked=picked.has(i.dataset.k));updatePreview()}}
 }
 /* ---------- start of day ---------- */
 const JG_CLASSES="https://mybg.british-gymnastics.org/Workbench/i/r/ClassManagement/class/B0DF64DC-1886-452A-8CA0-7A014813207E/";

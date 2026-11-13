@@ -324,7 +324,7 @@ const paraHtml=p=>`<p style="margin:0 0 14px;font-family:Arial,Helvetica,sans-se
 
 /* ---------- term renewal reminder ---------- */
 EQ.RENEWAL={subject:"Book {childNames}'s {place} for {nextTerm}",heading:"Time to book {nextTermShort}!",
-  body:"Hi {parentName},\n\nWe've loved having {childNames} with us this term. {nextTerm} starts on {startDate} and booking is now open, so here's how to book {childNames}'s {place}:\n\n{classes}\n\nPlaces aren't kept automatically from one term to the next, so please book soon to keep {childNames}'s {spot}. If you've already booked, thank you, and please ignore this email.\n\nIf you have any questions, or would like a different day or time, just reply to this email."};
+  body:"Hi {parentName},\n\nWe've loved having {childNames} with us this term. {nextTerm} starts on {startDate} and booking is now open, so here's how to book {childNames}'s {place}:\n\n{classes}\n\nPlaces aren't kept automatically from one term to the next, so please book soon to keep {childNames}'s {spot}. If you've already booked, thank you, and please ignore this email.\n\n{otherOptions}\n\nIf you have any other questions, just reply to this email."};
 const joinNames=a=>a.length<2?(a[0]||"your child"):a.slice(0,-1).join(", ")+" and "+a[a.length-1];
 /* family = {parentName, email, kids:[{first, cur:{day,start,name}, next:{day,start,end,name,term,link,colour}|null}]} */
 EQ.renewalEmail=function(family,s,tpl,term){
@@ -339,9 +339,21 @@ EQ.renewalEmail=function(family,s,tpl,term){
       <div style="font-size:15px;color:#4a444e;margin:2px 0 10px">${n?escH(String(n.name).split("|")[0].trim())+" · "+escH(n.term):"Reply to this email and we'll help you choose the right class."}</div>
       ${n&&n.link?`<a href="${escH(n.link)}" style="display:inline-block;padding:9px 18px;background:#d4066a;color:#ffffff;font-weight:700;font-size:14px;text-decoration:none;border-radius:999px">Book ${escH(k.first||"")}'s place</a>`:""}
     </td></tr></table>`}).join("");
-  const body=fill(t.body);
-  const paras=body.split(/\n{2,}/).map(p=>p.trim()==="{classes}"?cards:paraHtml(p)).join("");
-  const text=body.replace("{classes}",family.kids.map(k=>`- ${k.first}: ${k.next?(EQ.DAYNAME[k.next.day]||k.next.day)+" "+EQ.prettyTime(k.next.start+(k.next.end?" - "+k.next.end:""))+" "+String(k.next.name).split("|")[0].trim()+" "+(k.next.link||""):"reply to choose a class"}`).join("\n"))+`\n\nBest wishes,\n${s.signOff}`;
+  // Not coming back, or want a different class? Two ready-written emails to reception, with the children and classes filled in.
+  const who=family.kids.map(k=>`${k.first||""} ${k.last||""}`.trim()).join(" and ")||"my child";
+  const curTxt=family.kids.map(k=>k.cur?`${k.first}: ${EQ.DAYNAME[k.cur.day]||k.cur.day} ${EQ.prettyTime(k.cur.start+(k.cur.end?" - "+k.cur.end:""))} ${String(k.cur.name).split("|")[0].trim()}`:"").filter(Boolean).join("\n");
+  const mail=(subj,lines)=>`mailto:${s.replyTo}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(lines.join("\n"))}`;
+  const leave=mail(`Not continuing in ${term.short||term.name}: ${who}`,[`Hi SAADI team,`,``,`${who} won't be continuing in ${term.name}.`,``,`This term: `+curTxt.replace(/\n/g,"; "),``,`Reason (optional): `,``,`Thank you`]);
+  const change=mail(`Change of class for ${term.short||term.name}: ${who}`,[`Hi SAADI team,`,``,`We'd like ${who} to move to a different class in ${term.name}.`,``,`This term: `+curTxt.replace(/\n/g,"; "),``,`Days and times that would suit us: `,``,`Thank you`]);
+  const ob=(href,label)=>`<a href="${escH(href)}" style="display:inline-block;margin:4px 8px 4px 0;padding:8px 16px;border:2px solid #d4066a;color:#d4066a;font-weight:700;font-size:14px;text-decoration:none;border-radius:999px;font-family:Arial,Helvetica,sans-serif">${escH(label)}</a>`;
+  const options=`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 16px;background:#f6f4f6;border-radius:10px"><tr><td style="padding:14px 16px;font-family:Arial,Helvetica,sans-serif">
+    <div style="font-size:15px;font-weight:700;color:#1d1a1f;margin-bottom:6px">Not coming back, or want a different class?</div>
+    <div style="font-size:14px;color:#4a444e;margin-bottom:8px">Tap a button and send the email it opens, so we can find a better day and time or offer the place to someone else.</div>
+    ${ob(change,"I'd like a different class")}${ob(leave,"We won't be continuing")}</td></tr></table>`;
+  let body=fill(t.body);
+  if(!/\{otherOptions\}/.test(body))body=body.replace("{classes}","{classes}\n\n{otherOptions}");
+  const paras=body.split(/\n{2,}/).map(p=>p.trim()==="{classes}"?cards:p.trim()==="{otherOptions}"?options:paraHtml(p)).join("");
+  const text=body.replace("{otherOptions}",`Want a different class? Email ${s.replyTo} with the days and times that suit you.\nNot continuing? Please let us know at ${s.replyTo} so we can offer the place to someone else.`).replace("{classes}",family.kids.map(k=>`- ${k.first}: ${k.next?(EQ.DAYNAME[k.next.day]||k.next.day)+" "+EQ.prettyTime(k.next.start+(k.next.end?" - "+k.next.end:""))+" "+String(k.next.name).split("|")[0].trim()+" "+(k.next.link||""):"reply to choose a class"}`).join("\n"))+`\n\nBest wishes,\n${s.signOff}`;
   return{subject,html:EQ.shell(subject,fill(t.heading),paras,s,"You're receiving this because your child has a class at SAADI Gymnastics this term."),text};
 };
 

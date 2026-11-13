@@ -115,12 +115,12 @@ input[type=text]{width:100%}
         <section class="panel">
           <div class="panel-head"><h2>Remind families who haven't booked</h2><span class="pill none" id="mailState"></span></div>
           <div class="toolbar">
-            <div class="wrap small" style="gap:4px;margin:0"><label class="row" style="gap:6px"><input type="checkbox" id="onlyNew" checked> Hide families reminded in the last <input type="number" id="days" value="5" min="0" max="60" style="width:56px"> days</label><label class="row" style="gap:6px"><input type="checkbox" id="onlyMatched" checked> Hide families with no class to book next term yet</label></div>
+            <div class="wrap small" style="gap:4px;margin:0"><label class="row" style="gap:6px"><input type="checkbox" id="onlyNew" checked> Hide families reminded in the last <input type="number" id="days" value="5" min="0" max="60" style="width:56px"> days</label><label class="row" style="gap:6px"><input type="checkbox" id="onlyMatched" checked> Hide families with no class to book next term yet</label><label class="row" style="gap:6px"><input type="checkbox" id="hideTold" checked> Hide families who've told us they're not continuing or changing class</label></div>
             <div class="row"><button type="button" id="selAll">Select all</button><button type="button" id="selNone">None</button></div>
           </div>
           <div class="fams" id="fams"></div>
           <div class="row"><button type="button" class="primary" id="sendSel" disabled>Send reminder</button><span class="small" id="sendMsg" aria-live="polite"></span></div>
-          <p class="hint">One email per family, from <b id="fromAddr">reception@</b>, with a button to book each child's matching class for next term. Families without an email address in JustGo can't be selected.</p>
+          <p class="hint">One email per family, from <b id="fromAddr">reception@</b>, with a button to book each child's matching class for next term, and two buttons to tell us they want a different class or aren't continuing (these come to reception@ as emails). When a family tells you, press <b>Changing class</b> or <b>Not continuing</b> on their card so they aren't reminded again. Families without an email address in JustGo can't be selected.</p>
         </section>
         <section class="panel">
           <div class="panel-head"><h2>Email preview</h2><span class="muted small" id="prevSubj"></span></div>
@@ -130,7 +130,7 @@ input[type=text]{width:100%}
               <label class="f">Subject <input type="text" id="tSubject"></label>
               <label class="f">Heading <input type="text" id="tHeading"></label>
               <label class="f">Message <textarea id="tText" style="min-height:220px"></textarea></label>
-              <p class="hint">Use {parentName}, {childNames}, {place}, {spot}, {nextTerm}, {nextTermShort}, {startDate} and {classes} (where the booking buttons go).</p>
+              <p class="hint">Use {parentName}, {childNames}, {place}, {spot}, {nextTerm}, {nextTermShort}, {startDate}, {classes} (where the booking buttons go) and {otherOptions} (the "different class / not continuing" buttons).</p>
               <div class="row"><button type="button" class="primary" id="tSave">Save wording</button><button type="button" id="tReset">Back to the original</button><span class="small muted" id="tMsg"></span></div>
             </div>
           </details>
@@ -150,7 +150,7 @@ if("serviceWorker" in navigator&&location.protocol==="https:"){window.addEventLi
 (function(){
 "use strict";
 const {$,esc}=Hub;
-let S=EQ.settings({}),R=null,logs=[],tpl={},area="",sortKey="rate",sortDir=1,open=new Set(),sel=new Set(),previewKey=null;
+let S=EQ.settings({}),R=null,logs=[],stat={},tpl={},area="",sortKey="rate",sortDir=1,open=new Set(),sel=new Set(),previewKey=null;
 const pct=x=>isFinite(x)?Math.round(x*100)+"%":"–";
 const tone=x=>!isFinite(x)?"none":x>=.8?"good":x>=.5?"warn":"bad";
 const toneVar=x=>`var(--${tone(x)==="none"?"none":tone(x)})`;
@@ -168,6 +168,8 @@ function load(){
     R=ren?EQ.renewals(ren):null;render();
   },e=>{$("statusNote").hidden=false;$("statusNote").textContent="Couldn't load the renewals ("+(e.code||"error")+")."});
   Hub.col("renewalEmails").onSnapshot(q=>{logs=q.docs.map(d=>d.data());renderFams()},()=>{});
+  // What families have told us (not continuing / want a different class), set by reception from their replies.
+  Hub.col("renewalStatus").onSnapshot(q=>{stat={};q.docs.forEach(d=>{const x=d.data();if(x.status)stat[x.key]=x});if(R){render()}},()=>{});
 }
 function mailState(){const ok=mailerReady();$("mailState").className="pill "+(ok?"good":"warn");$("mailState").textContent=ok?"✓ Sends from "+S.mailerFrom:"Sending not set up";$("fromAddr").textContent=S.sender;updateSendBtn()}
 
@@ -181,7 +183,7 @@ function render(){
   $("bigSub").innerHTML=`<b>${R.renewed}</b> of <b>${R.kids}</b> children on a termly place this term have booked for next term`;
   const left=R.kids-R.renewed,famLeft=R.families.length,start=R.next.length?fmtDay(R.next.map(t=>t.start).sort()[0]):"";
   const daysTo=R.next.length?Math.ceil((new Date(R.next.map(t=>t.start).sort()[0])-new Date())/864e5):NaN;
-  $("kpis").innerHTML=[[left,"children still to book",left?"bad":"good"],[famLeft,"families to remind",""],[R.nextBooked,"places booked for next term",""],[R.newToNext,"new children booked for next term","good"],[isFinite(daysTo)?Math.max(0,daysTo):"–",`days until next term (${start})`,""]]
+  $("kpis").innerHTML=[[left,"children still to book",left?"bad":"good"],[famLeft,"families to remind",""],[R.nextBooked,"places booked for next term",""],[R.families.filter(f=>(stat[f.key]||{}).status==="leaving").reduce((n,f)=>n+f.kids.length,0),"told us they're not continuing","bad"],[R.families.filter(f=>(stat[f.key]||{}).status==="changing").reduce((n,f)=>n+f.kids.length,0),"want a different class","warn"],[R.newToNext,"new children booked for next term","good"],[isFinite(daysTo)?Math.max(0,daysTo):"–",`days until next term (${start})`,""]]
     .map(([v,s,c])=>`<div class="kpi ${c}"><span class="v">${v}</span><span class="s">${esc(s)}</span></div>`).join("");
   $("areas").innerHTML=R.areas.map(a=>{const r=a.eligible?a.renewed/a.eligible:NaN;return `<div class="arow"><b>${esc(a.area)}</b><div class="abar" data-tip="${esc(a.area)}: ${a.renewed} of ${a.eligible} booked"><i style="width:${(r||0)*100}%;background:${toneVar(r)}"></i></div><span class="n"><b>${pct(r)}</b> · ${a.renewed}/${a.eligible}</span></div>`}).join("");
   const areas=["",...R.areas.map(a=>a.area)];
@@ -193,6 +195,7 @@ function render(){
 }
 $("fDay").onchange=()=>renderTable();
 document.querySelectorAll("th[data-sort]").forEach(th=>th.onclick=()=>{const k=th.dataset.sort;sortDir=sortKey===k?-sortDir:1;sortKey=k;renderTable()});
+const kidStat=x=>{const f=R.families.find(f=>f.kids.some(k=>k.id===x.id));return f&&stat[f.key]?stat[f.key].status:""};
 function renderTable(){
   const day=$("fDay").value;
   let list=R.per.filter(c=>c.eligible&&(!area||c.area===area)&&(!day||c.day===day));
@@ -204,17 +207,18 @@ function renderTable(){
       <td><div class="mini"><div class="bar"><i style="width:${(c.rate||0)*100}%;background:${toneVar(c.rate)}"></i></div><span class="pct" style="color:${toneVar(c.rate)}">${pct(c.rate)}</span><span class="muted small num">${c.renewed}/${c.eligible}</span></div></td>
       <td class="num">${c.eligible-c.renewed||'<span class="pill good">✓ all booked</span>'}</td>
       <td class="small">${c.match?`${esc(title(c.match))} · ${esc(timeOf(c.match))}`:'<span class="muted">No matching class found</span>'}${c.payg||c.trial?`<div class="muted">${c.payg?c.payg+" pay-as-you-go":""}${c.payg&&c.trial?", ":""}${c.trial?c.trial+" on trial":""} not counted</div>`:""}</td></tr>`;
-    if(open.has(k))h+=`<tr class="kids"><td colspan="6"><div class="kidlist">${c.kids.slice().sort((a,b)=>a.renewed-b.renewed||a.first.localeCompare(b.first)).map(x=>`<div>${x.renewed?'<span class="pill good">✓ booked</span>':'<span class="pill bad">✕ not yet</span>'} <span><b>${esc(x.first)} ${esc(x.last)}</b>${x.renewed?` <span class="muted">→ ${esc(x.nextBooked.map(n=>title(n)+" "+n.day).join(", "))}</span>`:` <span class="muted">${esc(x.email||"no email")}</span>`}</span></div>`).join("")}</div></td></tr>`;
+    if(open.has(k))h+=`<tr class="kids"><td colspan="6"><div class="kidlist">${c.kids.slice().sort((a,b)=>a.renewed-b.renewed||a.first.localeCompare(b.first)).map(x=>`<div>${x.renewed?'<span class="pill good">✓ booked</span>':kidStat(x)==="leaving"?'<span class="pill bad">Not continuing</span>':kidStat(x)==="changing"?'<span class="pill warn">Changing class</span>':'<span class="pill none">✕ not yet</span>'} <span><b>${esc(x.first)} ${esc(x.last)}</b>${x.renewed?` <span class="muted">→ ${esc(x.nextBooked.map(n=>title(n)+" "+n.day).join(", "))}</span>`:` <span class="muted">${esc(x.email||"no email")}</span>`}</span></div>`).join("")}</div></td></tr>`;
     return h}).join("")||'<tr><td colspan="6" class="muted">No classes to show.</td></tr>';
   $("tBody").querySelectorAll("tr.cl").forEach(tr=>tr.onclick=()=>{const g=tr.dataset.g;open.has(g)?open.delete(g):open.add(g);renderTable()});
 }
 
 /* ---------- reminders ---------- */
+const STAT=[["changing","Changing class","warn"],["leaving","Not continuing","bad"]];
 const lastSent=f=>{const l=logs.filter(x=>String(x.email||"").toLowerCase()===String(f.email||"").toLowerCase()).map(x=>x.at).sort().pop();return l||null};
 function famList(){
   if(!R)return[];
   const lim=+$("days").value||0,cut=Date.now()-lim*864e5;
-  return R.families.filter(f=>(!area||f.kids.some(k=>k.cur.area===area))&&(!$("onlyMatched").checked||f.kids.some(k=>k.next))&&(!$("onlyNew").checked||!lastSent(f)||new Date(lastSent(f))<cut))
+  return R.families.filter(f=>(!area||f.kids.some(k=>k.cur.area===area))&&(!$("onlyMatched").checked||f.kids.some(k=>k.next))&&(!$("hideTold").checked||!stat[f.key])&&(!$("onlyNew").checked||!lastSent(f)||new Date(lastSent(f))<cut))
     .sort((a,b)=>(a.parentName||"").localeCompare(b.parentName||""));
 }
 function renderFams(){
@@ -224,13 +228,18 @@ function renderFams(){
     return `<label class="fam"><input type="checkbox" data-k="${esc(f.key)}" ${sel.has(f.key)?"checked":""} ${ok?"":"disabled"}>
       <div><div class="who">${esc(f.kids.map(k=>k.first+" "+k.last).join(", "))} <span class="muted" style="font-weight:400">${esc(f.parentName?f.parentName+" · ":"")}${esc(f.email||"no email in JustGo")}</span></div>
       <div class="kids">${f.kids.map(k=>`${esc(k.first)}: ${esc(k.cur.day)} ${esc(timeOf(k.cur))} ${esc(title(k.cur))}${k.next?"":" (no matching class)"}`).join("<br>")}</div></div>
-      <div class="last">${ls?`<span class="pill warn">Reminded ${new Date(ls).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</span>`:'<span class="pill none">Not reminded</span>'}</div></label>`}).join("")||'<p class="muted">No families to remind. Brilliant!</p>';
+      <div class="last">${ls?`<span class="pill warn">Reminded ${new Date(ls).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</span>`:'<span class="pill none">Not reminded</span>'}
+        <div class="stat" style="margin-top:6px;display:flex;gap:4px;justify-content:flex-end">${STAT.map(([v,l,c])=>`<button type="button" class="sb" data-key="${esc(f.key)}" data-v="${v}" aria-pressed="${(stat[f.key]||{}).status===v}" title="${esc(l)}" style="padding:2px 8px;font-size:12px;${(stat[f.key]||{}).status===v?`background:var(--${c}-bg);color:var(--${c});border-color:var(--${c})`:""}">${esc(l)}</button>`).join("")}</div></div></label>`}).join("")||'<p class="muted">No families to remind. Brilliant!</p>';
+  $("fams").querySelectorAll("button.sb").forEach(b=>b.onclick=async e=>{e.preventDefault();e.stopPropagation();const k=b.dataset.key,v=b.dataset.v,f=R.families.find(x=>x.key===k);const cur=(stat[k]||{}).status;
+    const id=k.replace(/[^a-z0-9]/gi,"_").slice(0,140);
+    await Hub.doc("renewalStatus/"+id).set({key:k,email:f?f.email:"",childNames:f?f.kids.map(x=>x.first).join(", "):"",status:cur===v?"":v,at:new Date().toISOString()});
+    toast(cur===v?"Cleared":v==="leaving"?"Marked as not continuing":"Marked as changing class")});
   $("fams").querySelectorAll("input[data-k]").forEach(i=>{i.onchange=()=>{i.checked?sel.add(i.dataset.k):sel.delete(i.dataset.k);previewKey=i.dataset.k;updateSendBtn();renderPreview()}});
   $("fams").querySelectorAll(".fam").forEach(l=>l.addEventListener("mouseenter",()=>{const k=l.querySelector("input").dataset.k;if(previewKey!==k){previewKey=k;renderPreview()}}));
   if(!previewKey&&list.length)previewKey=list[0].key;
   updateSendBtn();renderPreview();
 }
-$("onlyNew").onchange=renderFams;$("onlyMatched").onchange=renderFams;$("days").oninput=renderFams;
+$("onlyNew").onchange=renderFams;$("onlyMatched").onchange=renderFams;$("hideTold").onchange=renderFams;$("days").oninput=renderFams;
 $("selAll").onclick=()=>{famList().filter(f=>/@/.test(f.email||"")).forEach(f=>sel.add(f.key));renderFams()};
 $("selNone").onclick=()=>{sel.clear();renderFams()};
 function updateSendBtn(){const n=sel.size;$("sendSel").disabled=!n||!mailerReady();$("sendSel").textContent=n?`Send reminder to ${n} famil${n===1?"y":"ies"}`:"Send reminder";

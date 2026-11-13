@@ -21,8 +21,12 @@
   const API = "https://justgorestapi-prod.justgo.com/api/v1/class-management/get-attendee-occurrence-calendar-view";
   // JustGo's id for "Rolling Term (SAADI)", where the WAG / MAG squads live.
   const ROLLING_TERM = "182";
-  const path = (location.pathname.match(/^.*\/ClassManagement\/class\/[^/]+\//i) || [])[0];
-  if (!path) { alert("Open JustGo > Class Management (the class list) first, then click 'Send to SAADI Hub' again."); return; }
+  // Works from any JustGo page: the class list if it's open (with or without a / before "?term="), otherwise SAADI's own.
+  const SAADI_CLASSES = "/Workbench/i/r/ClassManagement/class/B0DF64DC-1886-452A-8CA0-7A014813207E/";
+  const m = location.pathname.match(/^(.*\/ClassManagement\/class\/[0-9a-f-]{30,})/i);
+  const onJustGo = /british-gymnastics\.org$|justgo\.com$/i.test(location.hostname);
+  const path = m ? m[1] + "/" : onJustGo ? SAADI_CLASSES : null;
+  if (!path) { alert("Open JustGo (mybg.british-gymnastics.org) in this tab first, signed in, then click 'Send to SAADI Hub' again."); return; }
   if (document.getElementById("saadiSync")) return;
   const club = path.split("/").filter(Boolean).pop();
   const frames = [];

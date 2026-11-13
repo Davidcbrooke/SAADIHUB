@@ -131,7 +131,7 @@ input[type=text]{width:100%}
       <section class="panel" id="changesPanel">
         <div class="panel-head"><h2>Class change requests</h2><span class="muted small" id="chNote"></span></div>
         <div class="tbl-wrap"><table class="t"><thead><tr><th>Child and class now</th><th>Would like</th><th>Notes</th><th>Next term's classes that fit</th></tr></thead><tbody id="chBody"></tbody></table></div>
-        <p class="hint">Matched to next term's classes on the requested days and times, at the same colour level. <b>Space now</b>: free after holding places for children who haven't renewed yet, so you can send the booking link now. <b>Wait</b>: the class only has room once renewals close. <b>Full</b>: no room even then. For Wait or Full you can still press <b>Send link anyway</b>: that email doesn't promise a place, and tells the family to join the waiting list if the class is full.</p>
+        <p class="hint">Matched to next term's classes on the requested days and times, for the child's school year (worked out from their current class and their age in JustGo), not by colour, as colours cover different years in different classes. <b>Space now</b>: free after holding places for children who haven't renewed yet, so you can send the booking link now. <b>Wait</b>: the class only has room once renewals close. <b>Full</b>: no room even then. For Wait or Full you can still press <b>Send link anyway</b>: that email doesn't promise a place, and tells the family to join the waiting list if the class is full.</p>
       </section>
 
       <section class="panel" id="leaversPanel">
@@ -230,6 +230,7 @@ async function loadResponses(){
 }
 $("respRefresh").onclick=()=>{respAt=null;loadResponses()};
 $("setSave").onclick=async()=>{try{await Hub.doc("config/renewals").set({sheetId:$("sheetId").value.trim(),closeDate:$("closeDate").value},{merge:true});$("setMsg").textContent="Saved ✓";respAt=null;loadResponses()}catch(e){$("setMsg").textContent="Couldn't save"}};
+const yrsTxt=ys=>ys&&ys.length?EQ.yearsText(ys):"their age";
 const SCOL={renewed:"var(--good)",changing:"var(--warn)",leaving:"var(--bad)",none:"var(--none)"},SLAB={renewed:"Renewed",changing:"Class change requested",leaving:"Leaving",none:"No response yet"};
 function renderStatus(){
   ST=EQ.renewalStatus(R,resp,stat,cfg.closeDate||"");
@@ -244,13 +245,13 @@ function renderStatus(){
   const rows=[];resp.changes.forEach(ch=>ch.kids.forEach(ck=>rows.push({ch,ck})));
   $("chNote").textContent=rows.length?`${rows.length} child${rows.length===1?"":"ren"} · ${rows.filter(r=>r.ck.options.some(o=>o.free>0)).length} with a space now`:"";
   $("chBody").innerHTML=rows.map(({ch,ck},i)=>{const k=ck.kid,of=offered(ch.email,ck.name);
-    const now=k&&k.cur?`${esc(k.cur.day)} ${esc(timeOf(k.cur))} ${esc(title(k.cur))}`:`${esc(ck.day)} ${esc(ck.time)} ${esc(ck.colour)}`;
+    const now=k&&k.cur?`${esc(k.cur.day)} ${esc(timeOf(k.cur))} ${esc(title(k.cur))}${k.age?" · age "+esc(String(k.age).replace(/\D+$/,"")):""}${ck.years&&ck.years.length?" · "+esc(yrsTxt(ck.years)):""}`:`${esc(ck.day)} ${esc(ck.time)} ${esc(ck.colour)}`;
     const opts=ck.options.length?ck.options.slice(0,4).map((o,j)=>{const n=o.n,lab=`${esc(n.day)} ${esc(timeOf(n))} ${esc(title(n))}`;
       const pill=o.free>0?`<span class="pill good">Space now (${o.free})</span>`:o.freeAfter>0?`<span class="pill warn">Wait: ${o.freeAfter} free after renewals close${cfg.closeDate?" ("+new Date(cfg.closeDate).toLocaleDateString("en-GB",{day:"numeric",month:"short"})+")":""}</span>`:'<span class="pill bad">Full</span>';
       return `<div class="opt"><span class="chip" style="--bc:${EQ.BAND_COLOURS[n.colour]||"var(--none)"}"></span>${lab} ${pill}${(()=>{const sent=sentFor(ch.email,ck.name,n.g);
         if(sent)return ` <button type="button" class="sentbtn" data-offer="${i}:${j}"${o.free>0?"":' data-full="1"'} data-sent="${esc(fmtD(sent))}" title="Sent ${esc(fmtD(sent))}. Click to send again">✓ Sent ${esc(fmtD(sent))}</button>`;
-        return o.free>0?` <button type="button" class="primary" data-offer="${i}:${j}">Send offer</button>`:` <button type="button" data-offer="${i}:${j}" data-full="1">Send link anyway</button>`})()}</div>`}).join("")+(ck.sameColour?"":'<div class="small muted">No class at the same colour level; showing others at that time.</div>')
-      :'<span class="muted small">No class next term on those days and times.</span>';
+        return o.free>0?` <button type="button" class="primary" data-offer="${i}:${j}">Send offer</button>`:` <button type="button" data-offer="${i}:${j}" data-full="1">Send link anyway</button>`})()}</div>`}).join("")+(ck.otherTime?`<div class="small" style="color:var(--warn)">No class for ${esc(yrsTxt(ck.years))} at the requested time${ck.options.length>1?"s":""}: these are ${esc(yrsTxt(ck.years))} classes on the requested day${ck.options.length>1?"s":""} at other times.</div>`:"")+(ck.yearsKnown?"":'<div class="small" style="color:var(--warn)">Couldn\'t tell this child\'s school year: check the class suits them.</div>')
+      :`<span class="muted small">No ${esc(yrsTxt(ck.years))} class next term on the requested days.</span>`;
     return `<tr><td><b>${esc(ck.name)}</b>${ck.renewed?' <span class="pill good">Already booked</span>':""}${of?` <span class="pill warn">Offered ${new Date(of).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</span>`:""}<div class="small muted">${now}</div><div class="small muted">${esc(ch.email)}</div></td>
       <td class="small">${esc(ch.reqText||"")}</td><td class="small">${esc(ch.notes||"")}</td><td>${opts}</td></tr>`}).join("")||'<tr><td colspan="4" class="muted">No class change requests yet.</td></tr>';
   $("chBody").querySelectorAll("button[data-offer]").forEach(b=>b.onclick=async()=>{

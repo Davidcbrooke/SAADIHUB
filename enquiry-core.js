@@ -75,6 +75,8 @@ EQ.child=function(q,on){
 /* ---------- reading a JustGo class ---------- */
 EQ.classYears=c=>{
   const n=(String(c.name||"").split("|")[0]).toUpperCase();const ys=[];
+  if(/AGED\s*3\b/.test(n))ys.push(-2);
+  if(/AGED\s*4\b|AGED\s*3\s*(?:AND|&|-)\s*4/.test(n))ys.push(-1);
   let m=n.match(/RECEPTION\s*(?:-|–|TO|&|AND)\s*(?:YEARS?|YR)?\s*(\d{1,2})/);
   if(m){for(let y=0;y<=+m[1];y++)ys.push(y)}
   else{
@@ -86,7 +88,7 @@ EQ.classYears=c=>{
 };
 EQ.yearsText=ys=>{if(!ys.length)return"";const a=ys[0],b=ys[ys.length-1];
   if(a===b)return EQ.yearLabel(a);if(b>=13&&a>0)return `Year ${a}+`;
-  return a<=0?`${EQ.yearLabel(a)}–Year ${b}`:`Years ${a}–${b}`};
+  return a<=0?`${EQ.yearLabel(a)}–${EQ.yearLabel(b)}`:`Years ${a}–${b}`};
 EQ.classAges=(c,s)=>{
   const n=String(c.name||"").split("|")[0].toUpperCase();
   if(/\bADULT/.test(n))return[16,99];
@@ -131,7 +133,7 @@ EQ.match=function(classes,q,s,on){
     if(!s.offerGroups[c.group])return;
     if(q.term&&c.term!==q.term)return;
     const g=EQ.genderOf(c);if(q.gender&&g!=="mixed"&&g!==q.gender)return;
-    const ys=EQ.classYears(c);let ok,why;
+    const ys=/\bAGED\b/i.test(String(c.name||"").split("|")[0])?[]:EQ.classYears(c);let ok,why;
     if(ys.length){ok=ys.some(y=>child.years.includes(y));why=EQ.yearsText(ys)}
     else{const r=EQ.classAges(c,s);if(!r)return;ok=child.ages.some(a=>a>=r[0]&&a<=r[1]);why=r[1]>=99?`${r[0]}+`:`ages ${r[0]}–${r[1]}`}
     if(!ok)return;
@@ -357,24 +359,32 @@ EQ.renewalEmail=function(family,s,tpl,term){
   return{subject,html:EQ.shell(subject,fill(t.heading),paras,s,"You're receiving this because your child has a class at SAADI Gymnastics this term."),text};
 };
 
+/* A child's school year(s): the years their current class covers, narrowed by their age where JustGo gives it. */
+EQ.kidYears=k=>{const cy=(k.cur&&k.cur.years)||[];const age=parseInt(String(k.age||""),10);
+  const ay=isFinite(age)&&age>0&&age<19?EQ.yearsForAge(age):[];
+  const both=cy.filter(y=>ay.includes(y));return both.length?both:cy.length?cy:ay};
 /* ---------- term renewals: who has booked next term ---------- */
 EQ.renewals=function(ren){
   if(!ren||!ren.cls)return null;
   const link=g=>`https://mybg.british-gymnastics.org/Workbench/i/r/Public/ClassBookingsPublic/${ren.club}/class/${g}`;
   const cls=ren.cls.map(([g,k,term,day,start,end,name,colour,age,cap,booked],i)=>({i,g,kind:k,term,day,start,end,name,cap:+cap||0,booked:+booked||0,colour:colour||(String(name).match(/\b(orange|yellow|blue|red|green|purple)\b/i)||[])[1]||"",age,link:link(g)}));
-  cls.forEach(c=>{c.colour=c.colour?c.colour[0].toUpperCase()+c.colour.slice(1).toLowerCase():"";c.area=/novice/i.test(c.term+" "+c.name)?"Novice":/pre\s*-?\s*school/i.test(c.term)?"Pre-School":"Recreational"});
+  cls.forEach(c=>{c.years=EQ.classYears(c);c.colour=c.colour?c.colour[0].toUpperCase()+c.colour.slice(1).toLowerCase():"";c.area=/novice/i.test(c.term+" "+c.name)?"Novice":/pre\s*-?\s*school/i.test(c.term)?"Pre-School":"Recreational"});
   const nextOf={};ren.rows.forEach(([i,id,f])=>{const c=cls[i];if(c&&c.kind==="n"&&f!=="T")(nextOf[id]=nextOf[id]||[]).push(c)});
   const norm=t=>String(t||"").replace(/\s+/g,"").toUpperCase();
   const nextCls=cls.filter(c=>c.kind==="n");
-  const matchNext=c=>nextCls.find(n=>n.day===c.day&&norm(n.start)===norm(c.start)&&n.colour&&n.colour===c.colour&&n.area===c.area)
-    ||nextCls.find(n=>n.day===c.day&&norm(n.start)===norm(c.start)&&n.area===c.area)||null;
+  // Same day and time, for the same school years (colours mean different year groups in different classes).
+  const yearsFit=(n,ys)=>!ys.length||!n.years.length||n.years.some(y=>ys.includes(y));
+  const matchNext=(c,ys)=>{ys=ys||c.years;const same=nextCls.filter(n=>n.day===c.day&&norm(n.start)===norm(c.start)&&n.area===c.area);
+    return same.find(n=>ys.length&&n.years.length&&yearsFit(n,ys)&&n.colour===c.colour)||same.find(n=>ys.length&&n.years.length&&yearsFit(n,ys))||(ys.length?null:same.find(n=>n.colour===c.colour)||same[0])||null};
   const per=cls.filter(c=>c.kind==="c").map(c=>({...c,kids:[],payg:0,trial:0}));
   const byIdx={};per.forEach(c=>byIdx[c.i]=c);
   const kidsCur={};
   ren.rows.forEach(([i,id,f])=>{const c=byIdx[i];if(!c)return;if(f==="T"){c.trial++;return}if(f==="P"){c.payg++;return}
     const k=ren.kids[id]||[];const renewedTo=nextOf[id]||[];
-    const kid={id,first:k[0]||"",last:k[1]||"",parentName:k[2]||"",email:(k[3]||"").trim(),age:k[4]||"",renewed:renewedTo.length>0,nextBooked:renewedTo,cur:c,next:matchNext(c)};
+    const kid={id,first:k[0]||"",last:k[1]||"",parentName:k[2]||"",email:(k[3]||"").trim(),age:k[4]||"",renewed:renewedTo.length>0,nextBooked:renewedTo,cur:c};
+    kid.years=EQ.kidYears(kid);kid.next=matchNext(c,kid.years);
     c.kids.push(kid);(kidsCur[id]=kidsCur[id]||[]).push(kid)});
+  EQ._yearsFit=yearsFit;
   per.forEach(c=>{c.eligible=c.kids.length;c.renewed=c.kids.filter(k=>k.renewed).length;c.rate=c.eligible?c.renewed/c.eligible:NaN;c.match=matchNext(c)});
   const ids=Object.keys(kidsCur);
   const renewedIds=ids.filter(id=>kidsCur[id][0].renewed);
@@ -453,11 +463,17 @@ EQ.renewalStatus=function(R,resp,manual,closeDate,today){
   const pending={};allKids.forEach(k=>{if(status[k.id].s==="none"&&k.next)pending[k.next.g]=(pending[k.next.g]||0)+1});
   const placeInfo=n=>{const cap=n.cap||0,booked=n.booked||0,held=open?0:(pending[n.g]||0);return{cap,booked,held,free:Math.max(0,cap-booked-held),freeAfter:Math.max(0,cap-booked)}};
   (resp.changes||[]).forEach(c=>{c.kids.forEach(ck=>{
-    const colour=((ck.kid&&ck.kid.cur&&ck.kid.cur.colour)||ck.colour||"").toLowerCase();
-    let cands=nextCls.filter(n=>n.area===c.area&&(!c.reqDays.length||c.reqDays.includes(n.day))&&(!c.reqTimes.length||c.reqTimes.includes(EQ.mins(n.start))));
-    const sameCol=cands.filter(n=>colour&&n.colour.toLowerCase()===colour);
-    ck.options=(sameCol.length?sameCol:cands).map(n=>({n,...placeInfo(n)})).sort((a,b)=>b.free-a.free||b.freeAfter-a.freeAfter);
-    ck.sameColour=!!sameCol.length;ck.renewed=ck.kid?ck.kid.renewed:false;
+    const ys=ck.kid?(ck.kid.years||EQ.kidYears(ck.kid)):EQ.classYears({name:`${ck.colour} ${ck.time}`});
+    ck.years=ys;
+    const fit=n=>!ys.length||!n.years.length||n.years.some(y=>ys.includes(y));
+    const onDay=n=>n.area===c.area&&(!c.reqDays.length||c.reqDays.includes(n.day));
+    const atTime=n=>!c.reqTimes.length||c.reqTimes.includes(EQ.mins(n.start));
+    let cands=nextCls.filter(n=>onDay(n)&&atTime(n)&&fit(n));ck.otherTime=false;
+    // Nothing for their age at that time: show classes for their age on the requested days at other times.
+    if(!cands.length){cands=nextCls.filter(n=>onDay(n)&&fit(n)&&n.years.length);ck.otherTime=cands.length>0}
+    ck.yearsKnown=ys.length>0;
+    ck.options=cands.map(n=>({n,...placeInfo(n)})).sort((a,b)=>b.free-a.free||b.freeAfter-a.freeAfter||EQ.mins(a.n.start)-EQ.mins(b.n.start));
+    ck.renewed=ck.kid?ck.kid.renewed:false;
   })});
   const counts={renewed:0,leaving:0,changing:0,none:0};allKids.forEach(k=>counts[status[k.id].s]=(counts[status[k.id].s]||0)+1);
   return{status,counts,open,placeInfo};

@@ -328,7 +328,7 @@ if("serviceWorker" in navigator&&location.protocol==="https:"){window.addEventLi
 (function(){
 "use strict";
 const {$,esc}=Hub;
-let S=EQ.settings({}), classes=[], snapWeek=null, snapSaved=null, recs=[], picked=new Set(), lastMatch=null, q={age:"",dob:"",gender:"",term:""};
+let S=EQ.settings({}), classes=[], rawClasses=[], storedLinks={}, snapWeek=null, snapSaved=null, recs=[], picked=new Set(), lastMatch=null, q={age:"",dob:"",gender:"",term:""};
 const today=()=>EQ.iso(new Date());
 const nowIso=()=>new Date().toISOString();
 const toast=t=>{const d=document.createElement("div");d.className="toast";d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),3200)};
@@ -347,12 +347,16 @@ async function load(){
   try{const d=await Hub.doc("config/enquiryDesk").get();S=EQ.settings(d.exists?d.data():{})}catch(e){S=EQ.settings({})}
   // Live: new JustGo numbers and links appear as soon as anyone saves them, without reloading.
   Hub.col("snapshots").orderBy("weekOf","desc").limit(1).onSnapshot(q1=>{
-    if(!q1.empty){const s=q1.docs[0].data();snapWeek=s.weekOf;snapSaved=s.savedAt||null;classes=(s.classes||[]).filter(c=>!c.legacy)}
-    showClasses();
+    if(!q1.empty){const s=q1.docs[0].data();snapWeek=s.weekOf;snapSaved=s.savedAt||null;rawClasses=(s.classes||[]).filter(c=>!c.legacy)}
+    withLinks();showClasses();
   },()=>showClasses());
+  Hub.doc("config/classLinks").onSnapshot(d=>{storedLinks=(d.exists&&d.data().links)||{};withLinks();showClasses()},()=>{});
   Hub.doc("config/enquiryDesk").onSnapshot(d=>{if(d.exists){S=EQ.settings(d.data());updateMailerState();if(lastMatch)updatePreview()}},()=>{});
   Hub.col("enquiries").onSnapshot(qs=>{recs=qs.docs.map(d=>({id:d.id,...d.data()}));refresh()},err=>{$("statusNote").hidden=false;$("statusNote").textContent="Couldn't load the enquiries ("+(err.code||"error")+")."});
 }
+/* Every class's JustGo booking page: from this week's sync, or the saved link store if this week's sync had none. */
+const linkKey=(day,name)=>String(day||"").slice(0,3).toLowerCase()+"|"+String(name||"").replace(/\s+/g," ").trim().toUpperCase();
+function withLinks(){classes=rawClasses.map(c=>c.link?c:Object.assign({},c,{link:storedLinks[linkKey(c.day,c.name)]||""}))}
 function showClasses(){
   const terms=[...new Set(classes.map(c=>c.term).filter(Boolean))],cur=$("qTerm").value;
   $("qTerm").innerHTML='<option value="">All terms</option>'+terms.map(t=>`<option>${esc(t)}</option>`).join("");$("qTerm").value=terms.includes(cur)?cur:"";

@@ -411,7 +411,7 @@ let snaps=[]; // [{id, weekOf, classes:[...]}] sorted asc
 let selected=null, parsed=null, localOnly=false;
 const $=id=>document.getElementById(id);
 /* ---------- JustGo sync: the "Send to SAADI Hub" bookmark opens this page with the class list after #jg= ---------- */
-let pendingImport=null, syncLinks=null;
+let pendingImport=null, syncLinks=null, storedLinks={};
 /* Booking links sent by the JustGo button: "Mon|CLASS NAME" -> public booking page. Used by the Enquiry Desk emails. */
 const linkKey=(day,name)=>String(day||"").slice(0,3).toLowerCase()+"|"+String(name||"").replace(/\s+/g," ").trim().toUpperCase();
 function linksFrom(p){if(!p||!Array.isArray(p.links)||!p.club)return null;const m={};
@@ -419,7 +419,7 @@ function linksFrom(p){if(!p||!Array.isArray(p.links)||!p.club)return null;const 
 function addLinks(classes){
   // Fresh links from the JustGo button, otherwise keep the links saved with the latest week (e.g. after a hand paste).
   let m=syncLinks;
-  if(!m){m={};const last=snaps.length?snaps[snaps.length-1]:null;((last&&last.classes)||[]).forEach(c=>{if(c.link)m[linkKey(c.day,c.name)]=c.link})}
+  if(!m){m=Object.assign({},storedLinks);const last=snaps.length?snaps[snaps.length-1]:null;((last&&last.classes)||[]).forEach(c=>{if(c.link)m[linkKey(c.day,c.name)]=c.link})}
   let n=0;classes.forEach(c=>{const u=m[linkKey(c.day,c.name)];if(u){c.link=u;n++}});return n}
 function readSyncHash(){
   const h=location.hash;if(!h.startsWith("#jg="))return false;
@@ -766,6 +766,9 @@ async function saveWeek(){
   if(!db){$("saveMsg").textContent="Sign in to save.";$("saveWeek").disabled=false;return}
   try{
     await db.doc("snapshots/"+wk).set(doc);
+    // Keep every class's booking link in its own store too, so a later sync without links (old bookmark, hand paste) can't wipe them.
+    const lm={};parsed.classes.forEach(c=>{if(c.link)lm[linkKey(c.day,c.name)]=c.link});
+    if(Object.keys(lm).length)await db.doc("config/classLinks").set({links:lm,updatedAt:new Date().toISOString()},{merge:true}).catch(()=>{});
     selected=wk;$("saveMsg").textContent="Saved week commencing "+fmtDate(wk)+".";
     // Came here from the Enquiry Desk's start-of-day steps? Take reception straight back.
     let back=0;try{back=+localStorage.getItem("saadiReturnDesk")||0}catch(e){}
@@ -841,6 +844,7 @@ async function openWithKey(id,remember){
   $("authPanel").hidden=true;$("setupPanel").hidden=true;$("appControls").hidden=false;$("signOut").hidden=false;$("hubNav").hidden=false;
   $("whoAmI").textContent="";showNote("");stopAll();
   unsubs.push(db.doc("config/display").onSnapshot(s=>{remote.display=s.exists?s.data():null;applyRemoteSettings()},()=>{}));
+  unsubs.push(db.doc("config/classLinks").onSnapshot(s=>{storedLinks=(s.exists&&s.data().links)||{}},()=>{}));
   if(isOwner)unsubs.push(db.doc("config/prices").onSnapshot(s=>{remote.prices=s.exists?s.data():null;applyRemoteSettings()},()=>{}));
   unsubs.push(db.collection("snapshots").orderBy("weekOf","asc").onSnapshot(q=>{
     snaps=q.docs.map(d=>({id:d.id,...d.data()})).filter(x=>Array.isArray(x.classes)).map(x=>({...x,classes:fixGroups(x.classes)}));render();

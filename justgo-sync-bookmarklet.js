@@ -72,12 +72,16 @@
   if (!alive()) return;
   // Every term running today (e.g. Novice has its own term, and Spring terms take over in January), read from JustGo's own Term list.
   say("Finding this term's classes…");
-  f = frame(path + "term");
   let termList = null;
-  for (let i = 0; i < 30 && !termList; i++) { await wait(500); termList = tableData(inner(f), o => "ClassTermId" in o); }
+  // JustGo's Term page can be slow: wait up to 25 seconds, and try a second time before carrying on without it.
+  for (let attempt = 0; attempt < 2 && !termList && alive(); attempt++) {
+    f = frame(path + "term");
+    for (let i = 0; i < 50 && !termList; i++) { await wait(500); termList = tableData(inner(f), o => "ClassTermId" in o); }
+    if (!termList) f.remove();
+  }
   const now = new Date();
   if (termList) termList.forEach(t => { if (!t.IsDeleted && new Date(t.StartDate) <= now && new Date(t.EndDate) >= now) terms.add(String(t.ClassTermId)); });
-  f.remove();
+  frames.forEach(x => x.remove());
   if (!alive()) return;
   const main = await loadList([...terms], "Loading every class…");
   if (!main) { say("JustGo didn't load the class list in time.", "Close this, wait a moment and click Send to SAADI Hub again."); return; }

@@ -130,7 +130,7 @@ input[type=text]{width:100%}
       <section class="panel" id="changesPanel">
         <div class="panel-head"><h2>Class change requests</h2><span class="muted small" id="chNote"></span></div>
         <div class="tbl-wrap"><table class="t"><thead><tr><th>Child and class now</th><th>Would like</th><th>Notes</th><th>Next term's classes that fit</th></tr></thead><tbody id="chBody"></tbody></table></div>
-        <p class="hint">Matched to next term's classes on the requested days and times, at the same colour level. <b>Space now</b>: free after holding places for children who haven't renewed yet, so you can send the booking link now. <b>Wait</b>: the class only has room once renewals close. <b>Full</b>: no room even then.</p>
+        <p class="hint">Matched to next term's classes on the requested days and times, at the same colour level. <b>Space now</b>: free after holding places for children who haven't renewed yet, so you can send the booking link now. <b>Wait</b>: the class only has room once renewals close. <b>Full</b>: no room even then. For Wait or Full you can still press <b>Send link anyway</b>: that email doesn't promise a place, and tells the family to join the waiting list if the class is full.</p>
       </section>
 
       <section class="panel" id="leaversPanel">
@@ -244,7 +244,7 @@ function renderStatus(){
     const now=k&&k.cur?`${esc(k.cur.day)} ${esc(timeOf(k.cur))} ${esc(title(k.cur))}`:`${esc(ck.day)} ${esc(ck.time)} ${esc(ck.colour)}`;
     const opts=ck.options.length?ck.options.slice(0,4).map((o,j)=>{const n=o.n,lab=`${esc(n.day)} ${esc(timeOf(n))} ${esc(title(n))}`;
       const pill=o.free>0?`<span class="pill good">Space now (${o.free})</span>`:o.freeAfter>0?`<span class="pill warn">Wait: ${o.freeAfter} free after renewals close${cfg.closeDate?" ("+new Date(cfg.closeDate).toLocaleDateString("en-GB",{day:"numeric",month:"short"})+")":""}</span>`:'<span class="pill bad">Full</span>';
-      return `<div class="opt"><span class="chip" style="--bc:${EQ.BAND_COLOURS[n.colour]||"var(--none)"}"></span>${lab} ${pill}${o.free>0?` <button type="button" class="${of?"":"primary"}" data-offer="${i}:${j}">${of?"Send again":"Send offer"}</button>`:""}</div>`}).join("")+(ck.sameColour?"":'<div class="small muted">No class at the same colour level; showing others at that time.</div>')
+      return `<div class="opt"><span class="chip" style="--bc:${EQ.BAND_COLOURS[n.colour]||"var(--none)"}"></span>${lab} ${pill}${o.free>0?` <button type="button" class="${of?"":"primary"}" data-offer="${i}:${j}">${of?"Send again":"Send offer"}</button>`:` <button type="button" data-offer="${i}:${j}" data-full="1">Send link anyway</button>`}</div>`}).join("")+(ck.sameColour?"":'<div class="small muted">No class at the same colour level; showing others at that time.</div>')
       :'<span class="muted small">No class next term on those days and times.</span>';
     return `<tr><td><b>${esc(ck.name)}</b>${ck.renewed?' <span class="pill good">Already booked</span>':""}${of?` <span class="pill warn">Offered ${new Date(of).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</span>`:""}<div class="small muted">${now}</div><div class="small muted">${esc(ch.email)}</div></td>
       <td class="small">${esc(ch.reqText||"")}</td><td class="small">${esc(ch.notes||"")}</td><td>${opts}</td></tr>`}).join("")||'<tr><td colspan="4" class="muted">No class change requests yet.</td></tr>';
@@ -252,11 +252,12 @@ function renderStatus(){
     const [i,j]=b.dataset.offer.split(":").map(Number),{ch,ck}=rows[i],o=ck.options[j];
     if(!mailerReady()){toast("Set up sending from reception@ first");return}
     const first=String(ck.name).trim().split(/\s+/)[0],parentName=(ck.kid&&ck.kid.parentName)||"";
-    const e=EQ.offerEmail({child:first,parentName,cls:o.n},S,term);
-    if(!confirm(`Send ${first}'s family (${ch.email}) the link to book ${o.n.day} ${timeOf(o.n)} ${title(o.n)}?`))return;
+    const full=!!b.dataset.full;
+    const e=EQ.offerEmail({child:first,parentName,cls:o.n,full},S,term);
+    if(!confirm(full?`${o.n.day} ${timeOf(o.n)} ${title(o.n)} has no free place at the moment. Send ${first}'s family (${ch.email}) the link anyway? The email says it may be full and to join the waiting list if so.`:`Send ${first}'s family (${ch.email}) the link to book ${o.n.day} ${timeOf(o.n)} ${title(o.n)}?`))return;
     b.disabled=true;
     try{const r=await fetch(S.mailerUrl,{method:"POST",body:JSON.stringify({token:S.mailerToken,to:ch.email,subject:e.subject,html:e.html,text:e.text,fromName:S.fromName})});const j2=await r.json();if(!j2.ok)throw new Error(j2.error||"not sent");
-      await Hub.col("renewalEmails").add({type:"offer",at:new Date().toISOString(),email:ch.email,child:ck.name,cls:o.n.g,clsName:`${o.n.day} ${timeOf(o.n)} ${title(o.n)}`,subject:e.subject,via:S.mailerFrom});toast("Offer sent to "+ch.email)}
+      await Hub.col("renewalEmails").add({type:"offer",full,at:new Date().toISOString(),email:ch.email,child:ck.name,cls:o.n.g,clsName:`${o.n.day} ${timeOf(o.n)} ${title(o.n)}`,subject:e.subject,via:S.mailerFrom});toast("Offer sent to "+ch.email)}
     catch(x){toast("Not sent: "+x.message);b.disabled=false}
   });
   // leavers

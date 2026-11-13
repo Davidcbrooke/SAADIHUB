@@ -464,16 +464,20 @@ EQ.renewalStatus=function(R,resp,manual,closeDate,today){
 };
 
 /* Offer of a different class (from a class change request). */
+/* o.full: the class may not have a place yet, so send the link without promising one. */
 EQ.offerEmail=function(o,s,term){
   const n=o.cls,col=EQ.BAND_COLOURS[n.colour]||"#f20779",cls=String(n.name).split("|")[0].trim(),when=`${EQ.DAYNAME[n.day]||n.day} ${EQ.prettyTime(n.start+(n.end?" - "+n.end:""))}`;
-  const subject=`A place for ${o.child} on ${when} for ${term}`;
+  const subject=o.full?`${o.child}'s class change for ${term}: ${when}`:`A place for ${o.child} on ${when} for ${term}`;
   const card=`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 12px;border:1px solid #eadfe7;border-left:6px solid ${col};border-radius:10px"><tr><td style="padding:14px 16px;font-family:Arial,Helvetica,sans-serif">
     <div style="font-size:17px;font-weight:700;color:#1d1a1f">${escH(o.child)}: ${escH(when)}</div><div style="font-size:15px;color:#4a444e;margin:2px 0 10px">${escH(cls)} · ${escH(n.term)}</div>
     <a href="${escH(n.link)}" style="display:inline-block;padding:9px 18px;background:#d4066a;color:#ffffff;font-weight:700;font-size:14px;text-decoration:none;border-radius:999px">Book ${escH(o.child)}'s place</a></td></tr></table>`;
-  const paras=[paraHtml(`Hi ${o.parentName||"there"},`),paraHtml(`Thank you for letting us know you'd like a different class for ${o.child}. Good news: we have a space in this class for ${term}:`),card,
-    paraHtml(`Please book soon, as we can't hold the place for long. If it isn't right after all, just reply to this email and we'll help.`)].join("");
-  const text=`Hi ${o.parentName||"there"},\n\nThank you for letting us know you'd like a different class for ${o.child}. Good news: we have a space in this class for ${term}:\n\n${when}: ${cls}\n${n.link}\n\nPlease book soon, as we can't hold the place for long. If it isn't right after all, just reply to this email and we'll help.\n\nBest wishes,\n${s.signOff}`;
-  return{subject,html:EQ.shell(subject,`Good news for ${o.child}!`,paras,s,"You're receiving this because you asked us for a different class at SAADI Gymnastics."),text};
+  const intro=o.full?`Thank you for letting us know you'd like a different class for ${o.child}. Here's the link to the class you asked about for ${term}:`
+    :`Thank you for letting us know you'd like a different class for ${o.child}. Good news: we have a space in this class for ${term}:`;
+  const after=o.full?`This class is very popular. If it shows as full when you open the link, please join the waiting list on the same page and we'll let you know as soon as a place comes up. You may also want to keep ${o.child}'s current class booked in the meantime, so you don't lose a place. If you have any questions, just reply to this email.`
+    :`Please book soon, as we can't hold the place for long. If it isn't right after all, just reply to this email and we'll help.`;
+  const paras=[paraHtml(`Hi ${o.parentName||"there"},`),paraHtml(intro),card,paraHtml(after)].join("");
+  const text=`Hi ${o.parentName||"there"},\n\n${intro}\n\n${when}: ${cls}\n${n.link}\n\n${after}\n\nBest wishes,\n${s.signOff}`;
+  return{subject,html:EQ.shell(subject,o.full?`${o.child}'s class change`:`Good news for ${o.child}!`,paras,s,"You're receiving this because you asked us for a different class at SAADI Gymnastics."),text};
 };
 
 /* ---------- the Google mailer (runs in the reception@ Google account) ---------- */

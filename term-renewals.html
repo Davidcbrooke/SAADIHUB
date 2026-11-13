@@ -55,6 +55,10 @@ table.t tr.kids td{background:var(--bg);padding:6px 8px 12px 28px}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:10px 18px;border-radius:99px;font-weight:600;z-index:60}
 .hint{font-size:13px;color:var(--muted);margin:0}
 .small{font-size:13px}
+.sbar{display:flex;height:34px;border-radius:8px;overflow:hidden;gap:2px}
+.sbar i{display:flex;align-items:center;justify-content:center;color:#fff;font-style:normal;font-weight:700;font-size:13px;min-width:2px;white-space:nowrap;overflow:hidden}
+.opt{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:3px 0}
+.opt button{padding:3px 10px;font-size:13px}
 input[type=text]{width:100%}
 </style>
 </head>
@@ -102,6 +106,38 @@ input[type=text]{width:100%}
         <div class="areas" id="areas"></div>
       </section>
 
+      <section class="panel" id="statusPanel">
+        <div class="panel-head"><h2>Where every child stands</h2><div class="row"><span class="small muted" id="respNote">Reading the form responses…</span><button type="button" id="respRefresh">Refresh responses</button></div></div>
+        <div class="sbar" id="sBar"></div>
+        <div class="legend" id="sLegend"></div>
+        <div class="notice" id="mailerOld" hidden>To read the form responses, the reception@ mailer needs a small update (about 2 minutes, on the reception PC, in the browser signed in as reception@):
+          <ol class="small" style="margin:6px 0 0;padding-left:20px">
+            <li>Open the <a href="enquiry-desk.html">Enquiry Desk</a> &gt; <b>Emails &amp; settings</b> and press <b>Copy the mailer code</b> (close the new Apps Script tab it opens).</li>
+            <li>Go to <a href="https://script.google.com/home" target="_blank" rel="noopener">script.google.com</a>, open <b>SAADI Enquiry Desk mailer</b>, select all the code (Ctrl+A), paste (Ctrl+V) and save (Ctrl+S).</li>
+            <li>Choose <b>allowSending</b> and press <b>Run</b>, then allow the new permission (to read spreadsheets).</li>
+            <li><b>Deploy &gt; Manage deployments</b>, click the pencil, set <b>Version: New version</b>, press <b>Deploy</b>. Then come back here and press <b>Refresh responses</b>.</li>
+          </ol></div>
+        <details><summary class="small">Settings: response spreadsheet and renewal closing date</summary>
+          <div class="form2" style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px">
+            <label class="f">Form responses spreadsheet (link or ID) <input type="text" id="sheetId"></label>
+            <label class="f">Renewals close on <input type="date" id="closeDate"></label>
+          </div>
+          <p class="hint" style="margin-top:6px">Until renewals close, places in next term's classes are held for children who haven't answered yet, so class changes are only offered where there's still a free place after that. From the closing date, those places are released.</p>
+          <div class="row" style="margin-top:8px"><button type="button" id="setSave">Save</button><span class="small muted" id="setMsg"></span></div>
+        </details>
+      </section>
+
+      <section class="panel" id="changesPanel">
+        <div class="panel-head"><h2>Class change requests</h2><span class="muted small" id="chNote"></span></div>
+        <div class="tbl-wrap"><table class="t"><thead><tr><th>Child and class now</th><th>Would like</th><th>Notes</th><th>Next term's classes that fit</th></tr></thead><tbody id="chBody"></tbody></table></div>
+        <p class="hint">Matched to next term's classes on the requested days and times, at the same colour level. <b>Space now</b>: free after holding places for children who haven't renewed yet, so you can send the booking link now. <b>Wait</b>: the class only has room once renewals close. <b>Full</b>: no room even then.</p>
+      </section>
+
+      <section class="panel" id="leaversPanel">
+        <div class="panel-head"><h2>Leaving</h2><span class="muted small" id="lvNote"></span></div>
+        <div class="tbl-wrap"><table class="t"><thead><tr><th>Child</th><th>Main reason</th><th>Experience (1–5)</th><th>Recommend (0–10)</th><th>What we could do differently</th></tr></thead><tbody id="lvBody"></tbody></table></div>
+      </section>
+
       <section class="panel">
         <div class="toolbar">
           <h2>By class</h2>
@@ -115,7 +151,7 @@ input[type=text]{width:100%}
         <section class="panel">
           <div class="panel-head"><h2>Remind families who haven't booked</h2><span class="pill none" id="mailState"></span></div>
           <div class="toolbar">
-            <div class="wrap small" style="gap:4px;margin:0"><label class="row" style="gap:6px"><input type="checkbox" id="onlyNew" checked> Hide families reminded in the last <input type="number" id="days" value="5" min="0" max="60" style="width:56px"> days</label><label class="row" style="gap:6px"><input type="checkbox" id="onlyMatched" checked> Hide families with no class to book next term yet</label><label class="row" style="gap:6px"><input type="checkbox" id="hideTold" checked> Hide families who've told us they're not continuing or changing class</label></div>
+            <div class="wrap small" style="gap:4px;margin:0"><label class="row" style="gap:6px"><input type="checkbox" id="onlyNew" checked> Hide families reminded in the last <input type="number" id="days" value="5" min="0" max="60" style="width:56px"> days</label><label class="row" style="gap:6px"><input type="checkbox" id="onlyMatched" checked> Hide families with no class to book next term yet</label><label class="row" style="gap:6px"><input type="checkbox" id="hideTold" checked> Hide families who are leaving or have asked for a class change (from the forms, or marked here)</label></div>
             <div class="row"><button type="button" id="selAll">Select all</button><button type="button" id="selNone">None</button></div>
           </div>
           <div class="fams" id="fams"></div>
@@ -150,7 +186,7 @@ if("serviceWorker" in navigator&&location.protocol==="https:"){window.addEventLi
 (function(){
 "use strict";
 const {$,esc}=Hub;
-let S=EQ.settings({}),R=null,logs=[],stat={},tpl={},area="",sortKey="rate",sortDir=1,open=new Set(),sel=new Set(),previewKey=null;
+let S=EQ.settings({}),R=null,logs=[],stat={},tpl={},resp={changes:[],leavers:[]},respAt=null,ST=null,cfg={},area="",sortKey="rate",sortDir=1,open=new Set(),sel=new Set(),previewKey=null;
 const pct=x=>isFinite(x)?Math.round(x*100)+"%":"–";
 const tone=x=>!isFinite(x)?"none":x>=.8?"good":x>=.5?"warn":"bad";
 const toneVar=x=>`var(--${tone(x)==="none"?"none":tone(x)})`;
@@ -162,10 +198,10 @@ const mailerReady=()=>!!(S.mailerUrl&&S.mailerToken&&String(S.mailerFrom).toLowe
 
 function load(){
   Hub.doc("config/enquiryDesk").onSnapshot(d=>{S=EQ.settings(d.exists?d.data():{});mailState();renderPreview()},()=>{});
-  Hub.doc("config/renewals").onSnapshot(d=>{tpl=(d.exists&&d.data().template)||{};fillTpl();renderPreview()},()=>{});
+  Hub.doc("config/renewals").onSnapshot(d=>{cfg=d.exists?d.data():{};tpl=cfg.template||{};fillTpl();renderPreview();$("sheetId").value=sheetId();$("closeDate").value=cfg.closeDate||"";if(R&&!respAt)loadResponses();else if(R)render()},()=>{});
   Hub.doc("renewals/latest").onSnapshot(d=>{
     let ren=null;try{ren=d.exists?JSON.parse(d.data().json):null}catch(e){}
-    R=ren?EQ.renewals(ren):null;render();
+    R=ren?EQ.renewals(ren):null;render();if(R&&!respAt)loadResponses();
   },e=>{$("statusNote").hidden=false;$("statusNote").textContent="Couldn't load the renewals ("+(e.code||"error")+")."});
   Hub.col("renewalEmails").onSnapshot(q=>{logs=q.docs.map(d=>d.data());renderFams()},()=>{});
   // What families have told us (not continuing / want a different class), set by reception from their replies.
@@ -173,9 +209,66 @@ function load(){
 }
 function mailState(){const ok=mailerReady();$("mailState").className="pill "+(ok?"good":"warn");$("mailState").textContent=ok?"✓ Sends from "+S.mailerFrom:"Sending not set up";$("fromAddr").textContent=S.sender;updateSendBtn()}
 
+/* ---------- form responses (read live from reception's spreadsheet through the reception@ mailer) ---------- */
+const DEFAULT_SHEET="17boEMurQUThsl_dLuErVX7bEbjYS9EhiDgTSsf3KZ4s";
+const sheetId=()=>{const v=String(cfg.sheetId||DEFAULT_SHEET);return (v.match(/\/d\/([\w-]{20,})/)||[0,v])[1]};
+let loading=false;
+async function loadResponses(){
+  if(loading||!R)return;
+  if(!mailerReady()){$("respNote").textContent="Set up sending from reception@ first (Enquiry Desk > Emails & settings) to read the form responses.";return}
+  loading=true;$("respNote").textContent="Reading the form responses…";
+  try{const r=await fetch(S.mailerUrl,{method:"POST",body:JSON.stringify({token:S.mailerToken,sheet:sheetId()})});const j=await r.json();
+    if(!j.ok||!j.tabs){
+      // An older mailer doesn't know how to read the sheet and treats the request as an email with no address.
+      if(/email address|nothing to send/i.test(j.error||"")){$("mailerOld").hidden=false;throw new Error("the mailer needs updating")}
+      throw new Error(j.error||"not read")}
+    $("mailerOld").hidden=true;resp=EQ.parseResponses(j.tabs);respAt=new Date();
+    $("respNote").textContent=`From "${j.name}": ${resp.changes.length} class change form${resp.changes.length===1?"":"s"}, ${resp.leavers.length} leaving · read at ${respAt.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}`;
+  }catch(e){$("respNote").textContent="Couldn't read the form responses ("+e.message+")."}
+  loading=false;render();
+}
+$("respRefresh").onclick=()=>{respAt=null;loadResponses()};
+$("setSave").onclick=async()=>{try{await Hub.doc("config/renewals").set({sheetId:$("sheetId").value.trim(),closeDate:$("closeDate").value},{merge:true});$("setMsg").textContent="Saved ✓";respAt=null;loadResponses()}catch(e){$("setMsg").textContent="Couldn't save"}};
+const SCOL={renewed:"var(--good)",changing:"var(--warn)",leaving:"var(--bad)",none:"var(--none)"},SLAB={renewed:"Renewed",changing:"Class change requested",leaving:"Leaving",none:"No response yet"};
+function renderStatus(){
+  ST=EQ.renewalStatus(R,resp,stat,cfg.closeDate||"");
+  const c=ST.counts,tot=Object.values(c).reduce((a,b)=>a+b,0)||1;
+  $("sBar").innerHTML=["renewed","changing","leaving","none"].map(k=>c[k]?`<i style="flex:${c[k]};background:${SCOL[k]}" data-tip="${SLAB[k]}: <b>${c[k]}</b>">${c[k]/tot>.06?c[k]:""}</i>`:"").join("");
+  $("sLegend").innerHTML=["renewed","changing","leaving","none"].map(k=>`<span><i style="background:${SCOL[k]}"></i>${SLAB[k]}: <b>${c[k]||0}</b> (${Math.round((c[k]||0)/tot*100)}%)</span>`).join("");
+  // class change requests
+  const term=R.next.length?R.next[0].name.replace(/\s*-\s*(recreational|preschool|pre-school)$/i,""):"next term";
+  const offered=(email,child)=>logs.filter(x=>x.type==="offer"&&String(x.email).toLowerCase()===String(email).toLowerCase()&&x.child===child).map(x=>x.at).sort().pop();
+  const rows=[];resp.changes.forEach(ch=>ch.kids.forEach(ck=>rows.push({ch,ck})));
+  $("chNote").textContent=rows.length?`${rows.length} child${rows.length===1?"":"ren"} · ${rows.filter(r=>r.ck.options.some(o=>o.free>0)).length} with a space now`:"";
+  $("chBody").innerHTML=rows.map(({ch,ck},i)=>{const k=ck.kid,of=offered(ch.email,ck.name);
+    const now=k&&k.cur?`${esc(k.cur.day)} ${esc(timeOf(k.cur))} ${esc(title(k.cur))}`:`${esc(ck.day)} ${esc(ck.time)} ${esc(ck.colour)}`;
+    const opts=ck.options.length?ck.options.slice(0,4).map((o,j)=>{const n=o.n,lab=`${esc(n.day)} ${esc(timeOf(n))} ${esc(title(n))}`;
+      const pill=o.free>0?`<span class="pill good">Space now (${o.free})</span>`:o.freeAfter>0?`<span class="pill warn">Wait: ${o.freeAfter} free after renewals close${cfg.closeDate?" ("+new Date(cfg.closeDate).toLocaleDateString("en-GB",{day:"numeric",month:"short"})+")":""}</span>`:'<span class="pill bad">Full</span>';
+      return `<div class="opt"><span class="chip" style="--bc:${EQ.BAND_COLOURS[n.colour]||"var(--none)"}"></span>${lab} ${pill}${o.free>0?` <button type="button" class="${of?"":"primary"}" data-offer="${i}:${j}">${of?"Send again":"Send offer"}</button>`:""}</div>`}).join("")+(ck.sameColour?"":'<div class="small muted">No class at the same colour level; showing others at that time.</div>')
+      :'<span class="muted small">No class next term on those days and times.</span>';
+    return `<tr><td><b>${esc(ck.name)}</b>${ck.renewed?' <span class="pill good">Already booked</span>':""}${of?` <span class="pill warn">Offered ${new Date(of).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</span>`:""}<div class="small muted">${now}</div><div class="small muted">${esc(ch.email)}</div></td>
+      <td class="small">${esc(ch.reqText||"")}</td><td class="small">${esc(ch.notes||"")}</td><td>${opts}</td></tr>`}).join("")||'<tr><td colspan="4" class="muted">No class change requests yet.</td></tr>';
+  $("chBody").querySelectorAll("button[data-offer]").forEach(b=>b.onclick=async()=>{
+    const [i,j]=b.dataset.offer.split(":").map(Number),{ch,ck}=rows[i],o=ck.options[j];
+    if(!mailerReady()){toast("Set up sending from reception@ first");return}
+    const first=String(ck.name).trim().split(/\s+/)[0],parentName=(ck.kid&&ck.kid.parentName)||"";
+    const e=EQ.offerEmail({child:first,parentName,cls:o.n},S,term);
+    if(!confirm(`Send ${first}'s family (${ch.email}) the link to book ${o.n.day} ${timeOf(o.n)} ${title(o.n)}?`))return;
+    b.disabled=true;
+    try{const r=await fetch(S.mailerUrl,{method:"POST",body:JSON.stringify({token:S.mailerToken,to:ch.email,subject:e.subject,html:e.html,text:e.text,fromName:S.fromName})});const j2=await r.json();if(!j2.ok)throw new Error(j2.error||"not sent");
+      await Hub.col("renewalEmails").add({type:"offer",at:new Date().toISOString(),email:ch.email,child:ck.name,cls:o.n.g,clsName:`${o.n.day} ${timeOf(o.n)} ${title(o.n)}`,subject:e.subject,via:S.mailerFrom});toast("Offer sent to "+ch.email)}
+    catch(x){toast("Not sent: "+x.message);b.disabled=false}
+  });
+  // leavers
+  const avg=a=>{const v=a.map(Number).filter(isFinite);return v.length?(v.reduce((x,y)=>x+y,0)/v.length).toFixed(1):"–"};
+  $("lvNote").textContent=resp.leavers.length?`${resp.leavers.length} famil${resp.leavers.length===1?"y":"ies"} · average experience ${avg(resp.leavers.map(l=>l.rating))}/5 · would recommend ${avg(resp.leavers.map(l=>l.recommend))}/10`:"";
+  $("lvBody").innerHTML=resp.leavers.map(l=>`<tr><td><b>${esc(l.child||"")}</b><div class="small muted">${esc(l.email)}${l.kid&&l.kid.cur?" · "+esc(l.kid.cur.day+" "+timeOf(l.kid.cur)+" "+title(l.kid.cur)):""}</div></td><td class="small">${esc(l.reason)}</td><td class="num">${esc(l.rating)}</td><td class="num">${esc(l.recommend)}</td><td class="small">${esc(l.suggestion)}</td></tr>`).join("")||'<tr><td colspan="5" class="muted">No one has told us they\'re leaving.</td></tr>';
+}
+
 /* ---------- headline ---------- */
 function render(){
   $("empty").hidden=!!R;$("content").hidden=!R;if(!R)return;
+  renderStatus();
   const nx=R.next.map(t=>t.name).join(" and ");
   $("termLine").textContent=`This term → ${nx}`;
   $("asOf").textContent="Bookings as of "+new Date(R.at).toLocaleString("en-GB",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+" (from JustGo)";
@@ -183,7 +276,7 @@ function render(){
   $("bigSub").innerHTML=`<b>${R.renewed}</b> of <b>${R.kids}</b> children on a termly place this term have booked for next term`;
   const left=R.kids-R.renewed,famLeft=R.families.length,start=R.next.length?fmtDay(R.next.map(t=>t.start).sort()[0]):"";
   const daysTo=R.next.length?Math.ceil((new Date(R.next.map(t=>t.start).sort()[0])-new Date())/864e5):NaN;
-  $("kpis").innerHTML=[[left,"children still to book",left?"bad":"good"],[famLeft,"families to remind",""],[R.nextBooked,"places booked for next term",""],[R.families.filter(f=>(stat[f.key]||{}).status==="leaving").reduce((n,f)=>n+f.kids.length,0),"told us they're not continuing","bad"],[R.families.filter(f=>(stat[f.key]||{}).status==="changing").reduce((n,f)=>n+f.kids.length,0),"want a different class","warn"],[R.newToNext,"new children booked for next term","good"],[isFinite(daysTo)?Math.max(0,daysTo):"–",`days until next term (${start})`,""]]
+  $("kpis").innerHTML=[[left,"children still to book",left?"bad":"good"],[famLeft,"families to remind",""],[R.nextBooked,"places booked for next term",""],[ST?ST.counts.leaving||0:0,"leaving (form or told us)","bad"],[ST?ST.counts.changing||0:0,"asked for a class change","warn"],[R.newToNext,"new children booked for next term","good"],[isFinite(daysTo)?Math.max(0,daysTo):"–",`days until next term (${start})`,""]]
     .map(([v,s,c])=>`<div class="kpi ${c}"><span class="v">${v}</span><span class="s">${esc(s)}</span></div>`).join("");
   $("areas").innerHTML=R.areas.map(a=>{const r=a.eligible?a.renewed/a.eligible:NaN;return `<div class="arow"><b>${esc(a.area)}</b><div class="abar" data-tip="${esc(a.area)}: ${a.renewed} of ${a.eligible} booked"><i style="width:${(r||0)*100}%;background:${toneVar(r)}"></i></div><span class="n"><b>${pct(r)}</b> · ${a.renewed}/${a.eligible}</span></div>`}).join("");
   const areas=["",...R.areas.map(a=>a.area)];
@@ -195,7 +288,7 @@ function render(){
 }
 $("fDay").onchange=()=>renderTable();
 document.querySelectorAll("th[data-sort]").forEach(th=>th.onclick=()=>{const k=th.dataset.sort;sortDir=sortKey===k?-sortDir:1;sortKey=k;renderTable()});
-const kidStat=x=>{const f=R.families.find(f=>f.kids.some(k=>k.id===x.id));return f&&stat[f.key]?stat[f.key].status:""};
+const kidStat=x=>{const s=ST&&ST.status[x.id];return s&&s.s!=="none"&&s.s!=="renewed"?s.s:""};
 function renderTable(){
   const day=$("fDay").value;
   let list=R.per.filter(c=>c.eligible&&(!area||c.area===area)&&(!day||c.day===day));
@@ -218,7 +311,7 @@ const lastSent=f=>{const l=logs.filter(x=>String(x.email||"").toLowerCase()===St
 function famList(){
   if(!R)return[];
   const lim=+$("days").value||0,cut=Date.now()-lim*864e5;
-  return R.families.filter(f=>(!area||f.kids.some(k=>k.cur.area===area))&&(!$("onlyMatched").checked||f.kids.some(k=>k.next))&&(!$("hideTold").checked||!stat[f.key])&&(!$("onlyNew").checked||!lastSent(f)||new Date(lastSent(f))<cut))
+  return R.families.filter(f=>(!area||f.kids.some(k=>k.cur.area===area))&&(!$("onlyMatched").checked||f.kids.some(k=>k.next))&&(!$("hideTold").checked||!(stat[f.key]&&stat[f.key].status)&&!(ST&&f.kids.some(k=>["leaving","changing"].includes((ST.status[k.id]||{}).s))))&&(!$("onlyNew").checked||!lastSent(f)||new Date(lastSent(f))<cut))
     .sort((a,b)=>(a.parentName||"").localeCompare(b.parentName||""));
 }
 function renderFams(){

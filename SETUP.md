@@ -123,3 +123,14 @@ The desk saves enquiries under the hub's private data area, using the same prote
 - **Which classes:** the Recreational and Pre-School terms, as with the termly renewal emails (Novice's separate term isn't read).
 - **Who counts:** children on a termly place this term. Trials and pay-as-you-go places (e.g. Pre-School PAYG, Play Gym) aren't counted. A child has renewed once they're booked into any class next term.
 - **Reminders:** one email per family, with a button to book each child's matching class next term (same day, time and colour). Families reminded in the last few days, and families whose class has no match next term yet, are hidden by default. Every reminder is logged, so the list shows who was reminded and when. The wording can be changed under **Change the wording**.
+
+## Renewal form responses (class change and leaving)
+
+The Term Renewals page reads the renewal forms' responses spreadsheet ("Spring Term 2027" in reception's shared drive: tabs Recreational, Preschool and Non Renewal) live, through the reception@ mailer. Nothing from the sheet is stored in the hub. With it, every child on a termly place is shown as **Renewed**, **Class change requested**, **Leaving** or **No response yet**:
+- **Reminders** only go to families with no response.
+- **Class change requests** are matched to next term's classes on the requested days and times, at the same colour level. **Space now** means there's a free place even after holding places for children who haven't renewed yet: press **Send offer** to email the booking link from reception@. **Wait** means the class only has room once renewals close (set the date under Settings on the page).
+- **Leaving** lists each family's reason and scores, with averages.
+
+Next term, change the spreadsheet under **Settings: response spreadsheet** on the page (paste its link).
+
+The mailer must be version 2 (it reads the sheet). If the page asks for it, update the mailer once, as the steps on the page describe: copy the code from the Enquiry Desk, paste it over the old code in script.google.com, run **allowSending**, and redeploy as a **New version**.

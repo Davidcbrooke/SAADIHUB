@@ -361,7 +361,7 @@ EQ.renewalEmail=function(family,s,tpl,term){
 EQ.renewals=function(ren){
   if(!ren||!ren.cls)return null;
   const link=g=>`https://mybg.british-gymnastics.org/Workbench/i/r/Public/ClassBookingsPublic/${ren.club}/class/${g}`;
-  const cls=ren.cls.map(([g,k,term,day,start,end,name,colour,age],i)=>({i,g,kind:k,term,day,start,end,name,colour:colour||(String(name).match(/\b(orange|yellow|blue|red|green|purple)\b/i)||[])[1]||"",age,link:link(g)}));
+  const cls=ren.cls.map(([g,k,term,day,start,end,name,colour,age,cap,booked],i)=>({i,g,kind:k,term,day,start,end,name,cap:+cap||0,booked:+booked||0,colour:colour||(String(name).match(/\b(orange|yellow|blue|red|green|purple)\b/i)||[])[1]||"",age,link:link(g)}));
   cls.forEach(c=>{c.colour=c.colour?c.colour[0].toUpperCase()+c.colour.slice(1).toLowerCase():"";c.area=/novice/i.test(c.term+" "+c.name)?"Novice":/pre\s*-?\s*school/i.test(c.term)?"Pre-School":"Recreational"});
   const nextOf={};ren.rows.forEach(([i,id,f])=>{const c=cls[i];if(c&&c.kind==="n"&&f!=="T")(nextOf[id]=nextOf[id]||[]).push(c)});
   const norm=t=>String(t||"").replace(/\s+/g,"").toUpperCase();
@@ -388,10 +388,100 @@ EQ.renewals=function(ren){
     cur:(ren.cur||[]).map(t=>({id:t[0],name:t[1],start:t[2],end:t[3]})),next:(ren.next||[]).map(t=>({id:t[0],name:t[1],start:t[2],end:t[3]})),at:ren.at};
 };
 
+/* ---------- renewal form responses (Google Sheet: class change tabs + "Non Renewal" tab) ---------- */
+const DAYFULL={monday:"Mon",tuesday:"Tue",wednesday:"Wed",thursday:"Thu",friday:"Fri",saturday:"Sat",sunday:"Sun",mon:"Mon",tue:"Tue",tues:"Tue",wed:"Wed",weds:"Wed",thu:"Thu",thur:"Thu",thurs:"Thu",fri:"Fri",sat:"Sat",sun:"Sun"};
+EQ.dayCode=d=>DAYFULL[String(d||"").trim().toLowerCase()]||"";
+/* "5 - 6pm, 9:45 - 10:45am, 11:45am - 12:45pm" -> start times in minutes */
+EQ.parseTimes=str=>String(str||"").split(/[,;\/]|\band\b/i).map(x=>x.trim()).filter(Boolean).map(x=>{
+  const m=x.match(/(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)?\s*(?:-|–|to)\s*(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)?/i);
+  if(!m){const one=x.match(/(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)/i);if(!one)return null;let h=+one[1]%12;if(/pm/i.test(one[3]))h+=12;return h*60+(+one[2]||0)}
+  const ap2=(m[6]||m[3]||"").toLowerCase();let eh=+m[4]%12;if(ap2==="pm")eh+=12;const end=eh*60+(+m[5]||0);
+  let sh=+m[1]%12;const ap1=(m[3]||ap2).toLowerCase();if(ap1==="pm")sh+=12;let st=sh*60+(+m[2]||0);
+  if(!m[3]&&st>end)st-=12*60;return st}).filter(x=>x!=null);
+const norm=s=>String(s||"").toLowerCase().replace(/[^a-z]/g,"");
+const firstName=s=>norm(String(s||"").trim().split(/\s+/)[0]);
+EQ.parseResponses=function(tabs){
+  const changes=[],leavers=[];
+  for(const name in (tabs||{})){
+    const rows=tabs[name]||[];if(rows.length<2)continue;
+    const H=rows[0].map(h=>String(h||"").replace(/\s+/g," ").trim());
+    const col=re=>H.findIndex(h=>re.test(h));
+    const cols=re=>H.map((h,i)=>re.test(h)?i:-1).filter(i=>i>=0);
+    const emailC=col(/email/i);
+    if(/non\s*-?\s*renew|leav/i.test(name)||col(/reason.*leaving/i)>=0){
+      const childC=col(/^child/i),reasonC=col(/reason/i),rateC=col(/rate|experience/i),recC=col(/recommend/i),sugC=col(/differently|improve|suggest/i);
+      rows.slice(1).forEach(r=>{const email=String(r[emailC]||"").trim();if(!email)return;
+        leavers.push({at:r[0],email,child:String(r[childC]||"").trim(),reason:String(r[reasonC]||"").trim(),rating:r[rateC]||"",recommend:r[recC]||"",suggestion:String(r[sugC]||"").trim(),tab:name})});
+      continue;
+    }
+    const nameCs=cols(/child'?s name/i);if(!nameCs.length)continue;
+    const area=/pre\s*-?\s*school/i.test(name)?"Pre-School":"Recreational";
+    const ordinal=["","2nd","3rd","4th"];
+    const dayCs=cols(/new class day/i),timeCs=cols(/new class time/i),noteC=col(/additional|logistical|request(s)?$/i);
+    rows.slice(1).forEach(r=>{
+      const email=String(r[emailC]||"").trim();if(!email)return;
+      const kids=nameCs.map((c,i)=>{const nm=String(r[c]||"").trim();if(!nm)return null;
+        const tag=ordinal[i]?`\\(${ordinal[i]} child\\)`:"";
+        const find=what=>{const re=new RegExp(`current class ${what}${tag?"\\s*"+tag:"(?!.*child\\))"}`,"i");const cs=cols(re);for(const k of cs){if(String(r[k]||"").trim())return String(r[k]).trim()}return""};
+        return{name:nm,day:find("day"),time:find("time"),colour:find("(group )?colou?r")}}).filter(Boolean);
+      const reqDays=[...new Set(dayCs.map(c=>String(r[c]||"")).join(",").split(/[,;]/).map(EQ.dayCode).filter(Boolean))];
+      const reqTimes=[...new Set(timeCs.flatMap(c=>EQ.parseTimes(r[c])))];
+      changes.push({at:r[0],email,area,tab:name,kids,reqDays,reqTimes,reqText:[dayCs.map(c=>r[c]).filter(Boolean).join(", "),timeCs.map(c=>r[c]).filter(Boolean).join(", ")].filter(Boolean).join(" · "),notes:noteC>=0?String(r[noteC]||"").trim():""});
+    });
+  }
+  return{changes,leavers};
+};
+/* Join the form responses to the JustGo renewals: who is leaving, who wants a different class, who hasn't answered,
+   and for each class change the Spring classes that fit, with how many places are free now.
+   closeDate: after it, places held for children who haven't renewed are released. */
+EQ.renewalStatus=function(R,resp,manual,closeDate,today){
+  today=today||new Date().toISOString().slice(0,10);
+  const open=closeDate&&today>closeDate;
+  const allKids=[];R.per.forEach(c=>c.kids.forEach(k=>allKids.push(k)));
+  const findKid=(email,name)=>{const e=String(email||"").toLowerCase().trim(),fn=firstName(name),full=norm(name);
+    return allKids.find(k=>k.email.toLowerCase()===e&&firstName(k.first)===fn)||allKids.find(k=>norm(k.first+k.last)===full&&full)||allKids.find(k=>k.email.toLowerCase()===e&&fn&&norm(k.first).startsWith(fn.slice(0,4)))||null};
+  const status={};// kid id -> {s:"renewed"|"leaving"|"changing"|"none", src}
+  allKids.forEach(k=>{status[k.id]={s:k.renewed?"renewed":"none"}});
+  (resp.leavers||[]).forEach(l=>{const k=findKid(l.email,l.child);l.kid=k;
+    const ks=k?[k]:allKids.filter(x=>x.email.toLowerCase()===l.email.toLowerCase());
+    ks.forEach(x=>{if(status[x.id].s!=="renewed")status[x.id]={s:"leaving",src:l}})});
+  (resp.changes||[]).forEach(c=>{c.kids.forEach(ck=>{const k=findKid(c.email,ck.name);ck.kid=k;if(k&&status[k.id].s==="none")status[k.id]={s:"changing",src:c}})});
+  // reception's own marks for families who replied by email
+  R.families.forEach(f=>{const m=(manual||{})[f.key];if(!m||!m.status)return;f.kids.forEach(k=>{if(status[k.id].s==="none")status[k.id]={s:m.status,src:"manual"}})});
+  // places: Spring classes, less children still expected to renew into them (until the renewal period closes)
+  const nextCls=R.cls.filter(c=>c.kind==="n");
+  const pending={};allKids.forEach(k=>{if(status[k.id].s==="none"&&k.next)pending[k.next.g]=(pending[k.next.g]||0)+1});
+  const placeInfo=n=>{const cap=n.cap||0,booked=n.booked||0,held=open?0:(pending[n.g]||0);return{cap,booked,held,free:Math.max(0,cap-booked-held),freeAfter:Math.max(0,cap-booked)}};
+  (resp.changes||[]).forEach(c=>{c.kids.forEach(ck=>{
+    const colour=((ck.kid&&ck.kid.cur&&ck.kid.cur.colour)||ck.colour||"").toLowerCase();
+    let cands=nextCls.filter(n=>n.area===c.area&&(!c.reqDays.length||c.reqDays.includes(n.day))&&(!c.reqTimes.length||c.reqTimes.includes(EQ.mins(n.start))));
+    const sameCol=cands.filter(n=>colour&&n.colour.toLowerCase()===colour);
+    ck.options=(sameCol.length?sameCol:cands).map(n=>({n,...placeInfo(n)})).sort((a,b)=>b.free-a.free||b.freeAfter-a.freeAfter);
+    ck.sameColour=!!sameCol.length;ck.renewed=ck.kid?ck.kid.renewed:false;
+  })});
+  const counts={renewed:0,leaving:0,changing:0,none:0};allKids.forEach(k=>counts[status[k.id].s]=(counts[status[k.id].s]||0)+1);
+  return{status,counts,open,placeInfo};
+};
+
+/* Offer of a different class (from a class change request). */
+EQ.offerEmail=function(o,s,term){
+  const n=o.cls,col=EQ.BAND_COLOURS[n.colour]||"#f20779",cls=String(n.name).split("|")[0].trim(),when=`${EQ.DAYNAME[n.day]||n.day} ${EQ.prettyTime(n.start+(n.end?" - "+n.end:""))}`;
+  const subject=`A place for ${o.child} on ${when} for ${term}`;
+  const card=`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 12px;border:1px solid #eadfe7;border-left:6px solid ${col};border-radius:10px"><tr><td style="padding:14px 16px;font-family:Arial,Helvetica,sans-serif">
+    <div style="font-size:17px;font-weight:700;color:#1d1a1f">${escH(o.child)}: ${escH(when)}</div><div style="font-size:15px;color:#4a444e;margin:2px 0 10px">${escH(cls)} · ${escH(n.term)}</div>
+    <a href="${escH(n.link)}" style="display:inline-block;padding:9px 18px;background:#d4066a;color:#ffffff;font-weight:700;font-size:14px;text-decoration:none;border-radius:999px">Book ${escH(o.child)}'s place</a></td></tr></table>`;
+  const paras=[paraHtml(`Hi ${o.parentName||"there"},`),paraHtml(`Thank you for letting us know you'd like a different class for ${o.child}. Good news: we have a space in this class for ${term}:`),card,
+    paraHtml(`Please book soon, as we can't hold the place for long. If it isn't right after all, just reply to this email and we'll help.`)].join("");
+  const text=`Hi ${o.parentName||"there"},\n\nThank you for letting us know you'd like a different class for ${o.child}. Good news: we have a space in this class for ${term}:\n\n${when}: ${cls}\n${n.link}\n\nPlease book soon, as we can't hold the place for long. If it isn't right after all, just reply to this email and we'll help.\n\nBest wishes,\n${s.signOff}`;
+  return{subject,html:EQ.shell(subject,`Good news for ${o.child}!`,paras,s,"You're receiving this because you asked us for a different class at SAADI Gymnastics."),text};
+};
+
 /* ---------- the Google mailer (runs in the reception@ Google account) ---------- */
 EQ.newKey=()=>{const a=new Uint8Array(24);(globalThis.crypto||require("crypto").webcrypto).getRandomValues(a);return [...a].map(x=>x.toString(16).padStart(2,"0")).join("")};
+EQ.MAILER_VERSION=2;
 EQ.mailerCode=(key,sender)=>`/**
- * SAADI Enquiry Desk mailer. Sends the desk's emails from ${sender}.
+ * SAADI Enquiry Desk mailer (version 2). Sends the desk's emails from ${sender},
+ * and reads the renewal form responses for the Term Renewals page.
  * Set up from the desk: Emails & settings > Sending emails. Don't share this code: it contains the desk's key.
  */
 var KEY = '${key}';
@@ -403,7 +493,13 @@ function doPost(e) {
     if (p.token !== KEY) return reply({ ok: false, error: 'wrong key' });
     var me = Session.getEffectiveUser().getEmail();
     if (me.toLowerCase() !== SENDER.toLowerCase()) return reply({ ok: false, from: me, error: 'this mailer is in ' + me + "'s Google account, not " + SENDER });
-    if (p.ping) return reply({ ok: true, from: me, left: MailApp.getRemainingDailyQuota() });
+    if (p.ping) return reply({ ok: true, from: me, left: MailApp.getRemainingDailyQuota(), v: 2 });
+    // Term Renewals: read the renewal form responses (class change / non renewal) from a spreadsheet reception can open.
+    if (p.sheet) {
+      var ss = SpreadsheetApp.openById(p.sheet), tabs = {};
+      ss.getSheets().forEach(function (sh) { tabs[sh.getName()] = sh.getDataRange().getDisplayValues(); });
+      return reply({ ok: true, from: me, name: ss.getName(), tabs: tabs });
+    }
     if (!p.to || !/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(p.to)) return reply({ ok: false, error: 'email address missing or not valid' });
     if (!p.subject || !p.html) return reply({ ok: false, error: 'nothing to send' });
     GmailApp.sendEmail(p.to, p.subject, p.text || '', { htmlBody: p.html, name: p.fromName || 'SAADI Gymnastics', replyTo: SENDER });
@@ -415,8 +511,8 @@ function doPost(e) {
 
 function doGet() { return reply({ ok: true, service: 'SAADI Enquiry Desk mailer' }); }
 
-/** Press Run on this once after pasting, so Google asks for permission to send email. */
-function allowSending() { Logger.log('Ready to send as ' + Session.getEffectiveUser().getEmail() + '. ' + MailApp.getRemainingDailyQuota() + ' emails left today.'); }
+/** Press Run on this once after pasting, so Google asks for permission to send email and read the renewal forms' spreadsheet. */
+function allowSending() { SpreadsheetApp.getActiveSpreadsheet(); Logger.log('Ready to send as ' + Session.getEffectiveUser().getEmail() + '. ' + MailApp.getRemainingDailyQuota() + ' emails left today.'); }
 
 function reply(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
 `;

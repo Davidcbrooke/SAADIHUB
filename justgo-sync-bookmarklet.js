@@ -149,7 +149,7 @@
         const kids = {}, rows = [], cls = [];
         const queue = sessions.map((s, i) => [s, i]);
         let done = 0;
-        sessions.forEach(([o, k]) => { const sc = (o.Schedules || [])[0] || {}; cls.push([o.SessionGuid, k, o.TermName, o.DayOfWeek, sc.StartTime || "", sc.EndTime || "", o.SessionName, typeof o.ColorName === "string" ? o.ColorName : "", o.AgeGroupName || ""]); });
+        sessions.forEach(([o, k]) => { const sc = (o.Schedules || [])[0] || {}; cls.push([o.SessionGuid, k, o.TermName, o.DayOfWeek, sc.StartTime || "", sc.EndTime || "", o.SessionName, typeof o.ColorName === "string" ? o.ColorName : "", o.AgeGroupName || "", +o.Capacity || 0, +o.TotalBookedCount || 0]); });
         await Promise.all(Array.from({ length: 8 }, async () => {
           while (queue.length && alive()) {
             const [[o], i] = queue.shift();

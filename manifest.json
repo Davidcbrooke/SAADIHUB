@@ -1,7 +1,7 @@
 {
   "name": "SAADI Business Hub",
   "short_name": "SAADI Hub",
-  "description": "SAADI senior team hub: class capacity and the business plan.",
+  "description": "SAADI senior team hub: class capacity, enquiries and trials, and the business plan.",
   "start_url": "index.html",
   "scope": "./",
   "display": "standalone",

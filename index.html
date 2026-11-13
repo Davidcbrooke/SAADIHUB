@@ -48,7 +48,7 @@ a.card p{margin:0;color:var(--muted)}
       <div><div class="eyebrow">SAADI Gymnastics</div><h1>Business Hub</h1></div>
     </a>
     <div class="head-right">
-      <nav class="hubnav needs-auth" aria-label="Hub pages"><a href="index.html" aria-current="page">Hub</a><a href="class-capacity.html">Class Capacity</a><a href="business-plan.html">Business Plan</a><a href="calendar.html">Club Calendar</a></nav>
+      <nav class="hubnav needs-auth" aria-label="Hub pages"><a href="index.html" aria-current="page">Hub</a><a href="enquiry-desk.html">Enquiry Desk</a><a href="class-capacity.html">Class Capacity</a><a href="business-plan.html">Business Plan</a><a href="calendar.html">Club Calendar</a></nav>
       <button type="button" class="needs-auth" data-lock>Lock</button>
     </div>
   </header>
@@ -72,6 +72,12 @@ a.card p{margin:0;color:var(--muted)}
     </div>
 
     <div class="cards">
+      <a class="card" href="enquiry-desk.html">
+        <h2>Enquiry Desk <span aria-hidden="true">→</span></h2>
+        <p>"Any space for a 6-year-old girl?" answered in seconds, trial invites emailed, and every follow-up until they join.</p>
+        <div class="mini" id="enqMini"><div class="bad"><b>–</b><span>follow-ups due</span></div><div><b>–</b><span>trials coming up</span></div><div class="good"><b>–</b><span>joined (30 days)</span></div></div>
+        <div class="muted" style="font-size:13px" id="enqNote">No enquiries yet.</div>
+      </a>
       <a class="card" href="class-capacity.html">
         <h2>Class Capacity Report <span aria-hidden="true">→</span></h2>
         <p>How full every class is, empty places, waiting lists and the key actions for the week, from the weekly JustGo numbers.</p>
@@ -110,6 +116,7 @@ a.card p{margin:0;color:var(--muted)}
 <script src="firebase-config.js"></script>
 <script src="hub-core.js"></script>
 <script src="calendar-core.js"></script>
+<script src="enquiry-core.js"></script>
 <script>
 if("serviceWorker" in navigator&&location.protocol==="https:"){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))}
 (function(){
@@ -126,6 +133,15 @@ function headline(){
   if(cap)bits.push(`Classes are <b>${pct(cap.fill)} full</b> (w/c ${fmtDate(cap.weekOf,{day:"numeric",month:"short"})})`);
   if(plan)bits.push(`<b>${plan.done} of ${plan.total}</b> plan objectives are completed${plan.od?`, and <b style="color:var(--bad)">${plan.od} ${plan.od===1?"is":"are"} overdue</b>`:""}`);
   $("headline").innerHTML=bits.length?bits.join(". ")+".":"Choose a report below.";
+}
+function loadEnquiries(){
+  Promise.all([Hub.doc("config/enquiryDesk").get().catch(()=>null),Hub.col("enquiries").get()]).then(([d,q])=>{
+    if(q.empty)return;
+    const S=EQ.settings(d&&d.exists?d.data():{}),recs=q.docs.map(x=>({id:x.id,...x.data()})),t=todayIso();
+    const due=EQ.actions(recs,S,t).filter(a=>a.dueNow).length,up=recs.filter(r=>r.stage==="trial_booked"&&r.trialDate>=t).length,st=EQ.stats(recs,EQ.addDays(t,-30),t);
+    $("enqMini").innerHTML=`<div class="${due?"bad":"good"}"><b>${due}</b><span>follow-ups due</span></div><div><b>${up}</b><span>trials coming up</span></div><div class="good"><b>${st.joined}</b><span>joined (30 days)</span></div>`;
+    $("enqNote").textContent=`${recs.filter(EQ.isOpen).length} open enquiries and trials.`;
+  }).catch(()=>{});
 }
 function loadCapacity(){
   Promise.all([Hub.doc("config/display").get().catch(()=>null),Hub.col("snapshots").orderBy("weekOf","desc").limit(1).get()]).then(([d,q])=>{
@@ -182,7 +198,7 @@ function showCal(){
     $("calNote").textContent=comps[0]?`Next competition: ${comps[0].title}, ${fmtDate(comps[0].start,{day:"numeric",month:"short"})}`:(ev.length?"No competitions coming up.":"No events added yet.");
   }
 }
-Hub.gate(()=>{loadCapacity();loadPlan();loadCalendar()});
+Hub.gate(()=>{loadCapacity();loadPlan();loadCalendar();loadEnquiries()});
 })();
 </script>
 <!-- NGL pull-to-refresh: iPhone home-screen apps have no pull-to-refresh, so this adds one (only when installed). -->

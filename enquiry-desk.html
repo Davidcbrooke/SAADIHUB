@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f20779">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>SAADI Enquiry Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="hub.css">
+<style>
+.tabs{display:flex;flex-wrap:wrap;gap:6px;border-bottom:2px solid var(--line);padding-bottom:0}
+.tabs button{border:0;border-radius:9px 9px 0 0;background:transparent;padding:10px 16px;font-size:15px;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px}
+.tabs button[aria-selected=true]{color:var(--accent);border-bottom-color:var(--accent);background:var(--surface)}
+.tabs .count{display:inline-block;min-width:20px;padding:0 6px;margin-left:6px;border-radius:99px;background:var(--bad);color:#fff;font-size:12px;line-height:20px;text-align:center}
+.tabs .count.zero{background:var(--none-bg);color:var(--muted)}
+input[type=number],input[type=email],input[type=tel],input[type=url]{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:0}
+.ask{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;align-items:end}
+.ask .big input{font-size:22px;font-weight:600;padding:8px 12px;width:100%}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;border-radius:0;padding:9px 14px;font-weight:600;background:transparent}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink)}
+.answer{font-family:var(--display);font-size:26px;font-weight:600;line-height:1.2}
+.answer.yes{color:var(--good)} .answer.no{color:var(--bad)} .answer.wait{color:var(--warn)}
+.classes{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.cls{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-left:7px solid var(--bc,var(--brand));border-radius:10px;padding:10px 12px;background:var(--surface);cursor:pointer;font-weight:400;text-align:left}
+.cls:hover{border-color:var(--accent);border-left-color:var(--bc,var(--brand))}
+.cls input{margin-top:4px;width:18px;height:18px;accent-color:var(--accent);flex:none}
+.cls .w{font-weight:700}
+.cls .n{font-size:14px;color:var(--muted)}
+.cls .sp{margin-top:4px;display:flex;gap:6px;flex-wrap:wrap}
+.cls.full{background:var(--surface-2)}
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+@media (max-width:900px){.split{grid-template-columns:1fr}}
+.form2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.form2 input,.form2 select{width:100%}
+.preview{width:100%;height:560px;border:1px solid var(--line);border-radius:10px;background:#f6f4f6}
+.reply{white-space:pre-wrap;background:var(--surface-2);border-radius:10px;padding:12px 14px;font-size:14px}
+.act{display:grid;grid-template-columns:110px minmax(0,1fr) auto;gap:14px;align-items:center;border:1px solid var(--line);border-left:6px solid var(--warn);border-radius:10px;padding:12px 14px;background:var(--surface)}
+.act.overdue{border-left-color:var(--bad)} .act.later{border-left-color:var(--none);opacity:.8}
+.act .due{font-weight:700;font-size:14px;font-variant-numeric:tabular-nums}
+.act .due small{display:block;font-weight:600;color:var(--muted)}
+.act.overdue .due{color:var(--bad)}
+.act .who{font-weight:700}
+.act .what{font-size:14px;color:var(--muted)}
+.act .btns{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
+.act .btns button{padding:6px 11px;font-size:14px}
+@media (max-width:700px){.act{grid-template-columns:1fr}.act .btns{justify-content:flex-start}}
+.lst{display:flex;flex-direction:column;gap:8px}
+table.t{width:100%;border-collapse:collapse;font-size:14px}
+table.t th{text-align:left;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:6px 8px;border-bottom:2px solid var(--line)}
+table.t td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+table.t tr.click{cursor:pointer} table.t tr.click:hover td{background:var(--surface-2)}
+.tbl-wrap{overflow-x:auto}
+dialog{border:0;border-radius:14px;padding:0;max-width:760px;width:calc(100% - 24px);background:var(--surface);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.3)}
+dialog::backdrop{background:rgba(20,10,20,.45)}
+dialog .dh{background:var(--brand);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+dialog .dh button{background:transparent;color:#fff;border-color:rgba(255,255,255,.6)}
+dialog .db{padding:18px;display:flex;flex-direction:column;gap:14px;max-height:75vh;overflow:auto}
+dialog .df{padding:12px 18px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.timeline{display:flex;flex-direction:column;gap:6px;font-size:14px}
+.timeline div{display:grid;grid-template-columns:130px 1fr;gap:10px}
+.timeline b{font-variant-numeric:tabular-nums}
+.funnel{display:flex;flex-direction:column;gap:10px}
+.fstep{display:grid;grid-template-columns:150px 1fr 90px;gap:10px;align-items:center;font-size:14px}
+.fstep .bar{height:26px;border-radius:6px;background:var(--accent);min-width:3px}
+.fstep .v{font-variant-numeric:tabular-nums;font-weight:700;text-align:right}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:10px 18px;border-radius:99px;font-weight:600;z-index:60;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.chip{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--bc,var(--brand));margin-right:6px;vertical-align:-1px}
+details summary{cursor:pointer;font-weight:600}
+.small{font-size:13px}
+[data-pane]{width:100%}
+.hint{font-size:13px;color:var(--muted);margin:0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="index.html">
+      <img src="saadi-logo-white.png" alt="SAADI Gymnastics" width="64" height="61">
+      <div><div class="eyebrow">SAADI Gymnastics</div><h1>Enquiry Desk</h1></div>
+    </a>
+    <div class="head-right">
+      <nav class="hubnav needs-auth" aria-label="Hub pages"><a href="index.html">Hub</a><a href="enquiry-desk.html" aria-current="page">Enquiry Desk</a><a href="class-capacity.html">Class Capacity</a><a href="business-plan.html">Business Plan</a><a href="calendar.html">Club Calendar</a></nav>
+      <button type="button" class="needs-auth" data-lock>Lock</button>
+    </div>
+  </header>
+
+  <div id="statusNote" class="notice" hidden></div>
+
+  <section class="panel auth" id="authPanel" hidden>
+    <h2>Enter the password</h2>
+    <p class="muted" style="margin:0">The Enquiry Desk uses the SAADI Hub password.</p>
+    <form id="authForm" class="wrap" style="gap:12px;margin:0" novalidate>
+      <label class="f" for="authPass">Password <input type="password" id="authPass" autocomplete="current-password" required></label>
+      <label class="row" for="authRemember" style="font-size:14px;gap:6px"><input type="checkbox" id="authRemember" checked> Remember on this device</label>
+      <div class="row"><button class="primary" type="submit" id="authGo">Open</button><span id="authMsg" class="muted" aria-live="polite"></span></div>
+    </form>
+  </section>
+
+  <main class="wrap needs-auth" id="main">
+    <div class="tabs" role="tablist">
+      <button role="tab" data-tab="ask" aria-selected="true">Any space?</button>
+      <button role="tab" data-tab="actions" aria-selected="false">Follow-ups<span class="count zero" id="actCount">0</span></button>
+      <button role="tab" data-tab="people" aria-selected="false">Trials &amp; enquiries</button>
+      <button role="tab" data-tab="results" aria-selected="false">Results</button>
+      <button role="tab" data-tab="settings" aria-selected="false">Emails &amp; settings</button>
+    </div>
+
+    <!-- ============ ANY SPACE? ============ -->
+    <section data-pane="ask" class="wrap" style="gap:20px">
+      <section class="panel">
+        <div class="panel-head"><h2>Do you have space for…</h2><span class="muted small" id="snapNote">Loading classes…</span></div>
+        <div class="ask">
+          <label class="f big" for="qAge">Age <input type="number" id="qAge" min="0" max="99" inputmode="numeric" placeholder="e.g. 6"></label>
+          <div class="f" style="display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600"><span>Boy or girl</span><div class="seg" id="qGender"><button type="button" data-v="girl" aria-pressed="false">Girl</button><button type="button" data-v="boy" aria-pressed="false">Boy</button><button type="button" data-v="" aria-pressed="true">Either</button></div></div>
+          <label class="f" for="qDob">Or date of birth (more exact) <input type="date" id="qDob"></label>
+          <label class="f" for="qTerm">Term <select id="qTerm"><option value="">All terms</option></select></label>
+        </div>
+        <div id="answer" aria-live="polite"><p class="hint">Type the child's age and the classes with space appear here straight away.</p></div>
+      </section>
+
+      <div class="split" id="sendArea" hidden>
+        <section class="panel">
+          <div class="panel-head"><h2>Send a trial invite</h2><span class="muted small" id="pickNote"></span></div>
+          <div class="form2">
+            <label class="f" for="fParent">Parent's first name <input type="text" id="fParent" autocomplete="off"></label>
+            <label class="f" for="fChild">Child's first name <input type="text" id="fChild" autocomplete="off"></label>
+            <label class="f" for="fEmail">Parent's email <input type="email" id="fEmail" autocomplete="off" required></label>
+            <label class="f" for="fPhone">Phone (optional) <input type="tel" id="fPhone" autocomplete="off"></label>
+            <label class="f" for="fSource">Asked us by <select id="fSource"><option>Phone</option><option>Email</option><option>Facebook</option><option>Instagram</option><option>Website</option><option>Walk-in</option><option>Friend / family</option><option>Other</option></select></label>
+            <label class="f" for="fNotes">Notes <input type="text" id="fNotes" autocomplete="off" placeholder="e.g. sister already comes"></label>
+          </div>
+          <div class="row">
+            <button class="primary" type="button" id="sendInvite">Send trial invite</button>
+            <button type="button" id="copyInvite">Copy email to send myself</button>
+            <button type="button" id="logOnly">Log enquiry only</button>
+            <button type="button" id="logWait" hidden>Add to waiting list</button>
+          </div>
+          <p class="hint" id="sendHint"></p>
+          <details><summary>Quick reply for a phone call, Facebook or Instagram message</summary><div class="reply" id="quickReply"></div><button type="button" id="copyReply" style="margin-top:8px">Copy reply</button></details>
+        </section>
+        <section class="panel">
+          <div class="panel-head"><h2>Email preview</h2><span class="muted small" id="prevSubject"></span></div>
+          <iframe class="preview" id="preview" title="Email preview" sandbox="allow-same-origin"></iframe>
+        </section>
+      </div>
+    </section>
+
+    <!-- ============ FOLLOW-UPS ============ -->
+    <section data-pane="actions" class="wrap" hidden>
+      <div class="kpis" id="actKpis"></div>
+      <section class="panel">
+        <div class="panel-head"><h2>To do today</h2><span class="muted small">Overdue first. Each button sends the email or records what happened.</span></div>
+        <div class="lst" id="actNow"><p class="muted">Nothing to do. Well done!</p></div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h2>Coming up</h2><span class="muted small">Trials booked and follow-ups not due yet</span></div>
+        <div class="lst" id="actLater"><p class="muted">Nothing coming up.</p></div>
+      </section>
+    </section>
+
+    <!-- ============ PEOPLE ============ -->
+    <section data-pane="people" class="wrap" hidden>
+      <section class="panel">
+        <div class="panel-head"><h2>Trials &amp; enquiries</h2>
+          <div class="row"><input type="search" id="pSearch" placeholder="Search name, email, class"><select id="pStage"><option value="open">Open</option><option value="">Everyone</option></select><button type="button" id="addExisting">+ Add someone already on a trial</button></div></div>
+        <div class="tbl-wrap"><table class="t"><thead><tr><th>Child</th><th>Parent</th><th>Stage</th><th>Trial</th><th>Next</th><th>Enquiry</th></tr></thead><tbody id="pBody"></tbody></table></div>
+      </section>
+      <section class="panel">
+        <details><summary>Import a list of people already on trials</summary>
+          <p class="hint" style="margin-top:8px">One person per line, separated by commas or tabs (you can paste straight from a spreadsheet):<br><b>Child, Age, Parent, Email, Phone, Trial date, Class, Stage</b><br>Trial date as dd/mm/yyyy. Stage is optional: leave it blank for "trial booked", or write "joined", "invite sent" or "asked to book".</p>
+          <textarea id="impText" placeholder="Ella Smith, 6, Sam Smith, sam@example.com, 07700 900000, 18/11/2026, Tue 4pm Orange"></textarea>
+          <div class="row" style="margin-top:8px"><button type="button" id="impCheck">Check</button><button type="button" class="primary" id="impGo" disabled>Import</button><span class="muted small" id="impMsg"></span></div>
+        </details>
+      </section>
+    </section>
+
+    <!-- ============ RESULTS ============ -->
+    <section data-pane="results" class="wrap" hidden>
+      <div class="row"><span class="muted">Show</span><div class="seg" id="rPeriod"><button type="button" data-v="30" aria-pressed="false">Last 30 days</button><button type="button" data-v="90" aria-pressed="true">Last 3 months</button><button type="button" data-v="365" aria-pressed="false">Last 12 months</button><button type="button" data-v="0" aria-pressed="false">All time</button></div></div>
+      <div class="kpis" id="rKpis"></div>
+      <div class="grid2">
+        <section class="panel"><div class="panel-head"><h2>From enquiry to joining</h2></div><div class="funnel" id="rFunnel"></div></section>
+        <section class="panel"><div class="panel-head"><h2>Month by month</h2></div>
+          <div class="legend"><span><i style="background:var(--none)"></i>Enquiries</span><span><i style="background:var(--warn)"></i>Trials</span><span><i style="background:var(--good)"></i>Joined</span></div>
+          <div id="rMonths"></div></section>
+      </div>
+      <div class="grid2">
+        <section class="panel"><div class="panel-head"><h2>Where enquiries come from</h2></div><div class="tbl-wrap"><table class="t" id="rSource"></table></div></section>
+        <section class="panel"><div class="panel-head"><h2>By trial class</h2></div><div class="tbl-wrap"><table class="t" id="rClass"></table></div></section>
+      </div>
+      <section class="panel"><div class="panel-head"><h2>Email log</h2><span class="muted small">Every email sent from the desk</span></div><div class="tbl-wrap"><table class="t" id="rEmails"></table></div></section>
+    </section>
+
+    <!-- ============ SETTINGS ============ -->
+    <section data-pane="settings" class="wrap" hidden>
+      <section class="panel">
+        <div class="panel-head"><h2>Sending emails</h2><span class="pill none" id="mailerState">Not connected</span></div>
+        <p class="hint">Emails go out from SAADI's own Google account through a small Google Apps Script (see <b>enquiry-mailer.gs</b> and the setup notes). Until it's connected, use <b>Copy email to send myself</b> and paste it into Gmail: the desk still logs it.</p>
+        <div class="form2">
+          <label class="f" for="sMailerUrl">Mailer web app address <input type="url" id="sMailerUrl" placeholder="https://script.google.com/macros/s/…/exec"></label>
+          <label class="f" for="sMailerToken">Mailer key <input type="password" id="sMailerToken" autocomplete="off"></label>
+          <label class="f" for="sFromName">From name <input type="text" id="sFromName"></label>
+          <label class="f" for="sReplyTo">Replies go to <input type="email" id="sReplyTo"></label>
+          <label class="f" for="sSignOff">Signed by <input type="text" id="sSignOff"></label>
+        </div>
+        <div class="row"><input type="email" id="testTo" placeholder="your email"><button type="button" id="sendTest">Send a test email</button><span class="muted small" id="testMsg"></span></div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h2>Booking links</h2></div>
+        <div class="form2">
+          <label class="f" for="sTrialLink">Book a trial (all classes) <input type="url" id="sTrialLink" placeholder="https://…"></label>
+          <label class="f" for="sJoinLink">Book a place after the trial <input type="url" id="sJoinLink" placeholder="blank = same as the trial link"></label>
+        </div>
+        <p class="hint">Optional: a different trial link for each class area. Leave blank to use the link above.</p>
+        <div class="form2" id="sGroupLinks"></div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h2>Which classes to offer</h2></div>
+        <p class="hint">Only these class areas are offered for trials. Squads and invitation-only classes stay off. Ages are only used when a class name doesn't say which ages or school years it's for.</p>
+        <div class="tbl-wrap"><table class="t"><thead><tr><th>Offer</th><th>Class area</th><th>From age</th><th>To age</th></tr></thead><tbody id="sGroups"></tbody></table></div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h2>Follow-up timing</h2></div>
+        <div class="form2">
+          <label class="f" for="sRem">Trial not booked: send reminder after (days) <input type="number" id="sRem" min="1" max="30"></label>
+          <label class="f" for="sNoRep">Then close as no response after (days) <input type="number" id="sNoRep" min="1" max="60"></label>
+          <label class="f" for="sQ">Place not booked: send questions email after (days) <input type="number" id="sQ" min="1" max="30"></label>
+          <label class="f" for="sLost">Then close as didn't join after (days) <input type="number" id="sLost" min="1" max="60"></label>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h2>Email wording</h2><span class="muted small">Use {parentName}, {childName}, {classes}, {bookButton}, {holdUntil}, {trialDate} and {trialClassText}</span></div>
+        <div id="sTemplates" class="wrap" style="gap:14px"></div>
+      </section>
+      <div class="row"><button type="button" class="primary" id="saveSettings">Save settings</button><span class="muted small" id="setMsg"></span></div>
+    </section>
+  </main>
+</div>
+
+<!-- record dialog -->
+<dialog id="dlg">
+  <form method="dialog" id="dlgForm">
+    <div class="dh"><h2 id="dTitle">Enquiry</h2><button value="cancel" type="submit">Close</button></div>
+    <div class="db">
+      <div class="form2">
+        <label class="f">Child's first name <input type="text" id="dChild"></label>
+        <label class="f">Age <input type="number" id="dAge" min="0" max="99"></label>
+        <label class="f">Boy or girl <select id="dGender"><option value="">Not said</option><option value="girl">Girl</option><option value="boy">Boy</option></select></label>
+        <label class="f">Parent's first name <input type="text" id="dParent"></label>
+        <label class="f">Email <input type="email" id="dEmail"></label>
+        <label class="f">Phone <input type="tel" id="dPhone"></label>
+        <label class="f">Trial date <input type="date" id="dTrialDate"></label>
+        <label class="f">Trial class <input type="text" id="dTrialClass" list="classList"></label>
+        <label class="f">Stage <select id="dStage"></select></label>
+        <label class="f">Asked us by <select id="dSource"><option>Phone</option><option>Email</option><option>Facebook</option><option>Instagram</option><option>Website</option><option>Walk-in</option><option>Friend / family</option><option>Other</option><option>Imported</option></select></label>
+      </div>
+      <label class="f">Notes <textarea id="dNotes"></textarea></label>
+      <div><h3 style="margin-bottom:6px">History</h3><div class="timeline" id="dTimeline"></div></div>
+      <div class="row" id="dSend"></div>
+    </div>
+    <div class="df"><button type="button" class="danger" id="dDelete">Delete</button><button type="button" class="primary" id="dSave">Save</button></div>
+  </form>
+</dialog>
+<datalist id="classList"></datalist>
+
+<!-- trial booked dialog -->
+<dialog id="tdlg">
+  <form method="dialog">
+    <div class="dh"><h2>Trial booked</h2><button value="cancel" type="submit">Close</button></div>
+    <div class="db">
+      <p class="hint" id="tWho"></p>
+      <div class="form2">
+        <label class="f">Trial date <input type="date" id="tDate" required></label>
+        <label class="f">Class <select id="tClass"></select></label>
+      </div>
+    </div>
+    <div class="df"><span></span><button type="button" class="primary" id="tSave">Save trial</button></div>
+  </form>
+</dialog>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="hub-core.js"></script>
+<script src="enquiry-core.js"></script>
+<script>
+if("serviceWorker" in navigator&&location.protocol==="https:"){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))}
+(function(){
+"use strict";
+const {$,esc}=Hub;
+let S=EQ.settings({}), classes=[], snapWeek=null, recs=[], picked=new Set(), lastMatch=null, q={age:"",dob:"",gender:"",term:""};
+const today=()=>EQ.iso(new Date());
+const nowIso=()=>new Date().toISOString();
+const toast=t=>{const d=document.createElement("div");d.className="toast";d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),3200)};
+const bandCol=c=>EQ.BAND_COLOURS[c.band]||"var(--brand)";
+const classLabel=c=>`${c.day} ${EQ.prettyTime(c.time)} ${EQ.classTitle(c)}`;
+const stagePill=st=>{const x=EQ.STAGES[st]||{label:st,tone:"none"};return `<span class="pill ${x.tone}">${esc(x.label)}</span>`};
+
+/* ---------- tabs ---------- */
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+function showTab(t){document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===t));
+  document.querySelectorAll("[data-pane]").forEach(p=>p.hidden=p.dataset.pane!==t);
+  if(t==="results")renderResults();if(t==="settings")renderSettings();if(t==="people")renderPeople();if(t==="actions")renderActions()}
+
+/* ---------- data ---------- */
+async function load(){
+  try{const d=await Hub.doc("config/enquiryDesk").get();S=EQ.settings(d.exists?d.data():{})}catch(e){S=EQ.settings({})}
+  try{
+    const q1=await Hub.col("snapshots").orderBy("weekOf","desc").limit(1).get();
+    if(!q1.empty){const s=q1.docs[0].data();snapWeek=s.weekOf;classes=(s.classes||[]).filter(c=>!c.legacy)}
+  }catch(e){}
+  const terms=[...new Set(classes.map(c=>c.term).filter(Boolean))];
+  $("qTerm").innerHTML='<option value="">All terms</option>'+terms.map(t=>`<option>${esc(t)}</option>`).join("");
+  $("classList").innerHTML=classes.filter(c=>S.offerGroups[c.group]).map(c=>`<option value="${esc(classLabel(c))}">`).join("");
+  $("snapNote").innerHTML=snapWeek?`Class numbers from JustGo, w/c ${EQ.fmt(snapWeek,{day:"numeric",month:"short"})}. <a href="class-capacity.html">Update them</a>`:`<span style="color:var(--bad)">No class numbers yet. Send them from JustGo on the <a href="class-capacity.html">Class Capacity</a> page first.</span>`;
+  if(snapWeek&&EQ.daysBetween(snapWeek,today())>10)$("snapNote").innerHTML+=` <span class="pill warn">⚠ over a week old</span>`;
+  Hub.col("enquiries").onSnapshot(qs=>{recs=qs.docs.map(d=>({id:d.id,...d.data()}));refresh()},err=>{$("statusNote").hidden=false;$("statusNote").textContent="Couldn't load the enquiries ("+(err.code||"error")+")."});
+  updateMailerState();
+}
+function refresh(){
+  const a=EQ.actions(recs,S,today()).filter(x=>x.dueNow);
+  $("actCount").textContent=a.length;$("actCount").classList.toggle("zero",!a.length);
+  const pane=[...document.querySelectorAll("[data-pane]")].find(p=>!p.hidden);
+  if(pane){const t=pane.dataset.pane;if(t==="actions")renderActions();if(t==="people")renderPeople();if(t==="results")renderResults()}
+}
+const save=(id,data)=>Hub.doc("enquiries/"+id).set({...data,updatedAt:nowIso()},{merge:true});
+const newId=()=>Hub.col("enquiries").doc().id;
+const event=(r,text)=>[...(r.events||[]),{at:nowIso(),text}];
+
+/* ---------- 1. Any space? ---------- */
+$("qAge").addEventListener("input",()=>{q.age=$("qAge").value;if(q.age){q.dob="";$("qDob").value=""}ask()});
+$("qDob").addEventListener("change",()=>{q.dob=$("qDob").value;if(q.dob){q.age="";$("qAge").value=""}ask()});
+$("qTerm").addEventListener("change",()=>{q.term=$("qTerm").value;ask()});
+$("qGender").querySelectorAll("button").forEach(b=>b.onclick=()=>{$("qGender").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));q.gender=b.dataset.v;ask()});
+function ask(){
+  lastMatch=EQ.match(classes,q,S,new Date());picked.clear();
+  const box=$("answer");
+  if(!lastMatch){box.innerHTML='<p class="hint">Type the child\'s age and the classes with space appear here straight away.</p>';$("sendArea").hidden=true;return}
+  const m=lastMatch,who=(q.gender==="girl"?"girl":q.gender==="boy"?"boy":"child");
+  m.space.slice(0,3).forEach(c=>picked.add(c.key));
+  let h;
+  if(m.space.length)h=`<div class="answer yes">✓ Yes: ${m.space.length} class${m.space.length>1?"es have":" has"} space for a ${esc(m.child.label)} ${who}</div>`;
+  else if(m.full.length)h=`<div class="answer wait">⏳ Full right now: ${m.full.length} class${m.full.length>1?"es":""} with a waiting list</div>`;
+  else h=`<div class="answer no">✕ No class for a ${esc(m.child.label)} ${who} at the moment</div>`;
+  h+=`<p class="hint">Tick the classes to offer (up to 4). The first ${Math.min(3,m.space.length)||"few"} are ticked for you.</p>`;
+  const card=(c,full)=>`<label class="cls${full?" full":""}" style="--bc:${bandCol(c)}"><input type="checkbox" data-k="${esc(c.key)}" ${picked.has(c.key)?"checked":""}>
+    <div><div class="w">${esc(EQ.classWhen(c))}</div><div class="n">${esc(EQ.classTitle(c))}</div>
+    <div class="sp">${full?`<span class="pill bad">Full · ${c.wl} waiting</span>`:`<span class="pill good">${c.avail} space${c.avail>1?"s":""}</span>`}${c.trial?`<span class="pill none">${c.trial} on trial</span>`:""}<span class="pill none">${esc(c.fits)}</span>${c.term?`<span class="pill none">${esc(c.term)}</span>`:""}</div></div></label>`;
+  if(m.space.length)h+=`<div class="classes">${m.space.map(c=>card(c,false)).join("")}</div>`;
+  if(m.full.length)h+=`<details ${m.space.length?"":"open"}><summary>Full classes with waiting lists (${m.full.length})</summary><div class="classes" style="margin-top:10px">${m.full.map(c=>card(c,true)).join("")}</div></details>`;
+  box.innerHTML=h;
+  box.querySelectorAll("input[data-k]").forEach(i=>i.onchange=()=>{if(i.checked){if(picked.size>=4){i.checked=false;toast("Up to 4 classes per email");return}picked.add(i.dataset.k)}else picked.delete(i.dataset.k);updatePreview()});
+  $("sendArea").hidden=false;$("logWait").hidden=!(!m.space.length&&m.full.length);
+  updatePreview();
+}
+function pickedClasses(){const all=lastMatch?[...lastMatch.space,...lastMatch.full]:[];return all.filter(c=>picked.has(c.key)).map(c=>({day:c.day,time:c.time,name:c.name,group:c.group,band:c.band||"",term:c.term||"",key:c.key}))}
+function draft(){return{parentName:$("fParent").value.trim(),childName:$("fChild").value.trim(),email:$("fEmail").value.trim(),phone:$("fPhone").value.trim(),
+  source:$("fSource").value,notes:$("fNotes").value.trim(),age:q.dob?EQ.ageOn(q.dob):(q.age===""?"":+q.age),dob:q.dob||"",gender:q.gender,classes:pickedClasses()}}
+["fParent","fChild","fEmail"].forEach(id=>$(id).addEventListener("input",updatePreview));
+function updatePreview(){
+  if(!lastMatch)return;const d=draft();const e=EQ.email("invite",d,S);
+  $("preview").srcdoc=e.html;$("prevSubject").textContent=e.subject;
+  $("quickReply").textContent=EQ.quickReply(lastMatch,{childName:d.childName,gender:q.gender});
+  $("pickNote").textContent=d.classes.length?`${d.classes.length} class${d.classes.length>1?"es":""} in the email`:"No class ticked: the email will link to the general trial page";
+  const miss=[];if(!S.trialLink&&!d.classes.some(c=>EQ.linkFor(c,S)))miss.push("no trial booking link is set yet (Emails & settings), so the email asks parents to reply to book");
+  if(!S.mailerUrl)miss.push("the mailer isn't connected yet, so use Copy email");
+  $("sendHint").textContent=miss.length?"Note: "+miss.join("; ")+".":"";
+}
+$("copyReply").onclick=()=>{navigator.clipboard.writeText($("quickReply").textContent);toast("Reply copied")};
+const validEmail=e=>/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e);
+function needEmail(){const e=$("fEmail").value.trim();if(!validEmail(e)){toast("Enter the parent's email first");$("fEmail").focus();return false}return true}
+function newRec(d,stage){return{...d,stage,createdAt:nowIso(),emails:[],events:[{at:nowIso(),text:"Enquiry logged"+(d.source?" ("+d.source+")":"")}]}}
+function clearForm(){["fParent","fChild","fEmail","fPhone","fNotes"].forEach(i=>$(i).value="");$("qAge").value="";$("qDob").value="";q.age="";q.dob="";ask()}
+$("sendInvite").onclick=async()=>{if(!needEmail())return;const id=newId(),r=newRec(draft(),"enquiry");
+  await save(id,r);const ok=await sendEmail({id,...r},"invite");if(ok){toast("Trial invite sent to "+r.email);clearForm()}};
+$("copyInvite").onclick=async()=>{if(!needEmail())return;const id=newId(),r=newRec(draft(),"enquiry");await save(id,r);
+  await copyEmail({id,...r},"invite");clearForm()};
+$("logOnly").onclick=async()=>{const d=draft();if(!d.email&&!d.phone){toast("Add an email or phone number");return}await save(newId(),newRec(d,"enquiry"));toast("Enquiry logged: it's on the Follow-ups list");clearForm()};
+$("logWait").onclick=async()=>{const d=draft();if(!d.email&&!d.phone){toast("Add an email or phone number");return}const r=newRec(d,"waitlist");r.events.push({at:nowIso(),text:"Added to waiting list for "+d.classes.map(classLabel).join(", ")});await save(newId(),r);toast("Logged on the waiting list. Add them in JustGo too.");clearForm()};
+
+/* ---------- sending ---------- */
+async function sendEmail(r,type){
+  if(!r.email||!validEmail(r.email)){toast("No valid email address for "+(r.parentName||"this family"));return false}
+  if(!S.mailerUrl||!S.mailerToken){return copyEmail(r,type)}
+  const rr={...r};if(type==="booking")rr.bookingFrom=today();
+  const e=EQ.email(type,rr,S);
+  try{
+    const res=await fetch(S.mailerUrl,{method:"POST",body:JSON.stringify({token:S.mailerToken,to:r.email,subject:e.subject,html:e.html,text:e.text,fromName:S.fromName,replyTo:S.replyTo})});
+    const j=await res.json();if(!j.ok)throw new Error(j.error||"not sent");
+  }catch(err){toast("Couldn't send ("+err.message+"). Copied the email instead.");return copyEmail(r,type)}
+  await logEmail(r,type,e,"Sent from the desk");return true;
+}
+async function copyEmail(r,type){
+  const rr={...r};if(type==="booking")rr.bookingFrom=today();
+  const e=EQ.email(type,rr,S);
+  try{await navigator.clipboard.write([new ClipboardItem({"text/html":new Blob([e.html],{type:"text/html"}),"text/plain":new Blob([e.text],{type:"text/plain"})})])}
+  catch(x){try{await navigator.clipboard.writeText(e.text)}catch(y){}}
+  window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(r.email)}&su=${encodeURIComponent(e.subject)}`,"_blank");
+  toast("Email copied. Paste it into the Gmail window (Ctrl+V)");
+  await logEmail(r,type,e,"Copied to send by hand");return true;
+}
+async function logEmail(r,type,e,via){
+  const em={type,at:nowIso(),to:r.email,subject:e.subject,via};
+  const upd={emails:[...(r.emails||[]),em],stage:EQ.AFTER[type]||r.stage,events:event(r,`${EQ.TEMPLATES[type].label.replace(/^\d\.\s*/,"")} email ${via==="Sent from the desk"?"sent":"copied"} to ${r.email}`)};
+  if(type==="booking")upd.bookingFrom=today();
+  if(type==="noshow"){upd.trialDate="";upd.events.push({at:nowIso(),text:"Didn't attend the trial"})}
+  await save(r.id,upd);
+}
+
+/* ---------- 2. Follow-ups ---------- */
+function renderActions(){
+  const all=EQ.actions(recs,S,today()),now=all.filter(a=>a.dueNow),later=all.filter(a=>!a.dueNow);
+  const st=EQ.stats(recs,EQ.addDays(today(),-30),today());
+  $("actKpis").innerHTML=[[now.length,"to do today",now.some(a=>a.overdue)?"bad":""],[all.filter(a=>a.overdue).length,"overdue",all.some(a=>a.overdue)?"bad":"good"],
+    [recs.filter(r=>r.stage==="trial_booked"&&r.trialDate>=today()).length,"trials coming up",""],[st.joined,"joined in the last 30 days","good"]]
+    .map(([v,s,c])=>`<div class="kpi ${c}"><span class="v">${v}</span><span class="s">${s}</span></div>`).join("");
+  const row=a=>{const r=a.r,d=EQ.daysBetween(today(),a.due);
+    const dueTxt=a.overdue?`${-d} day${d===-1?"":"s"} late`:d===0?"Today":d===1?"Tomorrow":"In "+d+" days";
+    return `<div class="act ${a.overdue?"overdue":a.dueNow?"":"later"}"><div class="due">${dueTxt}<small>${EQ.fmt(a.due)}</small></div>
+      <div><div class="who">${esc(r.childName||"Child")}${r.age!==""&&r.age!=null?`, ${esc(r.age)}`:""} <span class="muted" style="font-weight:400">· ${esc(r.parentName||"")} ${esc(r.email||r.phone||"")}</span></div>
+      <div class="what">${stagePill(r.stage)} ${esc(a.text)}</div></div>
+      <div class="btns">${a.buttons.map(b=>`<button type="button" class="${b.primary?"primary":""}" data-id="${r.id}" data-act="${b.act}">${esc(b.label)}</button>`).join("")}<button type="button" class="ghost" data-id="${r.id}" data-act="open">Open</button></div></div>`};
+  $("actNow").innerHTML=now.length?now.map(row).join(""):'<p class="muted">Nothing to do. Well done!</p>';
+  $("actLater").innerHTML=later.length?later.map(row).join(""):'<p class="muted">Nothing coming up.</p>';
+}
+document.addEventListener("click",async e=>{
+  const b=e.target.closest("button[data-act]");if(!b)return;
+  const r=recs.find(x=>x.id===b.dataset.id);if(!r)return;const act=b.dataset.act;
+  b.disabled=true;try{await doAction(r,act)}finally{b.disabled=false}
+  if(act!=="open"&&act!=="trialBooked"&&$("dlg").open)$("dlg").close();
+});
+async function doAction(r,act){
+  switch(act){
+    case"open":return openRec(r);
+    case"invite":case"reminder":case"booking":case"questions":{const ok=await sendEmail(r,act);if(ok&&S.mailerUrl)toast("Email sent");return}
+    case"noShow":{if(!confirm(`Send ${r.parentName||"the family"} the "sorry we missed you, book another trial" email?`))return;await sendEmail(r,"noshow");return}
+    case"trialBooked":return askTrial(r);
+    case"joined":await save(r.id,{stage:"joined",joinedAt:nowIso(),events:event(r,"Booked a place 🎉")});return toast("Brilliant: marked as joined");
+    case"lost":await save(r.id,{stage:"lost",closedAt:nowIso(),events:event(r,"Closed: didn't join")});return;
+    case"noResponse":await save(r.id,{stage:"no_response",closedAt:nowIso(),events:event(r,"Closed: no response")});return;
+    case"close":{if(!confirm("Close this enquiry as no response?"))return;await save(r.id,{stage:"no_response",closedAt:nowIso(),events:event(r,"Closed")});return}
+  }
+}
+let trialFor=null;
+function askTrial(r){
+  trialFor=r;$("tWho").textContent=`${r.childName||"Child"} · ${r.parentName||""} ${r.email||""}`;
+  $("tDate").value=r.trialDate||"";
+  const opts=(r.classes||[]).map(classLabel);
+  const others=classes.filter(c=>S.offerGroups[c.group]).map(classLabel).filter(x=>!opts.includes(x)).sort();
+  $("tClass").innerHTML=(r.trialClass&&!opts.includes(r.trialClass)?`<option>${esc(r.trialClass)}</option>`:"")+opts.map(o=>`<option>${esc(o)}</option>`).join("")+(others.length?`<optgroup label="Other classes">${others.map(o=>`<option>${esc(o)}</option>`).join("")}</optgroup>`:"");
+  if(r.trialClass)$("tClass").value=r.trialClass;
+  $("tdlg").showModal();
+}
+$("tSave").onclick=async()=>{
+  const d=$("tDate").value;if(!d){toast("Choose the trial date");return}const r=trialFor;
+  await save(r.id,{stage:"trial_booked",trialDate:d,trialClass:$("tClass").value,trialBookedAt:r.trialBookedAt||nowIso(),events:event(r,`Trial booked for ${EQ.fmt(d)}${$("tClass").value?", "+$("tClass").value:""}`)});
+  $("tdlg").close();toast("Trial saved. The book-your-place email will be due on "+EQ.fmt(d));
+};
+
+/* ---------- 3. People ---------- */
+$("pSearch").addEventListener("input",renderPeople);$("pStage").addEventListener("change",renderPeople);
+function renderPeople(){
+  const s=$("pSearch").value.trim().toLowerCase(),open=$("pStage").value==="open";
+  const list=recs.filter(r=>(!open||EQ.isOpen(r)||r.stage==="waitlist")&&(!s||[r.childName,r.parentName,r.email,r.phone,r.trialClass].join(" ").toLowerCase().includes(s)))
+    .sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
+  $("pBody").innerHTML=list.length?list.map(r=>{const n=EQ.next(r,S,today());
+    return `<tr class="click" data-open="${r.id}"><td><b>${esc(r.childName||"–")}</b>${r.age!==""&&r.age!=null?`, ${esc(r.age)}`:""}${r.gender?` <span class="muted">${r.gender==="girl"?"♀":"♂"}</span>`:""}</td>
+      <td>${esc(r.parentName||"")}<div class="muted small">${esc(r.email||r.phone||"")}</div></td><td>${stagePill(r.stage)}</td>
+      <td>${r.trialDate?esc(EQ.fmt(r.trialDate)):"–"}<div class="muted small">${esc(r.trialClass||"")}</div></td>
+      <td class="small">${n?`${n.due<today()?'<b style="color:var(--bad)">':"<b>"}${esc(EQ.fmt(n.due))}</b> ${esc(n.text)}`:"–"}</td><td class="small muted">${esc(EQ.fmt(r.createdAt))}</td></tr>`}).join("")
+    :`<tr><td colspan="6" class="muted">${recs.length?"No one matches.":"No enquiries yet. Add the people already on trials below, or start on the Any space? tab."}</td></tr>`;
+}
+document.addEventListener("click",e=>{const tr=e.target.closest("[data-open]");if(tr){const r=recs.find(x=>x.id===tr.dataset.open);if(r)openRec(r)}});
+$("addExisting").onclick=()=>openRec(null);
+let cur=null;
+function openRec(r){
+  cur=r;const v=r||{stage:"trial_booked",source:"Phone"};
+  $("dTitle").textContent=r?(r.childName||"Enquiry"):"Add someone already on a trial";
+  $("dStage").innerHTML=Object.entries(EQ.STAGES).map(([k,x])=>`<option value="${k}">${esc(x.label)}</option>`).join("");
+  [["dChild","childName"],["dAge","age"],["dGender","gender"],["dParent","parentName"],["dEmail","email"],["dPhone","phone"],["dTrialDate","trialDate"],["dTrialClass","trialClass"],["dStage","stage"],["dSource","source"],["dNotes","notes"]]
+    .forEach(([i,k])=>$(i).value=v[k]==null?"":v[k]);
+  $("dTimeline").innerHTML=r?[...(r.events||[])].reverse().map(x=>`<div><b>${esc(new Date(x.at).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}))}</b><span>${esc(x.text)}</span></div>`).join("")||'<span class="muted">Nothing yet</span>':'<span class="muted">New</span>';
+  $("dSend").innerHTML=r?`<span class="muted small">Send now:</span>`+Object.entries(EQ.TEMPLATES).map(([k,t])=>`<button type="button" data-id="${r.id}" data-act="${k==="noshow"?"noShow":k}">${esc(t.label.replace(/^\d\.\s*/,""))}</button>`).join(""):"";
+  $("dDelete").hidden=!r;$("dlg").showModal();
+}
+$("dSave").onclick=async()=>{
+  const d={childName:$("dChild").value.trim(),age:$("dAge").value===""?"":+$("dAge").value,gender:$("dGender").value,parentName:$("dParent").value.trim(),email:$("dEmail").value.trim(),
+    phone:$("dPhone").value.trim(),trialDate:$("dTrialDate").value,trialClass:$("dTrialClass").value.trim(),stage:$("dStage").value,source:$("dSource").value,notes:$("dNotes").value.trim()};
+  if(d.email&&!validEmail(d.email)){toast("That email doesn't look right");return}
+  if(d.stage==="trial_booked"&&!d.trialDate){toast("Add the trial date");return}
+  if(cur){const ch=d.stage!==cur.stage?`Stage changed to ${EQ.STAGES[d.stage].label}`:"Details edited";
+    if(d.stage==="joined"&&!cur.joinedAt)d.joinedAt=nowIso();await save(cur.id,{...d,events:event(cur,ch)})}
+  else{const r={...d,imported:true,classes:[],emails:[],createdAt:nowIso(),events:[{at:nowIso(),text:"Added to the desk (already on a trial)"}]};if(d.stage==="joined")r.joinedAt=nowIso();await save(newId(),r)}
+  $("dlg").close();toast("Saved");
+};
+$("dDelete").onclick=async()=>{if(!cur||!confirm(`Delete ${cur.childName||"this enquiry"} and its history?`))return;await Hub.doc("enquiries/"+cur.id).delete();$("dlg").close();toast("Deleted")};
+let imp=null;
+$("impCheck").onclick=()=>{imp=EQ.parseImport($("impText").value);
+  const dup=imp.rows.filter(x=>recs.some(r=>r.email&&r.email.toLowerCase()===x.email.toLowerCase()&&(r.childName||"").toLowerCase()===x.childName.toLowerCase()));
+  $("impMsg").innerHTML=`${imp.rows.length} ready to import${dup.length?`, <b>${dup.length} already on the desk (skipped)</b>`:""}${imp.bad.length?`. <span style="color:var(--bad)">${imp.bad.length} line${imp.bad.length>1?"s":""} without a name and email: ${esc(imp.bad.slice(0,2).join(" / "))}</span>`:""}`;
+  imp.rows=imp.rows.filter(x=>!dup.includes(x));$("impGo").disabled=!imp.rows.length};
+$("impGo").onclick=async()=>{if(!imp)return;const b=Hub.fs.batch();
+  imp.rows.forEach(x=>{const r={...x,source:"Imported",imported:true,classes:[],emails:[],gender:"",createdAt:nowIso(),updatedAt:nowIso(),events:[{at:nowIso(),text:"Imported (already on a trial)"}]};if(r.stage==="joined")r.joinedAt=nowIso();b.set(Hub.doc("enquiries/"+newId()),r)});
+  await b.commit();toast(`Imported ${imp.rows.length}`);$("impText").value="";$("impMsg").textContent="";$("impGo").disabled=true;imp=null};
+
+/* ---------- 4. Results ---------- */
+let period=90;
+$("rPeriod").querySelectorAll("button").forEach(b=>b.onclick=()=>{$("rPeriod").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));period=+b.dataset.v;renderResults()});
+const pct=x=>isFinite(x)?Math.round(x*100)+"%":"–";
+function renderResults(){
+  const from=period?EQ.addDays(today(),-period):null,st=EQ.stats(recs,from,today());
+  $("rKpis").innerHTML=[[st.enquiries,"enquiries",""],[st.trials,"trials booked",""],[st.joined,"joined","good"],[pct(st.overall),"enquiries that joined",""],[pct(st.joinRate),"trials that joined",""],[isFinite(st.avgDays)?st.avgDays+" days":"–","enquiry to joining",""],[st.open,"still open",""]]
+    .map(([v,s,c])=>`<div class="kpi ${c}"><span class="v">${v}</span><span class="s">${s}</span></div>`).join("");
+  const steps=[["Enquiries",st.enquiries],["Invite sent",st.invited],["Trial booked",st.trials],["Joined",st.joined]],mx=Math.max(1,st.enquiries,st.invited);
+  $("rFunnel").innerHTML=steps.map(([l,v],i)=>`<div class="fstep"><span>${l}</span><div><div class="bar" style="width:${v/mx*100}%;background:${["var(--none)","var(--warn)","var(--warn)","var(--good)"][i]}" data-tip="${l}: <b>${v}</b>"></div></div><span class="v">${v}${i?` <span class="muted small">${pct(steps[i-1][1]?v/steps[i-1][1]:NaN)}</span>`:""}</span></div>`).join("");
+  const ms=EQ.byMonth(recs,period&&period<=90?4:12,today()),mm=Math.max(1,...ms.map(m=>m.enquiries));
+  $("rMonths").innerHTML=`<div class="cols">${ms.map(m=>`<div class="col" style="flex-direction:row;align-items:flex-end;gap:2px">${[["enquiries","var(--none)"],["trials","var(--warn)"],["joined","var(--good)"]].map(([k,c])=>`<div class="bar" style="flex:1;height:${m[k]/mm*100}%;background:${c}" data-tip="${m.label}: <b>${m[k]}</b> ${k}"></div>`).join("")}</div>`).join("")}</div><div class="col-labels">${ms.map(m=>`<span>${m.label}</span>`).join("")}</div>`;
+  const rs=recs.filter(r=>!from||(r.createdAt||"").slice(0,10)>=from);
+  const tab=(rows,h)=>`<thead><tr><th>${h}</th><th>Enquiries</th><th>Trials</th><th>Joined</th><th>Joined %</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${esc(x.k)}</td><td>${x.n}</td><td>${x.trials}</td><td>${x.joined}</td><td>${pct(x.n?x.joined/x.n:NaN)}</td></tr>`).join("")||'<tr><td colspan="5" class="muted">No data yet</td></tr>'}</tbody>`;
+  $("rSource").innerHTML=tab(EQ.byKey(rs,r=>r.source),"Asked us by");
+  $("rClass").innerHTML=tab(EQ.byKey(rs.filter(r=>r.trialClass),r=>r.trialClass),"Trial class");
+  const ems=[];recs.forEach(r=>(r.emails||[]).forEach(e=>{if(!from||e.at.slice(0,10)>=from)ems.push({...e,r})}));ems.sort((a,b)=>b.at.localeCompare(a.at));
+  $("rEmails").innerHTML=`<thead><tr><th>When</th><th>Email</th><th>To</th><th>Child</th><th>How</th></tr></thead><tbody>${ems.slice(0,200).map(e=>`<tr class="click" data-open="${e.r.id}"><td>${esc(new Date(e.at).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}))}</td><td>${esc((EQ.TEMPLATES[e.type]||{label:e.type}).label)}</td><td>${esc(e.to)}</td><td>${esc(e.r.childName||"")}</td><td class="muted">${esc(e.via)}</td></tr>`).join("")||'<tr><td colspan="5" class="muted">No emails yet</td></tr>'}</tbody>`;
+}
+
+/* ---------- 5. Settings ---------- */
+function updateMailerState(){const on=!!(S.mailerUrl&&S.mailerToken);$("mailerState").className="pill "+(on?"good":"warn");$("mailerState").textContent=on?"✓ Connected":"Not connected"}
+function areas(){return [...new Set(Object.keys(S.offerGroups).concat(classes.map(c=>c.group)))].filter(Boolean).sort()}
+function renderSettings(){
+  [["sMailerUrl","mailerUrl"],["sMailerToken","mailerToken"],["sFromName","fromName"],["sReplyTo","replyTo"],["sSignOff","signOff"],["sTrialLink","trialLink"],["sJoinLink","joinLink"],["sRem","reminderDays"],["sNoRep","noReplyCloseDays"],["sQ","questionsDays"],["sLost","lostCloseDays"]].forEach(([i,k])=>$(i).value=S[k]==null?"":S[k]);
+  const gs=areas();
+  $("sGroups").innerHTML=gs.map(g=>{const a=S.groupAges[g]||["",""];return `<tr><td><input type="checkbox" data-offer="${esc(g)}" ${S.offerGroups[g]?"checked":""}></td><td>${esc(g)}</td><td><input type="number" style="width:80px" data-amin="${esc(g)}" value="${a[0]}"></td><td><input type="number" style="width:80px" data-amax="${esc(g)}" value="${a[1]}"></td></tr>`}).join("");
+  $("sGroupLinks").innerHTML=gs.filter(g=>S.offerGroups[g]).map(g=>`<label class="f">${esc(g)} <input type="url" data-glink="${esc(g)}" value="${esc(S.groupLinks[g]||"")}" placeholder="use the main trial link"></label>`).join("");
+  $("sTemplates").innerHTML=Object.entries(EQ.TEMPLATES).map(([k,t0])=>{const t=EQ.template(k,S);return `<details><summary>${esc(t0.label)}</summary><div class="form2" style="margin-top:10px"><label class="f">Subject <input type="text" data-tpl="${k}" data-f="subject" value="${esc(t.subject)}"></label><label class="f">Heading <input type="text" data-tpl="${k}" data-f="heading" value="${esc(t.heading)}"></label></div><label class="f" style="margin-top:10px">Message <textarea style="min-height:200px" data-tpl="${k}" data-f="body">${esc(t.body)}</textarea></label><button type="button" data-reset="${k}" style="margin-top:6px">Reset to the original wording</button></details>`}).join("");
+  $("sTemplates").querySelectorAll("[data-reset]").forEach(b=>b.onclick=()=>{const t=EQ.TEMPLATES[b.dataset.reset];$("sTemplates").querySelectorAll(`[data-tpl="${b.dataset.reset}"]`).forEach(i=>i.value=t[i.dataset.f])});
+}
+$("saveSettings").onclick=async()=>{
+  const n={mailerUrl:$("sMailerUrl").value.trim(),mailerToken:$("sMailerToken").value.trim(),fromName:$("sFromName").value.trim()||EQ.DEFAULTS.fromName,replyTo:$("sReplyTo").value.trim()||EQ.DEFAULTS.replyTo,
+    signOff:$("sSignOff").value.trim()||EQ.DEFAULTS.signOff,trialLink:$("sTrialLink").value.trim(),joinLink:$("sJoinLink").value.trim(),
+    reminderDays:+$("sRem").value||3,noReplyCloseDays:+$("sNoRep").value||7,questionsDays:+$("sQ").value||2,lostCloseDays:+$("sLost").value||7,
+    offerGroups:{},groupAges:{},groupLinks:{},templates:{}};
+  document.querySelectorAll("[data-offer]").forEach(i=>n.offerGroups[i.dataset.offer]=i.checked);
+  document.querySelectorAll("[data-amin]").forEach(i=>{const g=i.dataset.amin,mx=document.querySelector(`[data-amax="${CSS.escape(g)}"]`).value;if(i.value!==""&&mx!=="")n.groupAges[g]=[+i.value,+mx]});
+  document.querySelectorAll("[data-glink]").forEach(i=>{if(i.value.trim())n.groupLinks[i.dataset.glink]=i.value.trim()});
+  document.querySelectorAll("[data-tpl]").forEach(i=>{const k=i.dataset.tpl,f=i.dataset.f;if(i.value!==EQ.TEMPLATES[k][f])(n.templates[k]=n.templates[k]||{})[f]=i.value});
+  try{await Hub.doc("config/enquiryDesk").set(n);S=EQ.settings(n);updateMailerState();renderSettings();$("setMsg").textContent="Saved ✓";toast("Settings saved")}
+  catch(e){$("setMsg").textContent="Couldn't save ("+(e.code||"error")+")"}
+};
+$("sendTest").onclick=async()=>{
+  const to=$("testTo").value.trim();if(!validEmail(to)){$("testMsg").textContent="Type an email address";return}
+  const url=$("sMailerUrl").value.trim(),token=$("sMailerToken").value.trim();if(!url||!token){$("testMsg").textContent="Add the mailer address and key first";return}
+  const e=EQ.email("invite",{parentName:"Test",childName:"Test Child",classes:(lastMatch&&lastMatch.space.slice(0,2))||[]},S);
+  $("testMsg").textContent="Sending…";
+  try{const r=await fetch(url,{method:"POST",body:JSON.stringify({token,to,subject:"[TEST] "+e.subject,html:e.html,text:e.text,fromName:$("sFromName").value||S.fromName,replyTo:$("sReplyTo").value||S.replyTo})});const j=await r.json();
+    $("testMsg").textContent=j.ok?"✓ Sent. Check the inbox, then press Save settings.":"Not sent: "+(j.error||"unknown error")}
+  catch(x){$("testMsg").textContent="Couldn't reach the mailer. Check the address, and that it's deployed for 'Anyone'."}
+};
+
+Hub.gate(load);
+Hub.tooltips();
+})();
+</script>
+</body>
+</html>

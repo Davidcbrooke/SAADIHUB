@@ -69,3 +69,29 @@ The bookmark only reads the class list. It doesn't change anything in JustGo and
 If the bookmark ever stops working (for example after a JustGo redesign), use **Or paste the list by hand** in the same panel: select all in JustGo, copy, and paste.
 
 To change the bookmark's code, edit `justgo-sync-bookmarklet.js`, run `node build-bookmarklet.js`, and commit. Everyone then needs to drag the new button to their bookmarks bar again.
+
+# Enquiry Desk
+
+`enquiry-desk.html` answers "Do you have space for a boy or girl aged X?" from the latest JustGo class numbers (the same ones the Class Capacity page saves). It sends HTML trial emails and keeps a follow-up list until each family joins. It uses the hub password, so there's nothing new to sign in to.
+
+## Before the first use (about 10 minutes)
+
+1. **Class numbers:** run **Send to SAADI Hub** from JustGo (see the weekly routine above). The desk always uses the most recent week, so do this weekly.
+2. **The mailer** (emails sent from reception@): follow the steps at the top of `enquiry-mailer.gs`. Then in the desk, go to **Emails & settings > Sending emails**, paste the web app address and key, send yourself a test, and press **Save settings**. Until then, **Copy email to send myself** copies the HTML email and opens Gmail to paste it into, and the desk still logs it.
+3. **Booking links:** in **Emails & settings > Booking links**, add the page parents use to book a trial and the page they use to book a place. You can set a different trial link for each class area. Without a link, the emails ask parents to reply to book.
+4. **Which classes to offer:** Recreational, Pre School, Parent and Child, Youth Gym and Adult are offered by default. Squads, Novice and Advanced aren't. Change these on the same page.
+5. **People already on trials:** add them in **Trials & enquiries**, either one at a time or by pasting a list.
+
+## How the follow-ups work
+
+| Stage | What the desk asks you to do | When |
+|---|---|---|
+| Trial invite sent | Send a reminder if no trial is booked | 3 days after the invite |
+| Reminder sent | Call, or close as no response | 7 days later |
+| Trial booked | Send "book your place within 24 hours" | on the trial day |
+| Asked to book place | Send "any questions?" if they haven't booked | 2 days later |
+| Questions email sent | Call, or close as didn't join | 7 days later |
+
+You can change all of these timings in **Emails & settings**. When a family books a trial or a place in JustGo, press **Trial booked** or **Booked a place** on the **Follow-ups** tab. The **Results** tab shows enquiries, trials and joiners by month, by source and by class, plus a log of every email sent.
+
+The desk saves enquiries under the hub's private data area, using the same protection as the weekly numbers. It stores children's first names and ages, and parents' names, emails and phone numbers. Delete records you no longer need from the record's **Delete** button.

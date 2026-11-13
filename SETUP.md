@@ -94,6 +94,13 @@ The settings are saved centrally, so any other PC that opens the desk with the h
 
 Trial classes: Recreational, Pre School, Parent and Child, Youth Gym and Adult are offered by default. Squads, Novice and Advanced aren't. Change these under **Emails & settings > Which classes to offer**.
 
+## Every morning (reception, about 2 minutes)
+
+The desk doesn't update itself: it shows the spaces from the last time someone pressed **Send to SAADI Hub**. The **Start of day** box at the top of the desk walks through it, and turns green once it's done:
+1. Press **Open JustGo Class Management**, click **Send to SAADI Hub** on the bookmarks bar, then **Open SAADI Hub** and **Save week** / **Replace this week**. You're taken back to the desk.
+2. Check JustGo for yesterday's trial and place bookings, and press **Trial booked** or **Booked a place** for each one on the **Follow-ups** tab.
+3. Send the emails on the **Follow-ups** tab. Book-your-place emails go out after the trial has finished.
+
 ## How the follow-ups work
 
 | Stage | What the desk asks you to do | When |

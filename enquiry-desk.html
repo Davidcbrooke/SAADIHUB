@@ -74,6 +74,15 @@ dialog .df{padding:12px 18px;border-top:1px solid var(--line);display:flex;justi
 .chip{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--bc,var(--brand));margin-right:6px;vertical-align:-1px}
 details summary{cursor:pointer;font-weight:600}
 .small{font-size:13px}
+.sod{gap:10px;border-left:6px solid var(--warn)}
+.sod.done{border-left-color:var(--good)}
+.sod summary{cursor:pointer;list-style:none;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.sod summary::-webkit-details-marker{display:none}
+.sod-title{font-family:var(--display);font-size:20px;font-weight:600}
+.sod-steps{margin:6px 0 0;padding-left:24px;display:flex;flex-direction:column;gap:14px}
+.sod-steps>li::marker{font-weight:700;color:var(--accent)}
+.sod-steps>li.ok::marker{content:"✓  ";color:var(--good)}
+.sod-steps ol{margin:6px 0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 [data-pane]{width:100%}
 .hint{font-size:13px;color:var(--muted);margin:0}
 .steps{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:12px}
@@ -116,6 +125,20 @@ details summary{cursor:pointer;font-weight:600}
 
     <!-- ============ ANY SPACE? ============ -->
     <section data-pane="ask" class="wrap" style="gap:20px">
+      <details class="panel sod" id="sod">
+        <summary><span class="sod-title">☀ Start of day</span> <span class="pill none" id="sodState">Checking…</span> <span class="muted small" id="sodHint">About 2 minutes, first thing each morning</span></summary>
+        <ol class="sod-steps">
+          <li id="sod1"><div><b>Update the class numbers from JustGo.</b> The desk doesn't update itself: it shows the spaces from the last time someone pressed <b>Send to SAADI Hub</b>, so do it every morning.
+            <ol type="a" class="small">
+              <li><button type="button" id="openJG" class="primary">Open JustGo Class Management</button> (sign in if JustGo asks).</li>
+              <li>Click <b>Send to SAADI Hub</b> on the bookmarks bar. Keep the JustGo tab in front until it says <i>All … classes are ready</i> (about 20 seconds).</li>
+              <li>Click <b>Open SAADI Hub</b>, then <b>Save week</b> (or <b>Replace this week</b>). You'll be brought back here.</li>
+            </ol>
+            <p class="hint">No <b>Send to SAADI Hub</b> button on the bookmarks bar? Press Ctrl+Shift+B to show the bar. If it's still not there, open <a href="class-capacity.html">Class Capacity</a>, click <b>Add this week's numbers</b> and drag the red button onto the bar.</p></div></li>
+          <li id="sod2"><div><b>Record yesterday's bookings.</b> In JustGo, check who booked a trial or a place. On the <b>Follow-ups</b> tab, press <b>Trial booked</b> or <b>Booked a place</b> for them, so they don't get chased.</div></li>
+          <li id="sod3"><div><b>Clear today's follow-ups.</b> <button type="button" id="goFollow">Open Follow-ups</button> <span class="muted small" id="sodDue"></span><br><span class="small">Press the pink button on each one to send the email. Book-your-place emails go out after the trial has finished.</span></div></li>
+        </ol>
+      </details>
       <section class="panel">
         <div class="panel-head"><h2>Do you have space for…</h2><span class="muted small" id="snapNote">Loading classes…</span></div>
         <div class="ask">
@@ -303,7 +326,7 @@ if("serviceWorker" in navigator&&location.protocol==="https:"){window.addEventLi
 (function(){
 "use strict";
 const {$,esc}=Hub;
-let S=EQ.settings({}), classes=[], snapWeek=null, recs=[], picked=new Set(), lastMatch=null, q={age:"",dob:"",gender:"",term:""};
+let S=EQ.settings({}), classes=[], snapWeek=null, snapSaved=null, recs=[], picked=new Set(), lastMatch=null, q={age:"",dob:"",gender:"",term:""};
 const today=()=>EQ.iso(new Date());
 const nowIso=()=>new Date().toISOString();
 const toast=t=>{const d=document.createElement("div");d.className="toast";d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),3200)};
@@ -322,17 +345,35 @@ async function load(){
   try{const d=await Hub.doc("config/enquiryDesk").get();S=EQ.settings(d.exists?d.data():{})}catch(e){S=EQ.settings({})}
   try{
     const q1=await Hub.col("snapshots").orderBy("weekOf","desc").limit(1).get();
-    if(!q1.empty){const s=q1.docs[0].data();snapWeek=s.weekOf;classes=(s.classes||[]).filter(c=>!c.legacy)}
+    if(!q1.empty){const s=q1.docs[0].data();snapWeek=s.weekOf;snapSaved=s.savedAt||null;classes=(s.classes||[]).filter(c=>!c.legacy)}
   }catch(e){}
   const terms=[...new Set(classes.map(c=>c.term).filter(Boolean))];
   $("qTerm").innerHTML='<option value="">All terms</option>'+terms.map(t=>`<option>${esc(t)}</option>`).join("");
   $("classList").innerHTML=classes.filter(c=>S.offerGroups[c.group]).map(c=>`<option value="${esc(classLabel(c))}">`).join("");
-  $("snapNote").innerHTML=snapWeek?`Class numbers from JustGo, w/c ${EQ.fmt(snapWeek,{day:"numeric",month:"short"})}. <a href="class-capacity.html">Update them</a>`:`<span style="color:var(--bad)">No class numbers yet. Send them from JustGo on the <a href="class-capacity.html">Class Capacity</a> page first.</span>`;
-  if(snapWeek&&EQ.daysBetween(snapWeek,today())>10)$("snapNote").innerHTML+=` <span class="pill warn">⚠ over a week old</span>`;
+  $("snapNote").innerHTML=snapWeek?`Spaces as of ${snapSaved?new Date(snapSaved).toLocaleString("en-GB",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"w/c "+EQ.fmt(snapWeek,{day:"numeric",month:"short"})} (from JustGo)`:`<span style="color:var(--bad)">No class numbers yet. Send them from JustGo on the <a href="class-capacity.html">Class Capacity</a> page first.</span>`;
+  if(snapSaved&&EQ.iso(new Date(snapSaved))!==today())$("snapNote").innerHTML+=` <span class="pill warn">⚠ not updated today</span>`;
   Hub.col("enquiries").onSnapshot(qs=>{recs=qs.docs.map(d=>({id:d.id,...d.data()}));refresh()},err=>{$("statusNote").hidden=false;$("statusNote").textContent="Couldn't load the enquiries ("+(err.code||"error")+")."});
-  updateMailerState();
+  updateMailerState();renderSod();
 }
+/* ---------- start of day ---------- */
+const JG_CLASSES="https://mybg.british-gymnastics.org/Workbench/i/r/ClassManagement/class/B0DF64DC-1886-452A-8CA0-7A014813207E/";
+$("openJG").onclick=()=>{try{localStorage.setItem("saadiReturnDesk",String(Date.now()))}catch(e){}window.open(JG_CLASSES,"_blank")};
+$("goFollow").onclick=()=>showTab("actions");
+function renderSod(){
+  const fresh=snapSaved&&EQ.iso(new Date(snapSaved))===today();
+  const when=snapSaved?new Date(snapSaved).toLocaleString("en-GB",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"";
+  const due=EQ.actions(recs,S,today()).filter(a=>a.dueNow).length;
+  $("sodState").className="pill "+(fresh?"good":"warn");
+  $("sodState").textContent=fresh?`✓ Numbers updated today at ${new Date(snapSaved).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}`:snapSaved?`⚠ Numbers last updated ${when}: update now`:"⚠ No numbers yet: update now";
+  $("sod1").classList.toggle("ok",!!fresh);$("sod3").classList.toggle("ok",fresh&&!due);
+  $("sodDue").textContent=due?`${due} to do today`:"nothing due today";
+  $("sod").classList.toggle("done",!!fresh&&!due);
+  $("sodHint").textContent=fresh&&!due?"All done for today":fresh?`${due} follow-up${due===1?"":"s"} to send`:"About 2 minutes, first thing each morning";
+  if(!sodTouched)$("sod").open=!fresh;
+}
+let sodTouched=false;$("sod").querySelector("summary").addEventListener("click",()=>{sodTouched=true});
 function refresh(){
+  renderSod();
   const a=EQ.actions(recs,S,today()).filter(x=>x.dueNow);
   $("actCount").textContent=a.length;$("actCount").classList.toggle("zero",!a.length);
   const pane=[...document.querySelectorAll("[data-pane]")].find(p=>!p.hidden);

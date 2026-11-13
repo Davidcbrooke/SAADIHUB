@@ -765,6 +765,9 @@ async function saveWeek(){
   try{
     await db.doc("snapshots/"+wk).set(doc);
     selected=wk;$("saveMsg").textContent="Saved week commencing "+fmtDate(wk)+".";
+    // Came here from the Enquiry Desk's start-of-day steps? Take reception straight back.
+    let back=0;try{back=+localStorage.getItem("saadiReturnDesk")||0}catch(e){}
+    if(back&&Date.now()-back<3600e3){try{localStorage.removeItem("saadiReturnDesk")}catch(e){}$("saveMsg").textContent="Saved. Taking you back to the Enquiry Desk…";setTimeout(()=>{location.href="enquiry-desk.html"},1500)}
     $("pasteBox").value="";parsed=null;$("parseSummary").textContent="Nothing pasted yet.";
     setTimeout(()=>{$("pastePanel").hidden=true;$("saveMsg").textContent=""},1200);
   }catch(e){

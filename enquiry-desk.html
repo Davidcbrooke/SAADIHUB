@@ -165,7 +165,7 @@ details summary{cursor:pointer;font-weight:600}
           </div>
           <div class="row">
             <button class="primary" type="button" id="sendInvite">Send trial invite</button>
-            <button type="button" id="copyInvite">Copy email to send myself</button>
+            <button type="button" id="copyInvite" hidden>Send it myself in Gmail</button>
             <button type="button" id="logOnly">Log enquiry only</button>
             <button type="button" id="logWait" hidden>Add to waiting list</button>
           </div>
@@ -302,6 +302,23 @@ details summary{cursor:pointer;font-weight:600}
   </form>
 </dialog>
 <datalist id="classList"></datalist>
+
+<!-- send-by-hand dialog (only used if the mailer isn't working) -->
+<dialog id="cdlg">
+  <form method="dialog">
+    <div class="dh"><h2>Send this email yourself</h2><button value="cancel" type="submit">Cancel</button></div>
+    <div class="db">
+      <p class="hint" id="cWhy"></p>
+      <ol class="steps">
+        <li>Click <button type="button" class="primary" id="cOpen">Open Gmail</button>. A new message opens, already addressed to <b id="cTo"></b> with the subject filled in.</li>
+        <li>Click in the empty message area and press <b>Ctrl+V</b>. The whole email, with its pink header and booking buttons, pastes in. <button type="button" id="cCopy">Copy it again</button> <span class="small muted" id="cCopied"></span></li>
+        <li>Press <b>Send</b> in Gmail.</li>
+        <li>Come back here and press <b>I've sent it</b>, so the desk logs it and sets the next follow-up.</li>
+      </ol>
+    </div>
+    <div class="df"><span class="small muted">Make sure Gmail is signed in as <b id="cFrom"></b>.</span><button type="button" class="primary" id="cDone">I've sent it</button></div>
+  </form>
+</dialog>
 
 <!-- trial booked dialog -->
 <dialog id="tdlg">
@@ -442,7 +459,7 @@ function clearForm(){["fParent","fChild","fEmail","fPhone","fNotes"].forEach(i=>
 $("sendInvite").onclick=async()=>{if(!needEmail())return;const id=newId(),r=newRec(draft(),"enquiry");
   await save(id,r);const ok=await sendEmail({id,...r},"invite");if(ok){toast("Trial invite sent to "+r.email);clearForm()}};
 $("copyInvite").onclick=async()=>{if(!needEmail())return;const id=newId(),r=newRec(draft(),"enquiry");await save(id,r);
-  await copyEmail({id,...r},"invite");clearForm()};
+  if(await copyEmail({id,...r},"invite"))clearForm();else toast("Not sent. The enquiry is saved on the Follow-ups list.")};
 $("logOnly").onclick=async()=>{const d=draft();if(!d.email&&!d.phone){toast("Add an email or phone number");return}await save(newId(),newRec(d,"enquiry"));toast("Enquiry logged: it's on the Follow-ups list");clearForm()};
 $("logWait").onclick=async()=>{const d=draft();if(!d.email&&!d.phone){toast("Add an email or phone number");return}const r=newRec(d,"waitlist");r.events.push({at:nowIso(),text:"Added to waiting list for "+d.classes.map(classLabel).join(", ")});await save(newId(),r);toast("Logged on the waiting list. Add them in JustGo too.");clearForm()};
 
@@ -465,17 +482,25 @@ async function sendEmail(r,type){
   try{
     const res=await fetch(S.mailerUrl,{method:"POST",body:JSON.stringify({token:S.mailerToken,to:r.email,subject:e.subject,html:e.html,text:e.text,fromName:S.fromName})});
     const j=await res.json();if(!j.ok)throw new Error(j.error||"not sent");
-  }catch(err){toast("Couldn't send ("+err.message+"). Copied the email instead.");return copyEmail(r,type)}
+  }catch(err){return copyEmail(r,type,"The desk couldn't send this one ("+err.message+"), so send it by hand this time.")}
   await logEmail(r,type,e,"Sent from "+S.mailerFrom);return true;
 }
-async function copyEmail(r,type){
+async function copyEmail(r,type,why){
   const rr=prepare(r,type);
   const e=EQ.email(type,rr,S);
-  try{await navigator.clipboard.write([new ClipboardItem({"text/html":new Blob([e.html],{type:"text/html"}),"text/plain":new Blob([e.text],{type:"text/plain"})})])}
-  catch(x){try{await navigator.clipboard.writeText(e.text)}catch(y){}}
-  window.open(`https://mail.google.com/mail/?authuser=${encodeURIComponent(S.sender)}&view=cm&fs=1&to=${encodeURIComponent(r.email)}&su=${encodeURIComponent(e.subject)}`,"_blank");
-  toast(`Email copied. In the Gmail window (signed in as ${S.sender}), click in the message and press Ctrl+V`);
-  await logEmail(r,type,e,"Copied to send by hand");return true;
+  const copy=async()=>{try{await navigator.clipboard.write([new ClipboardItem({"text/html":new Blob([e.html],{type:"text/html"}),"text/plain":new Blob([e.text],{type:"text/plain"})})]);$("cCopied").textContent="✓ Copied"}
+    catch(x){try{await navigator.clipboard.writeText(e.text);$("cCopied").textContent="✓ Copied (plain text only)"}catch(y){$("cCopied").textContent="Couldn't copy"}}};
+  await copy();
+  $("cWhy").textContent=why||(mailerReady()?"":"Sending from "+S.sender+" isn't set up on the desk yet, so this email needs sending by hand.");
+  $("cTo").textContent=r.email;$("cFrom").textContent=S.sender;
+  $("cOpen").onclick=()=>window.open(`https://mail.google.com/mail/?authuser=${encodeURIComponent(S.sender)}&view=cm&fs=1&to=${encodeURIComponent(r.email)}&su=${encodeURIComponent(e.subject)}`,"_blank");
+  $("cCopy").onclick=copy;
+  return new Promise(res=>{
+    const dl=$("cdlg");
+    $("cDone").onclick=async()=>{dl.close("sent");await logEmail(r,type,e,"Sent by hand from Gmail");toast("Logged as sent");res(true)};
+    dl.onclose=()=>{if(dl.returnValue!=="sent")res(false)};
+    dl.returnValue="";dl.showModal();
+  });
 }
 async function logEmail(r,type,e,via){
   const em={type,at:nowIso(),to:r.email,subject:e.subject,via};
@@ -605,6 +630,7 @@ function renderResults(){
 
 /* ---------- 5. Settings ---------- */
 function updateMailerState(){
+  $("copyInvite").hidden=mailerReady();
   const ok=mailerReady(),bad=S.mailerFrom&&!sameAddr(S.mailerFrom,S.sender);
   $("mailerState").className="pill "+(ok?"good":bad?"bad":"warn");
   $("mailerState").textContent=ok?"✓ Sending as "+S.mailerFrom:bad?"✕ Set up in the wrong account ("+S.mailerFrom+")":"Not set up yet";

@@ -421,12 +421,11 @@ function ask(){
   const box=$("answer");
   if(!lastMatch){box.innerHTML='<p class="hint">Type the child\'s age and the classes with space appear here straight away.</p>';$("sendArea").hidden=true;return}
   const m=lastMatch,who=(q.gender==="girl"?"girl":q.gender==="boy"?"boy":"child");
-  m.space.slice(0,3).forEach(c=>picked.add(c.key));
   let h;
   if(m.space.length)h=`<div class="answer yes">✓ Yes: ${m.space.length} class${m.space.length>1?"es have":" has"} space for a ${esc(m.child.label)} ${who}</div>`;
   else if(m.full.length)h=`<div class="answer wait">⏳ Full right now: ${m.full.length} class${m.full.length>1?"es":""} with a waiting list</div>`;
   else h=`<div class="answer no">✕ No class for a ${esc(m.child.label)} ${who} at the moment</div>`;
-  h+=`<p class="hint">Tick the classes to offer (up to 4). The first ${Math.min(3,m.space.length)||"few"} are ticked for you.</p>`;
+  h+=`<p class="hint">Tick the classes to offer (up to 4).</p>`;
   const card=(c,full)=>`<label class="cls${full?" full":""}" style="--bc:${bandCol(c)}"><input type="checkbox" data-k="${esc(c.key)}" ${picked.has(c.key)?"checked":""}>
     <div><div class="w">${esc(EQ.classWhen(c))}</div><div class="n">${esc(EQ.classTitle(c))}</div>
     <div class="sp">${full?`<span class="pill bad">Full · ${c.wl} waiting</span>`:`<span class="pill good">${c.avail} space${c.avail>1?"s":""}</span>`}${c.trial?`<span class="pill none">${c.trial} on trial</span>`:""}<span class="pill none">${esc(c.fits)}</span>${c.term?`<span class="pill none">${esc(c.term)}</span>`:""}</div></div></label>`;

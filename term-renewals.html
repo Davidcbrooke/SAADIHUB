@@ -111,7 +111,7 @@ input[type=text]{width:100%}
         <div class="panel-head"><h2>Where every child stands</h2><div class="row"><span class="small muted" id="respNote">Reading the form responses…</span><button type="button" id="respRefresh">Refresh responses</button></div></div>
         <div class="sbar" id="sBar"></div>
         <div class="legend" id="sLegend"></div>
-        <div class="notice" id="mailerOld" hidden>To read the form responses, the reception@ mailer needs a small update (about 2 minutes, on the reception PC, in the browser signed in as reception@):
+        <div class="notice" id="mailerOld" hidden><span id="mailerOldWhy">To read the form responses</span>, the reception@ mailer needs a small update (about 2 minutes, on the reception PC, in the browser signed in as reception@):
           <ol class="small" style="margin:6px 0 0;padding-left:20px">
             <li>Open the <a href="enquiry-desk.html">Enquiry Desk</a> &gt; <b>Emails &amp; settings</b> and press <b>Copy the mailer code</b> (close the new Apps Script tab it opens).</li>
             <li>Go to <a href="https://script.google.com/home" target="_blank" rel="noopener">script.google.com</a>, open <b>SAADI Enquiry Desk mailer</b>, select all the code (Ctrl+A), paste (Ctrl+V) and save (Ctrl+S).</li>
@@ -223,8 +223,11 @@ async function loadResponses(){
       // An older mailer doesn't know how to read the sheet and treats the request as an email with no address.
       if(/email address|nothing to send/i.test(j.error||"")){$("mailerOld").hidden=false;throw new Error("the mailer needs updating")}
       throw new Error(j.error||"not read")}
-    $("mailerOld").hidden=true;resp=EQ.parseResponses(j.tabs);respAt=new Date();
-    $("respNote").textContent=`From "${j.name}": ${resp.changes.length} class change form${resp.changes.length===1?"":"s"}, ${resp.leavers.length} leaving · read at ${respAt.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}`;
+    // Version 3 also copies families' "Change of class" / "Not continuing" emails from reception's inbox into the sheet.
+    const old3=!(j.v>=3);$("mailerOld").hidden=!old3;if(old3)$("mailerOldWhy").textContent="To add families' emailed class changes and leavers to the sheet automatically";
+    resp=EQ.parseResponses(j.tabs);respAt=new Date();
+    const fromEmails=[...resp.changes,...resp.leavers].filter(x=>/email/i.test(x.tab)).length;
+    $("respNote").textContent=`From "${j.name}": ${resp.changes.length} class change${resp.changes.length===1?"":"s"}, ${resp.leavers.length} leaving${fromEmails?` (${fromEmails} from emails${j.added?`, ${j.added} new`:""})`:""}${j.importError?" · couldn't check the inbox: "+j.importError:""} · read at ${respAt.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}`;
   }catch(e){$("respNote").textContent="Couldn't read the form responses ("+e.message+")."}
   loading=false;render();
 }

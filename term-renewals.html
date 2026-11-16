@@ -246,6 +246,9 @@ function renderStatus(){
   const fmtD=d=>new Date(d).toLocaleDateString("en-GB",{day:"numeric",month:"short"});
   const offered=(email,child)=>logs.filter(x=>x.type==="offer"&&String(x.email).toLowerCase()===String(email).toLowerCase()&&x.child===child).map(x=>x.at).sort().pop();
   const rows=[];resp.changes.forEach(ch=>ch.kids.forEach(ck=>rows.push({ch,ck})));
+  // Most recent request first (form and email timestamps are both "MM/DD/YYYY HH:MM:SS").
+  const whenMs=a=>{const m=String(a||"").match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/);return m?new Date(+m[3],m[1]-1,+m[2],+m[4],+m[5],+(m[6]||0)).getTime():0};
+  rows.sort((a,b)=>whenMs(b.ch.at)-whenMs(a.ch.at));
   $("chNote").textContent=rows.length?`${rows.length} child${rows.length===1?"":"ren"} · ${rows.filter(r=>r.ck.options.some(o=>o.free>0)).length} with a space now`:"";
   $("chBody").innerHTML=rows.map(({ch,ck},i)=>{const k=ck.kid,of=offered(ch.email,ck.name);
     const now=k&&k.cur?`${esc(k.cur.day)} ${esc(timeOf(k.cur))} ${esc(title(k.cur))}${k.age?" · age "+esc(String(k.age).replace(/\D+$/,"")):""}${ck.years&&ck.years.length?" · "+esc(yrsTxt(ck.years)):""}`:`${esc(ck.day)} ${esc(ck.time)} ${esc(ck.colour)}`;
@@ -255,7 +258,7 @@ function renderStatus(){
         if(sent)return ` <button type="button" class="sentbtn" data-offer="${i}:${j}"${o.free>0?"":' data-full="1"'} data-sent="${esc(fmtD(sent))}" title="Sent ${esc(fmtD(sent))}. Click to send again">✓ Sent ${esc(fmtD(sent))}</button>`;
         return o.free>0?` <button type="button" class="primary" data-offer="${i}:${j}">Send offer</button>`:` <button type="button" data-offer="${i}:${j}" data-full="1">Send link anyway</button>`})()}</div>`}).join("")+(ck.otherTime?`<div class="small" style="color:var(--warn)">No class for ${esc(yrsTxt(ck.years))} at the requested time${ck.options.length>1?"s":""}: these are ${esc(yrsTxt(ck.years))} classes on the requested day${ck.options.length>1?"s":""} at other times.</div>`:"")+(ck.yearsKnown?"":'<div class="small" style="color:var(--warn)">Couldn\'t tell this child\'s school year: check the class suits them.</div>')
       :`<span class="muted small">No ${esc(yrsTxt(ck.years))} class next term on the requested days.</span>`;
-    return `<tr><td><b>${esc(ck.name)}</b>${ck.renewed?' <span class="pill good">Already booked</span>':""}${of?` <span class="pill warn">Offered ${new Date(of).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</span>`:""}<div class="small muted">${now}</div><div class="small muted">${esc(ch.email)}</div></td>
+    return `<tr><td><b>${esc(ck.name)}</b>${ck.renewed?' <span class="pill good">Already booked</span>':""}${of?` <span class="pill warn">Offered ${new Date(of).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</span>`:""}<div class="small muted">${now}</div><div class="small muted">${esc(ch.email)}</div>${whenMs(ch.at)?`<div class="small muted">Asked ${new Date(whenMs(ch.at)).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}${/email/i.test(ch.tab||"")?" by email":""}</div>`:""}</td>
       <td class="small">${esc(ch.reqText||"")}</td><td class="small">${esc(ch.notes||"")}</td><td>${opts}</td></tr>`}).join("")||'<tr><td colspan="4" class="muted">No class change requests yet.</td></tr>';
   $("chBody").querySelectorAll("button[data-offer]").forEach(b=>b.onclick=async()=>{
     const [i,j]=b.dataset.offer.split(":").map(Number),{ch,ck}=rows[i],o=ck.options[j];

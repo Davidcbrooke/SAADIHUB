@@ -115,7 +115,7 @@ input[type=text]{width:100%}
           <ol class="small" style="margin:6px 0 0;padding-left:20px">
             <li>Open the <a href="enquiry-desk.html">Enquiry Desk</a> &gt; <b>Emails &amp; settings</b> and press <b>Copy the mailer code</b> (close the new Apps Script tab it opens).</li>
             <li>Go to <a href="https://script.google.com/home" target="_blank" rel="noopener">script.google.com</a>, open <b>SAADI Enquiry Desk mailer</b>, select all the code (Ctrl+A), paste (Ctrl+V) and save (Ctrl+S).</li>
-            <li>Choose <b>allowSending</b> and press <b>Run</b>, then allow the new permission (to read spreadsheets).</li>
+            <li>Choose <b>allowSending</b> and press <b>Run</b>, then allow the permissions it asks for (sending email, the spreadsheet, filing emails and running every 5 minutes).</li>
             <li><b>Deploy &gt; Manage deployments</b>, click the pencil, set <b>Version: New version</b>, press <b>Deploy</b>. Then come back here and press <b>Refresh responses</b>.</li>
           </ol></div>
         <details><summary class="small">Settings: response spreadsheet and renewal closing date</summary>
@@ -224,7 +224,7 @@ async function loadResponses(){
       if(/email address|nothing to send/i.test(j.error||"")){$("mailerOld").hidden=false;throw new Error("the mailer needs updating")}
       throw new Error(j.error||"not read")}
     // Version 3 also copies families' "Change of class" / "Not continuing" emails from reception's inbox into the sheet.
-    const old3=!(j.v>=3);$("mailerOld").hidden=!old3;if(old3)$("mailerOldWhy").textContent="To add families' emailed class changes and leavers to the sheet automatically";
+    const old3=!(j.v>=4);$("mailerOld").hidden=!old3;if(old3)$("mailerOldWhy").textContent="To file families' emailed class changes and leavers in a Renewal replies folder and add them to the sheet automatically";
     resp=EQ.parseResponses(j.tabs);respAt=new Date();
     const fromEmails=[...resp.changes,...resp.leavers].filter(x=>/email/i.test(x.tab)).length;
     $("respNote").textContent=`From "${j.name}": ${resp.changes.length} class change${resp.changes.length===1?"":"s"}, ${resp.leavers.length} leaving${fromEmails?` (${fromEmails} from emails${j.added?`, ${j.added} new`:""})`:""}${j.importError?" · couldn't check the inbox: "+j.importError:""} · read at ${respAt.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}`;

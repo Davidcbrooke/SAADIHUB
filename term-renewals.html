@@ -59,6 +59,7 @@ table.t tr.kids td{background:var(--bg);padding:6px 8px 12px 28px}
 .sbar i{display:flex;align-items:center;justify-content:center;color:#fff;font-style:normal;font-weight:700;font-size:13px;min-width:2px;white-space:nowrap;overflow:hidden}
 .opt{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:3px 0}
 .opt button{padding:3px 10px;font-size:13px}
+.rmbtn{margin-top:6px;font-size:12px;padding:3px 10px}
 .opt button.sentbtn{background:var(--good-bg);color:var(--good);border-color:var(--good);opacity:1}
 input[type=text]{width:100%}
 </style>
@@ -187,7 +188,7 @@ if("serviceWorker" in navigator&&location.protocol==="https:"){window.addEventLi
 (function(){
 "use strict";
 const {$,esc}=Hub;
-let S=EQ.settings({}),R=null,logs=[],stat={},tpl={},resp={changes:[],leavers:[]},respAt=null,ST=null,cfg={},area="",sortKey="rate",sortDir=1,open=new Set(),sel=new Set(),previewKey=null;
+let S=EQ.settings({}),R=null,logs=[],stat={},tpl={},resp={changes:[],leavers:[]},respAt=null,ST=null,cfg={},area="",sortKey="rate",sortDir=1,open=new Set(),sel=new Set(),previewKey=null,showRemoved=false;
 const pct=x=>isFinite(x)?Math.round(x*100)+"%":"–";
 const tone=x=>!isFinite(x)?"none":x>=.8?"good":x>=.5?"warn":"bad";
 const toneVar=x=>`var(--${tone(x)==="none"?"none":tone(x)})`;
@@ -245,12 +246,19 @@ function renderStatus(){
   const sentFor=(email,child,g)=>logs.filter(x=>x.type==="offer"&&String(x.email).toLowerCase()===String(email).toLowerCase()&&x.child===child&&x.cls===g).map(x=>x.at).sort().pop();
   const fmtD=d=>new Date(d).toLocaleDateString("en-GB",{day:"numeric",month:"short"});
   const offered=(email,child)=>logs.filter(x=>x.type==="offer"&&String(x.email).toLowerCase()===String(email).toLowerCase()&&x.child===child).map(x=>x.at).sort().pop();
-  const rows=[];resp.changes.forEach(ch=>ch.kids.forEach(ck=>rows.push({ch,ck})));
+  // Requests reception has taken off the list (child already booked). Kept in config/renewals so everyone sees the same list.
+  const rmKey=(ch,ck)=>(String(ch.email).toLowerCase()+"|"+ck.name+"|"+(ch.at||"")).replace(/[^a-z0-9]+/gi,"_");
+  const removed=cfg.removedChanges||{};
+  const all=[];resp.changes.forEach(ch=>ch.kids.forEach(ck=>all.push({ch,ck,rk:rmKey(ch,ck)})));
+  const hidden=all.filter(r=>removed[r.rk]);
+  const rows=showRemoved?all:all.filter(r=>!removed[r.rk]);
   // Most recent request first (form and email timestamps are both "MM/DD/YYYY HH:MM:SS").
   const whenMs=a=>{const m=String(a||"").match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/);return m?new Date(+m[3],m[1]-1,+m[2],+m[4],+m[5],+(m[6]||0)).getTime():0};
   rows.sort((a,b)=>whenMs(b.ch.at)-whenMs(a.ch.at));
-  $("chNote").textContent=rows.length?`${rows.length} child${rows.length===1?"":"ren"} · ${rows.filter(r=>r.ck.options.some(o=>o.free>0)).length} with a space now`:"";
-  $("chBody").innerHTML=rows.map(({ch,ck},i)=>{const k=ck.kid,of=offered(ch.email,ck.name);
+  const live=rows.filter(r=>!removed[r.rk]);
+  $("chNote").innerHTML=(live.length?`${live.length} child${live.length===1?"":"ren"} · ${live.filter(r=>r.ck.options.some(o=>o.free>0)).length} with a space now`:"")+(hidden.length?` · <a href="#" id="chShowRm">${showRemoved?"Hide":"Show"} ${hidden.length} removed</a>`:"");
+  if($("chShowRm"))$("chShowRm").onclick=e=>{e.preventDefault();showRemoved=!showRemoved;render()};
+  $("chBody").innerHTML=rows.map(({ch,ck,rk},i)=>{const k=ck.kid,of=offered(ch.email,ck.name),isRm=!!removed[rk];
     const now=k&&k.cur?`${esc(k.cur.day)} ${esc(timeOf(k.cur))} ${esc(title(k.cur))}${k.age?" · age "+esc(String(k.age).replace(/\D+$/,"")):""}${ck.years&&ck.years.length?" · "+esc(yrsTxt(ck.years)):""}`:`${esc(ck.day)} ${esc(ck.time)} ${esc(ck.colour)}`;
     const opts=ck.options.length?ck.options.slice(0,4).map((o,j)=>{const n=o.n,lab=`${esc(n.day)} ${esc(timeOf(n))} ${esc(title(n))}`;
       const pill=o.free>0?`<span class="pill good">Space now (${o.free})</span>`:o.freeAfter>0?`<span class="pill warn">Wait: ${o.freeAfter} free after renewals close${cfg.closeDate?" ("+new Date(cfg.closeDate).toLocaleDateString("en-GB",{day:"numeric",month:"short"})+")":""}</span>`:'<span class="pill bad">Full</span>';
@@ -258,8 +266,14 @@ function renderStatus(){
         if(sent)return ` <button type="button" class="sentbtn" data-offer="${i}:${j}"${o.free>0?"":' data-full="1"'} data-sent="${esc(fmtD(sent))}" title="Sent ${esc(fmtD(sent))}. Click to send again">✓ Sent ${esc(fmtD(sent))}</button>`;
         return o.free>0?` <button type="button" class="primary" data-offer="${i}:${j}">Send offer</button>`:` <button type="button" data-offer="${i}:${j}" data-full="1">Send link anyway</button>`})()}</div>`}).join("")+(ck.otherTime?`<div class="small" style="color:var(--warn)">No class for ${esc(yrsTxt(ck.years))} at the requested time${ck.options.length>1?"s":""}: these are ${esc(yrsTxt(ck.years))} classes on the requested day${ck.options.length>1?"s":""} at other times.</div>`:"")+(ck.yearsKnown?"":'<div class="small" style="color:var(--warn)">Couldn\'t tell this child\'s school year: check the class suits them.</div>')
       :`<span class="muted small">No ${esc(yrsTxt(ck.years))} class next term on the requested days.</span>`;
-    return `<tr><td><b>${esc(ck.name)}</b>${ck.renewed?' <span class="pill good">Already booked</span>':""}${of?` <span class="pill warn">Offered ${new Date(of).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</span>`:""}<div class="small muted">${now}</div><div class="small muted">${esc(ch.email)}</div>${whenMs(ch.at)?`<div class="small muted">Asked ${new Date(whenMs(ch.at)).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}${/email/i.test(ch.tab||"")?" by email":""}</div>`:""}</td>
+    const rmBtn=isRm?`<div><span class="pill none">Removed ${esc(fmtD(removed[rk]))}</span> <button type="button" class="rmbtn" data-restore="${esc(rk)}">Put back on list</button></div>`:ck.renewed?`<div><button type="button" class="rmbtn" data-remove="${esc(rk)}">Remove from list</button></div>`:"";
+    return `<tr${isRm?' style="opacity:.55"':""}><td><b>${esc(ck.name)}</b>${ck.renewed?' <span class="pill good">Already booked</span>':""}${of?` <span class="pill warn">Offered ${new Date(of).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</span>`:""}<div class="small muted">${now}</div><div class="small muted">${esc(ch.email)}</div>${whenMs(ch.at)?`<div class="small muted">Asked ${new Date(whenMs(ch.at)).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}${/email/i.test(ch.tab||"")?" by email":""}</div>`:""}${rmBtn}</td>
       <td class="small">${esc(ch.reqText||"")}</td><td class="small">${esc(ch.notes||"")}</td><td>${opts}</td></tr>`}).join("")||'<tr><td colspan="4" class="muted">No class change requests yet.</td></tr>';
+  $("chBody").querySelectorAll("button[data-remove],button[data-restore]").forEach(b=>b.onclick=async()=>{
+    const k=b.dataset.remove||b.dataset.restore,put=!!b.dataset.restore;b.disabled=true;
+    try{await Hub.doc("config/renewals").set({removedChanges:{[k]:put?firebase.firestore.FieldValue.delete():new Date().toISOString()}},{merge:true});toast(put?"Put back on the list":"Removed from the list")}
+    catch(x){toast("Couldn't save: "+(x.code||x.message));b.disabled=false}
+  });
   $("chBody").querySelectorAll("button[data-offer]").forEach(b=>b.onclick=async()=>{
     const [i,j]=b.dataset.offer.split(":").map(Number),{ch,ck}=rows[i],o=ck.options[j];
     if(!mailerReady()){toast("Set up sending from reception@ first");return}

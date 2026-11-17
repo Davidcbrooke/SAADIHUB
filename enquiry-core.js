@@ -462,6 +462,15 @@ EQ.renewalStatus=function(R,resp,manual,closeDate,today){
   const nextCls=R.cls.filter(c=>c.kind==="n");
   const pending={};allKids.forEach(k=>{if(status[k.id].s==="none"&&k.next)pending[k.next.g]=(pending[k.next.g]||0)+1});
   const placeInfo=n=>{const cap=n.cap||0,booked=n.booked||0,held=open?0:(pending[n.g]||0);return{cap,booked,held,free:Math.max(0,cap-booked-held),freeAfter:Math.max(0,cap-booked)}};
+  // Families often ask twice (an email reply and then the form). The newest request for a child replaces older ones,
+  // and a child named with no days or times (e.g. in an email reply) takes the family's newest request that has them.
+  const whenMs=a=>{if(a instanceof Date)return a.getTime();const m=String(a||"").match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/);return m?new Date(+m[3],m[1]-1,+m[2],+m[4],+m[5],+(m[6]||0)).getTime():Date.parse(a)||0};
+  const chs=(resp.changes||[]).slice().sort((a,b)=>whenMs(b.at)-whenMs(a.at));const seen=new Set();
+  chs.forEach(c=>{const em=String(c.email).toLowerCase().trim();
+    c.kids=c.kids.filter(ck=>{const id=em+"|"+firstName(ck.name);if(seen.has(id)){ck.superseded=true;return false}seen.add(id);return true});
+    if(!c.reqDays.length&&!c.reqTimes.length){const src=chs.find(o=>o!==c&&String(o.email).toLowerCase().trim()===em&&(o.reqDays.length||o.reqTimes.length));
+      if(src){c.reqDays=src.reqDays;c.reqTimes=src.reqTimes;c.borrowed=src.reqText;if(!c.notes&&src.notes)c.notes=src.notes}}});
+  resp.changes=(resp.changes||[]).filter(c=>c.kids.length);
   (resp.changes||[]).forEach(c=>{c.kids.forEach(ck=>{
     const ys=ck.kid?(ck.kid.years||EQ.kidYears(ck.kid)):EQ.classYears({name:`${ck.colour} ${ck.time}`});
     ck.years=ys;
@@ -472,6 +481,10 @@ EQ.renewalStatus=function(R,resp,manual,closeDate,today){
     let cands=nextCls.filter(n=>onDay(n)&&atTime(n)&&fit(n));ck.otherTime=false;
     // Nothing for their age at that time: show classes for their age on the requested days at other times.
     if(!cands.length){cands=nextCls.filter(n=>onDay(n)&&fit(n)&&n.years.length);ck.otherTime=cands.length>0}
+    // Still nothing for their year on those days: show the classes at the requested days and times anyway,
+    // marked as a different age group, so reception can decide (e.g. a younger sibling asked for with an older one).
+    ck.otherAge=false;
+    if(!cands.length){cands=nextCls.filter(n=>onDay(n)&&atTime(n));if(!cands.length&&c.reqTimes.length)cands=nextCls.filter(onDay);ck.otherAge=cands.length>0;ck.otherTime=false}
     ck.yearsKnown=ys.length>0;
     ck.options=cands.map(n=>({n,...placeInfo(n)})).sort((a,b)=>b.free-a.free||b.freeAfter-a.freeAfter||EQ.mins(a.n.start)-EQ.mins(b.n.start));
     ck.renewed=ck.kid?ck.kid.renewed:false;

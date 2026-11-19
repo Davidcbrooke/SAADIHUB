@@ -857,15 +857,15 @@ function assistSend(threadId, text, by) {
   inc.reply(text, { htmlBody: asHtml(text), name: 'SAADI Gymnastics' });
   var d = asDraftFor(t.getId()); if (d) d.deleteDraft();
   t.removeLabel(labelNamed(AS.ready)).removeLabel(labelNamed(AS.person)).addLabel(labelNamed(AS.sent));
-  t.markRead(); t.moveToTrash();   // deleted (Gmail Bin, kept 30 days), as reception does after replying
+  t.markRead(); t.moveToArchive();
   fsSet('emailAssist/' + t.getId(), { status: 'sent', text: '', convo: '', draft: '', doneBy: String(by || ''), doneAt: Date.now() });
   return { ok: true };
 }
-/* Done: delete it (Gmail Bin), no reply. Skip: leave it in the inbox (with any draft) to deal with in Gmail. */
+/* Done: archive it, no reply. Skip: leave it in the inbox (with any draft) to deal with in Gmail. */
 function assistFinish(threadId, to, archive, by) {
   var t = asThread(threadId);
   t.removeLabel(labelNamed(AS.ready)).removeLabel(labelNamed(AS.person)).addLabel(labelNamed(to));
-  if (archive) { var d = asDraftFor(t.getId()); if (d) d.deleteDraft(); t.markRead(); t.moveToTrash(); }
+  if (archive) { var d = asDraftFor(t.getId()); if (d) d.deleteDraft(); t.markRead(); t.moveToArchive(); }
   fsSet('emailAssist/' + t.getId(), { status: archive ? 'done' : 'skipped', text: '', convo: '', draft: '', doneBy: String(by || ''), doneAt: Date.now() });
   return { ok: true };
 }

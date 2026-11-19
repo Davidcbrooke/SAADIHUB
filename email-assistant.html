@@ -154,7 +154,7 @@ function render(){
     ${i.summary||i.reason?`<div class="note ${i.needsPerson?"person":""}">${i.summary?`<b>Claude:</b> ${esc(i.summary)}`:""}${i.reason?`${i.summary?"<br>":""}<b>Why it needs a person:</b> ${esc(i.reason)}`:""}</div>`:""}
     <details ${i.needsPerson||i.status==="new"?"open":""}><summary>Their email</summary><div class="orig">${esc(i.text)}</div>${(i.attachments||[]).length?`<div class="small muted">Attached: ${i.attachments.map(esc).join(", ")}</div>`:""}</details>
     <span class="lbl">Reply${i.status==="new"?" (Claude drafts this at the next hourly check, or write it yourself)":""}</span><textarea class="reply">${esc(i.draft)}</textarea>
-    <div class="acts"><button type="button" class="send" data-a="send">Send reply</button><button type="button" data-a="done" title="No reply needed: delete it (moves to the Gmail Bin)">Done, delete</button><button type="button" data-a="skip" title="Take it off this page and deal with it in Gmail">Leave for Gmail</button>
+    <div class="acts"><button type="button" class="send" data-a="send">Send reply</button><button type="button" data-a="done" title="No reply needed: archive it">Done, no reply</button><button type="button" data-a="skip" title="Take it off this page and deal with it in Gmail">Leave for Gmail</button>
       <a href="https://mail.google.com/mail/?authuser=${encodeURIComponent(S.sender||"reception@saadigymnastics.co.uk")}#all/${esc(i.threadId)}" target="_blank" rel="noopener">Open in Gmail ↗</a></div>
   </article>`).join(""):`<section class="panel"><p style="margin:0">All clear: nothing waiting.</p></section>`;
 }
@@ -169,7 +169,7 @@ document.addEventListener("click",async e=>{
   }
   BUSY[id]=true;card.querySelectorAll("button").forEach(x=>x.disabled=true);const was=b.textContent;b.textContent=a==="send"?"Sending…":"Saving…";
   try{await call(a==="send"?{assist:"send",threadId:id,body}:{assist:a,threadId:id});
-    toast(a==="send"?"Reply sent to "+nameOf(item.from)+" and the email deleted.":a==="done"?"Deleted (in the Gmail Bin for 30 days).":"Left in the Gmail inbox.");}
+    toast(a==="send"?"Reply sent to "+nameOf(item.from)+".":a==="done"?"Marked done and archived.":"Left in the Gmail inbox.");}
   catch(err){toast(err.message);b.textContent=was;b.classList.remove("sure");card.querySelectorAll("button").forEach(x=>x.disabled=false)}
   delete BUSY[id];
 });

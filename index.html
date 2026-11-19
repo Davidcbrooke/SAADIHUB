@@ -50,7 +50,7 @@ a.card p{margin:0;color:var(--muted)}
       <div><div class="eyebrow">SAADI Gymnastics</div><h1>Business Hub</h1></div>
     </a>
     <div class="head-right">
-      <nav class="hubnav needs-auth" aria-label="Hub pages"><a href="index.html" aria-current="page">Hub</a><a href="enquiry-desk.html">Enquiry Desk</a><a href="term-renewals.html">Term Renewals</a><a href="class-capacity.html">Class Capacity</a><a href="business-plan.html">Business Plan</a><a href="calendar.html">Club Calendar</a></nav>
+      <nav class="hubnav needs-auth" aria-label="Hub pages"><a href="index.html" aria-current="page">Hub</a><a href="enquiry-desk.html">Enquiry Desk</a><a href="email-assistant.html">Email Assistant</a><a href="term-renewals.html">Term Renewals</a><a href="class-capacity.html">Class Capacity</a><a href="business-plan.html">Business Plan</a><a href="calendar.html">Club Calendar</a></nav>
       <button type="button" class="needs-auth" data-lock>Lock</button>
     </div>
   </header>
@@ -79,6 +79,10 @@ a.card p{margin:0;color:var(--muted)}
         <p>"Any space for a 6-year-old girl?" answered in seconds, trial invites emailed, and every follow-up until they join.</p>
         <div class="mini" id="enqMini"><div class="bad"><b>–</b><span>follow-ups due</span></div><div><b>–</b><span>trials coming up</span></div><div class="good"><b>–</b><span>joined (30 days)</span></div></div>
         <div class="muted" style="font-size:13px" id="enqNote">No enquiries yet.</div>
+      </a>
+      <a class="card" href="email-assistant.html">
+        <h2>Email Assistant <span aria-hidden="true">→</span></h2>
+        <p>Claude reads reception@ every 5 minutes and drafts the replies. Check, edit and send them here.</p>
       </a>
       <a class="card" href="term-renewals.html">
         <h2>Term Renewals <span aria-hidden="true">→</span></h2>
@@ -124,7 +128,7 @@ a.card p{margin:0;color:var(--muted)}
 <script src="firebase-config.js"></script>
 <script src="hub-core.js"></script>
 <script src="calendar-core.js"></script>
-<script src="enquiry-core.js?v=18"></script>
+<script src="enquiry-core.js?v=19"></script>
 <script>
 if("serviceWorker" in navigator&&location.protocol==="https:"){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))}
 (function(){

@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f20779">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="favicon.ico" sizes="48x48">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>SAADI Email Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="hub.css">
+<style>
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:640px){.kpis{grid-template-columns:1fr 1fr}}
+.kpi .v{font-family:var(--display);font-size:40px;font-weight:700;line-height:1}
+.card{background:var(--surface);border:1px solid var(--line);border-left:7px solid var(--good);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.card.person{border-left-color:var(--bad)}
+.top2{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.who{margin-right:auto;min-width:0}
+.who b{font-size:16px}
+.who .sub{font-weight:700;margin-top:2px}
+.who small{display:block;color:var(--muted);font-size:13px}
+.note{border-radius:9px;padding:9px 12px;font-size:14px;background:var(--good-bg)}
+.note.person{background:var(--bad-bg)}
+.note b{color:var(--good)} .note.person b{color:var(--bad)}
+details summary{cursor:pointer;font-weight:700;color:var(--accent);font-size:14px}
+.orig{white-space:pre-wrap;background:var(--surface-2);border-radius:8px;padding:10px 12px;margin-top:6px;max-height:320px;overflow:auto;font-size:13.5px}
+.lbl{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+textarea.reply{width:100%;min-height:170px;font:15px/1.5 Figtree,Arial,sans-serif}
+.acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.acts a{margin-left:auto;font-size:14px;font-weight:600;color:var(--accent)}
+button.send{background:var(--bad);border-color:var(--bad);color:#fff}
+button.send.sure{background:#7d0b1c;border-color:#7d0b1c;box-shadow:0 0 0 3px var(--bad-bg)}
+.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:10px;font-size:14px}
+.f textarea{width:100%;min-height:260px;font:14px/1.5 Figtree,Arial,sans-serif}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:10px 18px;border-radius:99px;font-weight:600;z-index:60}
+.small{font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="index.html">
+      <img src="saadi-logo-white.png" alt="SAADI Gymnastics" width="64" height="61">
+      <div><div class="eyebrow">SAADI Gymnastics</div><h1>Email Assistant</h1></div>
+    </a>
+    <div class="head-right">
+      <nav class="hubnav needs-auth" aria-label="Hub pages"><a href="index.html">Hub</a><a href="enquiry-desk.html">Enquiry Desk</a><a href="email-assistant.html" aria-current="page">Email Assistant</a><a href="term-renewals.html">Term Renewals</a><a href="class-capacity.html">Class Capacity</a><a href="business-plan.html">Business Plan</a><a href="calendar.html">Club Calendar</a></nav>
+      <button type="button" class="needs-auth" data-lock>Lock</button>
+    </div>
+  </header>
+
+  <div id="statusNote" class="notice" hidden></div>
+
+  <section class="panel auth" id="authPanel" hidden>
+    <h2>Enter the password</h2>
+    <p class="muted" style="margin:0">The Email Assistant uses the SAADI Hub password.</p>
+    <form id="authForm" class="wrap" style="gap:12px;margin:0" novalidate>
+      <label class="f" for="authPass">Password <input type="password" id="authPass" autocomplete="current-password" required></label>
+      <label class="row" for="authRemember" style="font-size:14px;gap:6px"><input type="checkbox" id="authRemember" checked> Remember on this device</label>
+      <div class="row"><button class="primary" type="submit" id="authGo">Open</button><span id="authMsg" class="muted" aria-live="polite"></span></div>
+    </form>
+  </section>
+
+  <main class="wrap needs-auth" id="main">
+    <p class="muted" style="margin:0">Claude reads new emails to reception@ every 5 minutes and drafts a reply. Check it, change anything you like, then press <b>Send reply</b>. Nothing is sent until someone presses Send.</p>
+    <div class="kpis">
+      <div class="kpi bad"><span class="v" id="kPerson">0</span><span class="s">need a person</span></div>
+      <div class="kpi good"><span class="v" id="kReady">0</span><span class="s">replies ready to send</span></div>
+      <div class="kpi"><span class="v" id="kState" style="font-size:20px;line-height:1.3">…</span><span class="s" id="kStateSub">assistant</span></div>
+    </div>
+    <div class="row" style="gap:10px;flex-wrap:wrap"><label class="row small" style="gap:6px">Your name <input type="text" id="myName" placeholder="e.g. Steph" style="width:140px"></label><button type="button" id="checkNow">Check the inbox now</button><span class="muted small" id="checkMsg"></span></div>
+    <div id="list" class="wrap" style="gap:12px"></div>
+
+    <details class="panel" id="setup">
+      <summary>Set-up and the facts Claude uses</summary>
+      <h2 style="margin:0">Facts Claude uses</h2>
+      <p class="small muted" style="margin:0">Claude only answers from these facts. Keep them up to date (term dates, class times, prices you're happy to quote, how to book). If something isn't here, Claude says reception will check and flags it for a person.</p>
+      <label class="f">Club facts <textarea id="facts"></textarea></label>
+      <label class="f">Sign-off <textarea id="signOff" style="min-height:70px"></textarea></label>
+      <div class="row"><button type="button" class="primary" id="saveFacts">Save facts</button><span class="muted small" id="factsMsg"></span></div>
+
+      <h2 style="margin:8px 0 0">Switching it on (once)</h2>
+      <ol class="steps">
+        <li><button type="button" id="copyCode">Copy the new mailer code</button> <span class="muted small" id="copyMsg"></span><br>
+          <span class="small">In Chrome signed in as reception@, open <a href="https://script.google.com/home" target="_blank" rel="noopener">script.google.com</a> and open <b>SAADI Enquiry Desk mailer</b>. Click in the code, press Ctrl+A then Ctrl+V, and press <b>Save</b>.</span></li>
+        <li class="small">Choose <b>allowSending</b> next to Run and press <b>Run</b>. Google asks for one new permission (to reach Claude and the Hub): <b>Review permissions &gt; reception@ &gt; Advanced &gt; Go to SAADI Enquiry Desk mailer &gt; Allow</b>.</li>
+        <li class="small"><b>Deploy &gt; Manage deployments</b>, click the pencil, set <b>Version</b> to <b>New version</b>, then <b>Deploy</b>. The web address stays the same.</li>
+        <li class="small">Still in the script: <b>Project Settings</b> (cog, left) &gt; <b>Script properties</b> &gt; <b>Add script property</b>. Property: <code>ANTHROPIC_API_KEY</code>, value: the Claude API key. <b>Save script properties</b>. (The key lives only in reception@'s script, never in the Hub.)</li>
+        <li><button type="button" class="primary" id="connect">Connect and switch on</button> <button type="button" id="switchOff">Switch off</button> <span class="small" id="connMsg"></span></li>
+      </ol>
+    </details>
+  </main>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="hub-core.js"></script>
+<script src="enquiry-core.js?v=19"></script>
+<script>
+"use strict";
+const $=Hub.$, esc=Hub.esc;
+const STARTER_FACTS=[
+"About us: SAADI Gymnastics, a British Gymnastics club at Redbourn Recreation Centre, 75 Dunstable Road, Redbourn, Hertfordshire AL3 7PP.",
+"Classes: Pre-School and Play Gym, Recreational classes (every day from 4pm, grouped by school year), Novice and Novice Plus, and WAG, MAG and GAG squads (by invitation or trial).",
+"From January 2027 our Recreational classes join the NGL Recreational programme and Pre-School joins NGL Pre-School.",
+"Booking: all classes are booked and paid for on JustGo (links on our website, www.saadigymnastics.co.uk).",
+"Trials: we offer trial sessions for new gymnasts; reception sends the trial booking link.",
+"Term dates: Autumn 2026 Tue 1 Sep to Sun 20 Dec (half-term break Mon 26 Oct to Sun 1 Nov). Spring 2027 starts Sat 2 Jan.",
+"Renewals: existing families are sent a renewal email with the booking link for next term. Class change and not-continuing requests go through the links in that email.",
+"Holiday camps: Christmas camps Mon 21 and Tue 22 Dec 2026, 11am to 3pm, £30 per day, book on JustGo.",
+"Cancellations: holiday camp bookings cancelled with less than 28 days' notice are non-refundable and non-transferable."
+].join("\n\n");
+let S=EQ.settings({}), ITEMS=[], CFG={}, BUSY={};
+function toast(m){const t=document.createElement("div");t.className="toast";t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),3200)}
+const nameOf=f=>String(f||"").replace(/<[^>]*>/,"").replace(/"/g,"").trim()||addrOf(f);
+const addrOf=f=>(String(f||"").match(/<([^>]+)>/)||[,f])[1];
+function when(ms){const m=Math.round((Date.now()-ms)/60000);const ago=m<60?m+" min ago":m<36*60?Math.round(m/60)+" hours ago":Math.round(m/1440)+" days ago";
+  return new Date(ms).toLocaleString("en-GB",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+" · "+ago}
+const ready=()=>!!(S.mailerUrl&&S.mailerToken);
+const me=()=>{try{return localStorage.getItem("saadiAssistName")||""}catch(e){return""}};
+async function call(body){
+  if(!ready())throw new Error("The reception mailer isn't set up yet (Enquiry Desk > Emails & settings).");
+  const r=await fetch(S.mailerUrl,{method:"POST",body:JSON.stringify(Object.assign({token:S.mailerToken,by:me()},body))});
+  const j=await r.json(); if(!j.ok)throw new Error(j.error||"The mailer refused the request."); return j;
+}
+
+function render(){
+  const person=ITEMS.filter(i=>i.needsPerson), rest=ITEMS.filter(i=>!i.needsPerson);
+  $("kPerson").textContent=person.length;$("kReady").textContent=rest.length;
+  const list=[...person.sort((a,b)=>a.date-b.date),...rest.sort((a,b)=>a.date-b.date)];
+  $("list").innerHTML=list.length?list.map(i=>`<article class="card ${i.needsPerson?"person":""}" data-t="${esc(i.threadId)}">
+    <div class="top2"><div class="who"><b>${esc(nameOf(i.from))}</b> ${nameOf(i.from)!==addrOf(i.from)?`<small style="display:inline">${esc(addrOf(i.from))}</small>`:""}
+      <div class="sub">${esc(i.subject||"(no subject)")}</div><small>${esc(when(i.date))}${i.count>1?` · ${i.count} messages in this conversation`:""}</small></div>
+      <span class="pill ${i.needsPerson?"bad":"good"}">${i.needsPerson?"Needs a person":"Ready to send"}</span></div>
+    ${i.summary||i.reason?`<div class="note ${i.needsPerson?"person":""}">${i.summary?`<b>Claude:</b> ${esc(i.summary)}`:""}${i.reason?`${i.summary?"<br>":""}<b>Why it needs a person:</b> ${esc(i.reason)}`:""}</div>`:""}
+    <details ${i.needsPerson?"open":""}><summary>Their email</summary><div class="orig">${esc(i.text)}</div>${(i.attachments||[]).length?`<div class="small muted">Attached: ${i.attachments.map(esc).join(", ")}</div>`:""}</details>
+    <span class="lbl">Reply</span><textarea class="reply">${esc(i.draft)}</textarea>
+    <div class="acts"><button type="button" class="send" data-a="send">Send reply</button><button type="button" data-a="done" title="No reply needed: archive it">Done, no reply</button><button type="button" data-a="skip" title="Take it off this page and deal with it in Gmail">Leave for Gmail</button>
+      <a href="https://mail.google.com/mail/?authuser=${encodeURIComponent(S.sender||"reception@saadigymnastics.co.uk")}#all/${esc(i.threadId)}" target="_blank" rel="noopener">Open in Gmail ↗</a></div>
+  </article>`).join(""):`<section class="panel"><p style="margin:0">All clear: nothing waiting.</p></section>`;
+}
+
+document.addEventListener("click",async e=>{
+  const b=e.target.closest("button[data-a]");if(!b)return;
+  const card=b.closest(".card"),id=card.dataset.t,a=b.dataset.a;if(BUSY[id])return;
+  const item=ITEMS.find(i=>i.threadId===id),body=card.querySelector("textarea").value;
+  if(a==="send"){
+    if(!body.trim())return toast("Write a reply first.");
+    if(!b.classList.contains("sure")){b.classList.add("sure");b.textContent="Tap again to send to "+nameOf(item.from);setTimeout(()=>{if(b.isConnected){b.classList.remove("sure");b.textContent="Send reply"}},5000);return}
+  }
+  BUSY[id]=true;card.querySelectorAll("button").forEach(x=>x.disabled=true);const was=b.textContent;b.textContent=a==="send"?"Sending…":"Saving…";
+  try{await call(a==="send"?{assist:"send",threadId:id,body}:{assist:a,threadId:id});
+    toast(a==="send"?"Reply sent to "+nameOf(item.from)+".":a==="done"?"Marked done and archived.":"Left in the Gmail inbox.");}
+  catch(err){toast(err.message);b.textContent=was;b.classList.remove("sure");card.querySelectorAll("button").forEach(x=>x.disabled=false)}
+  delete BUSY[id];
+});
+
+async function status(){
+  if(!ready()){$("kState").textContent="Not set up";$("kStateSub").textContent="set up the reception mailer first";return}
+  try{const j=await call({assist:"status"});
+    $("kState").textContent=j.on&&j.hasKey?"On":j.on?"Needs the Claude key":"Off";
+    $("kStateSub").textContent=j.lastError?"Last problem: "+j.lastError.slice(0,90):j.lastRun?"last checked "+new Date(j.lastRun).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}):"assistant";
+  }catch(err){$("kState").textContent=/unknown assistant|email address missing/i.test(err.message)?"Update needed":"Off";$("kStateSub").textContent=err.message.slice(0,90)}
+}
+
+$("checkNow").onclick=async()=>{$("checkNow").disabled=true;$("checkMsg").textContent="Checking…";
+  try{const j=await call({assist:"run"});$("checkMsg").textContent=j.lastError?"Problem: "+j.lastError:(j.drafted?j.drafted+" new draft"+(j.drafted>1?"s":""):"No new emails to answer.")}
+  catch(err){$("checkMsg").textContent=err.message}
+  $("checkNow").disabled=false;status()};
+$("myName").value=me();$("myName").onchange=()=>{try{localStorage.setItem("saadiAssistName",$("myName").value.trim())}catch(e){}};
+$("saveFacts").onclick=async()=>{try{await Hub.doc("emailAssist/_config").set({facts:$("facts").value,signOff:$("signOff").value,updatedAt:new Date().toISOString(),updatedBy:me()},{merge:true});$("factsMsg").textContent="Saved ✓"}catch(e){$("factsMsg").textContent="Couldn't save ("+(e.code||"error")+")."}};
+$("copyCode").onclick=async()=>{
+  if(!S.mailerToken){$("copyMsg").textContent="Set up the mailer on the Enquiry Desk first.";return}
+  try{await navigator.clipboard.writeText(EQ.mailerCode(S.mailerToken,S.sender));$("copyMsg").textContent="Copied ✓"}catch(e){$("copyMsg").textContent="Couldn't copy. Try again."}};
+async function connect(on){$("connMsg").textContent="Connecting…";
+  try{const j=await call({assist:"connect",on,dataKey:Hub.dataKey,project:window.SAADI_FIREBASE_CONFIG.projectId});
+    $("connMsg").innerHTML=!on?"Switched off.":j.hasKey?'<b style="color:var(--good)">✓ On.</b> Claude checks reception@ every 5 minutes.':'<b style="color:var(--warn)">Connected, but the Claude key isn\'t in the script yet (step 4).</b>';}
+  catch(err){$("connMsg").textContent=/unknown assistant|email address missing/i.test(err.message)?"The mailer is still the old version: do steps 1 to 3 first.":err.message}
+  status()}
+$("connect").onclick=()=>connect(true);$("switchOff").onclick=()=>connect(false);
+
+async function load(){
+  try{const d=await Hub.doc("config/enquiryDesk").get();S=EQ.settings(d.exists?d.data():{})}catch(e){}
+  Hub.doc("config/enquiryDesk").onSnapshot(d=>{if(d.exists)S=EQ.settings(d.data())},()=>{});
+  try{const c=await Hub.doc("emailAssist/_config").get();CFG=c.exists?c.data():{}}catch(e){CFG={}}
+  $("facts").value=CFG.facts||STARTER_FACTS;$("signOff").value=CFG.signOff||(S.signOff||"Kind regards,\nSAADI Gymnastics Reception");
+  if(!CFG.facts)$("factsMsg").textContent="These are starter facts: check them and press Save.";
+  Hub.col("emailAssist").where("status","==","waiting").onSnapshot(s=>{ITEMS=s.docs.map(d=>d.data());render()},
+    e=>{$("statusNote").hidden=false;$("statusNote").textContent="Couldn't load the emails ("+(e.code||"error")+")."});
+  status();setInterval(status,60000);
+}
+Hub.gate(load);
+</script>
+</body>
+</html>

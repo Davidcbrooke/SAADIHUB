@@ -16,7 +16,9 @@ const PAGES = [
   {group: "Business", items: [
     {href: "class-capacity.html", name: "Class Capacity", desc: "How full every class is: empty places and waiting lists, week by week.", icon: "chart"},
     {href: "business-plan.html", name: "Business Plan", desc: "Every objective with its owner, due date and progress.", icon: "target"},
-    {href: "calendar.html", name: "Club Calendar", desc: "Term dates, assessments and competitions, with clashes flagged.", icon: "calendar"}]}
+    {href: "calendar.html", name: "Club Calendar", desc: "Term dates, assessments and competitions, with clashes flagged.", icon: "calendar"}]},
+  {group: "Help", items: [
+    {href: "ask-claude.html", name: "Ask Claude", desc: "Ask for a change to the website or JustGo. Claude does it and marks it done here.", icon: "spark", badge: "ask"}]}
 ];
 const ICONS = {
   home: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',
@@ -27,6 +29,7 @@ const ICONS = {
   chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
   calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"/>',
   menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
   lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'
 };
@@ -107,6 +110,11 @@ async function badges(){
       setBadge("mail", person + ready, `${person} need a person, ${ready} ready to send`);
       document.dispatchEvent(new CustomEvent("hub-count", {detail: {k: "mailPerson", n: person}}));
       document.dispatchEvent(new CustomEvent("hub-count", {detail: {k: "mailReady", n: ready}}));
+    }, () => {});
+    // Ask Claude: requests where Claude is waiting for an answer from reception
+    fs.collection(`data/${key}/changeRequests`).where("status", "in", ["question", "new", "doing"]).onSnapshot(s => {
+      const a = s.docs.map(x => x.data()), q = a.filter(x => x.status === "question").length;
+      setBadge("ask", q, `${q} question${q === 1 ? "" : "s"} from Claude, ${a.length - q} request${a.length - q === 1 ? "" : "s"} waiting`);
     }, () => {});
   }).catch(() => {});
   // Failed Payments: same sums as the page

@@ -82,11 +82,15 @@ a.card p{margin:0;color:var(--muted)}
       </a>
       <a class="card" href="email-assistant.html">
         <h2>Email Assistant <span aria-hidden="true">→</span></h2>
-        <p>Claude reads reception@ every 5 minutes and drafts the replies. Check, edit and send them here.</p>
+        <p>New emails to reception@ arrive here within 5 minutes and Claude drafts the replies every hour. Check, edit and send them here.</p>
+        <div class="mini" id="emMini"><div class="bad"><b>–</b><span>need a person</span></div><div class="good"><b>–</b><span>ready to send</span></div><div><b>–</b><span>waiting for Claude</span></div></div>
+        <div class="muted" style="font-size:13px" id="emNote">Not switched on yet.</div>
       </a>
       <a class="card" href="failed-payments.html">
         <h2>Failed Payments <span aria-hidden="true">→</span></h2>
         <p>Class payments that didn't go through and haven't been paid since, and regular payments that keep failing. One tap sends a friendly "can we help?" email.</p>
+        <div class="mini" id="payMini"><div class="bad"><b>–</b><span>class payments not completed</span></div><div class="bad"><b>–</b><span>regular payments failing</span></div><div class="good"><b>–</b><span>emailed (30 days)</span></div></div>
+        <div class="muted" style="font-size:13px" id="payNote">Comes in with the JustGo sync.</div>
       </a>
       <a class="card" href="term-renewals.html">
         <h2>Term Renewals <span aria-hidden="true">→</span></h2>
@@ -133,6 +137,7 @@ a.card p{margin:0;color:var(--muted)}
 <script src="hub-core.js"></script>
 <script src="calendar-core.js"></script>
 <script src="enquiry-core.js?v=19"></script>
+<script src="payments-core.js?v=1"></script>
 <script>
 if("serviceWorker" in navigator&&location.protocol==="https:"){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))}
 (function(){
@@ -221,7 +226,31 @@ function showCal(){
     $("calNote").textContent=comps[0]?`Next competition: ${comps[0].title}, ${fmtDate(comps[0].start,{day:"numeric",month:"short"})}`:(ev.length?"No competitions coming up.":"No events added yet.");
   }
 }
-Hub.gate(()=>{loadCapacity();loadPlan();loadCalendar();loadEnquiries();loadRenewals()});
+/* Email Assistant: emails waiting, from the assistant's own section of the database */
+async function loadEmails(){
+  let key="";try{const d=await Hub.doc("config/emailAssist").get();key=d.exists&&d.data().key||""}catch(e){}
+  if(!key)return;
+  const sec=Hub.fs.collection(`data/${key}/emailAssist`);
+  sec.where("status","in",["new","waiting"]).onSnapshot(s=>{
+    const a=s.docs.map(d=>d.data()), person=a.filter(x=>x.status==="waiting"&&x.needsPerson).length, ready=a.filter(x=>x.status==="waiting"&&!x.needsPerson).length, fresh=a.filter(x=>x.status==="new").length;
+    $("emMini").innerHTML=`<div class="${person?"bad":"good"}"><b>${person}</b><span>need a person</span></div><div class="good"><b>${ready}</b><span>ready to send</span></div><div><b>${fresh}</b><span>waiting for Claude</span></div>`;
+  },()=>{});
+  sec.doc("_config").onSnapshot(d=>{const c=d.exists?d.data():{};
+    $("emNote").textContent=c.lastClaude?"Claude last checked "+new Date(c.lastClaude).toLocaleString("en-GB",{weekday:"short",hour:"2-digit",minute:"2-digit"})+".":"Claude hasn't drafted anything yet.";},()=>{});
+}
+/* Failed Payments: same sums as the Failed Payments page */
+function loadPayments(){
+  let PAY=null, LOG={}, at=null;
+  const show=()=>{
+    if(!PAY){$("payNote").textContent="Comes in with the JustGo sync (Send to SAADI Hub).";return}
+    const t=PayCore.summary(PAY,LOG);
+    $("payMini").innerHTML=`<div class="${t.one?"bad":"good"}"><b>${t.one}</b><span>class payments not completed</span></div><div class="${t.reg?"bad":"good"}"><b>${t.reg}</b><span>regular payments failing</span></div><div class="good"><b>${t.emailed}</b><span>emailed (30 days)</span></div>`;
+    $("payNote").textContent=(t.value?"£"+Math.round(t.value).toLocaleString("en-GB")+" not yet paid. ":"")+"From JustGo "+new Date(at).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})+".";
+  };
+  Hub.doc("payments/latest").onSnapshot(d=>{try{PAY=d.exists?JSON.parse(d.data().json):null;at=PAY&&PAY.at}catch(e){PAY=null}show()},()=>{});
+  Hub.col("paymentEmails").onSnapshot(s=>{LOG={};s.docs.forEach(d=>LOG[d.id]=d.data());show()},()=>{});
+}
+Hub.gate(()=>{loadCapacity();loadPlan();loadCalendar();loadEnquiries();loadRenewals();loadEmails();loadPayments()});
 })();
 </script>
 <!-- NGL pull-to-refresh: iPhone home-screen apps have no pull-to-refresh, so this adds one (only when installed). -->

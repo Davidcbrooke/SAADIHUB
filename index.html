@@ -16,10 +16,21 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="hub.css">
+<script src="hub-shell.js?v=1" defer></script>
 <style>
 .hero{display:flex;flex-direction:column;gap:4px}
 .hero p{margin:0;font-size:17px;max-width:70ch}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
+.cards.two{grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))}
+.group-h{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-family:var(--body);font-weight:700;margin:8px 0 -6px}
+.todo{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:12px}
+.todo h2{font-size:19px}
+.todo-list{display:flex;flex-wrap:wrap;gap:10px}
+.todo-list a{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--ink);background:var(--bad-bg);border:1px solid transparent;border-radius:12px;padding:10px 16px 10px 12px;font-weight:600}
+.todo-list a:hover{border-color:var(--bad)}
+.todo-list a b{font-family:var(--display);font-size:28px;line-height:1;color:var(--bad);min-width:30px;text-align:center}
+.todo-list a.ok{background:var(--warn-bg)} .todo-list a.ok b{color:var(--warn)}
+.todo .clear{margin:0;color:var(--good);font-weight:600}
 a.card{display:flex;flex-direction:column;gap:14px;text-decoration:none;color:inherit;background:var(--surface);border:1px solid var(--line);border-top:5px solid var(--brand);border-radius:14px;padding:20px;transition:border-color .15s,transform .15s}
 a.card:hover{border-color:var(--accent);transform:translateY(-2px)}
 a.card h2{font-size:26px;display:flex;justify-content:space-between;align-items:center;gap:10px}
@@ -73,7 +84,10 @@ a.card p{margin:0;color:var(--muted)}
       <p id="headline">Loading the latest numbers…</p>
     </div>
 
-    <div class="cards">
+    <section class="todo" aria-labelledby="todoH"><h2 id="todoH">To do today</h2><div class="todo-list" id="todoList"><p class="clear">Checking…</p></div></section>
+
+    <h2 class="group-h">Front desk</h2>
+    <div class="cards two">
       <a class="card" href="enquiry-desk.html">
         <h2>Enquiry Desk <span aria-hidden="true">→</span></h2>
         <p>"Any space for a 6-year-old girl?" answered in seconds, trial invites emailed, and every follow-up until they join.</p>
@@ -98,6 +112,10 @@ a.card p{margin:0;color:var(--muted)}
         <div class="mini" id="renMini"><div><b>–</b><span>renewed</span></div><div class="bad"><b>–</b><span>still to book</span></div><div><b>–</b><span>families to remind</span></div></div>
         <div class="muted" style="font-size:13px" id="renNote">Comes in with the morning JustGo sync.</div>
       </a>
+    </div>
+
+    <h2 class="group-h">Business</h2>
+    <div class="cards">
       <a class="card" href="class-capacity.html">
         <h2>Class Capacity Report <span aria-hidden="true">→</span></h2>
         <p>How full every class is, empty places, waiting lists and the key actions for the week, from the weekly JustGo numbers.</p>
@@ -155,11 +173,19 @@ function headline(){
   if(plan)bits.push(`<b>${plan.done} of ${plan.total}</b> plan objectives are completed${plan.od?`, and <b style="color:var(--bad)">${plan.od} ${plan.od===1?"is":"are"} overdue</b>`:""}`);
   $("headline").innerHTML=bits.length?bits.join(". ")+".":"Choose a report below.";
 }
+/* To do today: the few things that need someone, each one tap away */
+const TODO={}, TODO_ORDER=["mailP","enq","pay","mailR","ren"];
+function setTodo(k,n,label,href,soft){TODO[k]={n,label,href,soft};renderTodo()}
+function renderTodo(){
+  const items=TODO_ORDER.map(k=>TODO[k]).filter(t=>t&&t.n>0);
+  $("todoList").innerHTML=items.length?items.map(t=>`<a href="${t.href}" class="${t.soft?"ok":""}"><b>${t.n}</b><span>${esc(t.label)}</span></a>`).join(""):'<p class="clear">All clear: nothing needs doing right now.</p>';
+}
 function loadRenewals(){
   Hub.doc("renewals/latest").get().then(d=>{
     if(!d.exists)return;const R=EQ.renewals(JSON.parse(d.data().json));if(!R)return;
     $("renMini").innerHTML=`<div class="${R.rate>=.8?"good":""}"><b>${isFinite(R.rate)?Math.round(R.rate*100)+"%":"–"}</b><span>renewed</span></div><div class="bad"><b>${R.kids-R.renewed}</b><span>still to book</span></div><div><b>${R.families.length}</b><span>families to remind</span></div>`;
     $("renNote").textContent=`${R.next.map(t=>t.name).join(" and ")}: ${R.renewed} of ${R.kids} children booked.`;
+    setTodo("ren",R.families.length,R.families.length===1?"family to remind about next term":"families to remind about next term","term-renewals.html",true);
   }).catch(()=>{});
 }
 function loadEnquiries(){
@@ -167,6 +193,7 @@ function loadEnquiries(){
     if(q.empty)return;
     const S=EQ.settings(d&&d.exists?d.data():{}),recs=q.docs.map(x=>({id:x.id,...x.data()})),t=todayIso();
     const due=EQ.actions(recs,S,t).filter(a=>a.dueNow).length,up=recs.filter(r=>r.stage==="trial_booked"&&r.trialDate>=t).length,st=EQ.stats(recs,EQ.addDays(t,-30),t);
+    setTodo("enq",due,due===1?"enquiry follow-up due":"enquiry follow-ups due","enquiry-desk.html");
     $("enqMini").innerHTML=`<div class="${due?"bad":"good"}"><b>${due}</b><span>follow-ups due</span></div><div><b>${up}</b><span>trials coming up</span></div><div class="good"><b>${st.joined}</b><span>joined (30 days)</span></div>`;
     $("enqNote").textContent=`${recs.filter(EQ.isOpen).length} open enquiries and trials.`;
   }).catch(()=>{});
@@ -233,6 +260,8 @@ async function loadEmails(){
   const sec=Hub.fs.collection(`data/${key}/emailAssist`);
   sec.where("status","in",["new","waiting"]).onSnapshot(s=>{
     const a=s.docs.map(d=>d.data()), person=a.filter(x=>x.status==="waiting"&&x.needsPerson).length, ready=a.filter(x=>x.status==="waiting"&&!x.needsPerson).length, fresh=a.filter(x=>x.status==="new").length;
+    setTodo("mailP",person,person===1?"email needs a person":"emails need a person","email-assistant.html");
+    setTodo("mailR",ready,ready===1?"email reply ready to send":"email replies ready to send","email-assistant.html",true);
     $("emMini").innerHTML=`<div class="${person?"bad":"good"}"><b>${person}</b><span>need a person</span></div><div class="good"><b>${ready}</b><span>ready to send</span></div><div><b>${fresh}</b><span>waiting for Claude</span></div>`;
   },()=>{});
   sec.doc("_config").onSnapshot(d=>{const c=d.exists?d.data():{};
@@ -244,6 +273,7 @@ function loadPayments(){
   const show=()=>{
     if(!PAY){$("payNote").textContent="Comes in with the JustGo sync (Send to SAADI Hub).";return}
     const t=PayCore.summary(PAY,LOG);
+    setTodo("pay",t.one+t.reg,t.one+t.reg===1?"failed payment to follow up":"failed payments to follow up","failed-payments.html");
     $("payMini").innerHTML=`<div class="${t.one?"bad":"good"}"><b>${t.one}</b><span>class payments not completed</span></div><div class="${t.reg?"bad":"good"}"><b>${t.reg}</b><span>regular payments failing</span></div><div class="good"><b>${t.emailed}</b><span>emailed (30 days)</span></div>`;
     $("payNote").textContent=(t.value?"£"+Math.round(t.value).toLocaleString("en-GB")+" not yet paid. ":"")+"From JustGo "+new Date(at).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})+".";
   };

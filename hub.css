@@ -100,3 +100,53 @@ button.kpi{font-weight:400}
 .tip b{font-weight:700}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media (prefers-reduced-motion:no-preference){.stack i,.col .bar{transition:width .3s ease,height .3s ease}}
+
+/* ---------- shared layout (hub-shell.js): top bar, grouped menu, page heading ---------- */
+body.shell{padding:76px 20px 48px}
+#hubTop{position:fixed;inset:0 0 auto 0;height:58px;z-index:50;display:flex;align-items:center;gap:12px;padding:0 16px;background:var(--brand);color:var(--brand-ink);box-shadow:0 1px 0 rgba(0,0,0,.08)}
+.hub-brand{display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none;font-family:var(--display);font-size:18px;letter-spacing:.02em;white-space:nowrap}
+.hub-brand img{width:34px;height:auto;display:block}
+.hub-brand b{font-weight:700;letter-spacing:.06em}
+.top-page{display:none;font-weight:600;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+#hubTop button{border-color:rgba(255,255,255,.55);background:transparent;color:var(--brand-ink);display:inline-flex;align-items:center;gap:6px;padding:6px 12px}
+#hubTop button:hover{border-color:#fff;background:rgba(255,255,255,.12)}
+.menu-btn{display:none!important;padding:6px!important;border:0!important}
+.ic{width:20px;height:20px;flex:none}.ic.sm{width:16px;height:16px}
+
+#hubSide{position:fixed;top:58px;bottom:0;left:0;width:236px;z-index:40;overflow:auto;background:var(--surface);border-right:1px solid var(--line);padding:14px 10px;display:flex;flex-direction:column;gap:2px}
+#hubSide a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:9px;color:var(--ink);text-decoration:none;font-weight:600;font-size:14.5px}
+#hubSide a .ic{color:var(--muted)}
+#hubSide a:hover{background:var(--surface-2)}
+#hubSide a[aria-current=page]{background:color-mix(in srgb,var(--brand) 12%,transparent);color:var(--accent)}
+#hubSide a[aria-current=page] .ic{color:var(--accent)}
+#hubSide a span{flex:1;min-width:0}
+.side-group{font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:16px 12px 6px}
+.badge{font-style:normal;min-width:22px;height:22px;padding:0 7px;border-radius:99px;background:var(--bad);color:#fff;font-size:12px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+.side-foot{margin-top:auto;padding:16px 12px 4px;font-size:12px;color:var(--muted)}
+#hubScrim{display:none}
+
+.page-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px 20px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.ph-text h1{font-size:30px;line-height:1.1}
+.ph-text p{margin:4px 0 0;color:var(--muted);max-width:62ch}
+.ph-actions{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px}
+.ph-actions .controls{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px}
+.ph-actions label.me{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600}
+.ph-actions .who{font-size:13px;color:var(--muted)}
+
+@media (min-width:1000px){
+  body.shell{padding-left:262px}
+}
+@media (max-width:999px){
+  .menu-btn{display:inline-flex!important}
+  .top-page{display:block}
+  .hub-brand span{display:none}
+  #hubSide{transform:translateX(-100%);transition:transform .2s ease;box-shadow:4px 0 24px rgba(0,0,0,.18)}
+  body.nav-open #hubSide{transform:none}
+  body.nav-open #hubScrim{display:block;position:fixed;inset:58px 0 0 0;z-index:35;background:rgba(0,0,0,.35)}
+  body.shell{padding:72px 16px 40px}
+  .ph-text h1{font-size:26px}
+}
+@media (max-width:480px){#hubTop .lock-btn span{display:none}}
+.page-head .ph-actions label,.page-head .ph-actions .me,.page-head .ph-actions .who{color:var(--ink)!important}
+.page-head .ph-actions button:not(.primary){background:var(--surface);color:var(--ink);border-color:var(--line)}

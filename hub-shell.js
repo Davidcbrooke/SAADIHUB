@@ -1,4 +1,4 @@
-// SAADI Business Hub: the shared layout on every page.
+﻿// SAADI Business Hub: the shared layout on every page.
 // A slim top bar (logo, page name on phones, Lock), a menu grouped by job with live counts, and a clean page heading.
 // Each page keeps its own header in the HTML; this moves that page's controls (week picker, "Updating as", Lock...)
 // into the new layout and hides the rest, so every existing button keeps working exactly as before.
@@ -18,7 +18,7 @@ const PAGES = [
     {href: "business-plan.html", name: "Business Plan", desc: "Every objective with its owner, due date and progress.", icon: "target"},
     {href: "calendar.html", name: "Club Calendar", desc: "Term dates, assessments and competitions, with clashes flagged.", icon: "calendar"}]},
   {group: "Help", items: [
-    {href: "ask-claude.html", name: "Ask Claude", desc: "Ask for a change to the website or JustGo. Claude does it and marks it done here.", icon: "spark", badge: "ask"}]}
+    {href: "ask-claude.html", name: "Ask Claude", desc: "Ask for a change to JustGo or the SAADI website. Claude does it and marks it done here.", icon: "spark", badge: "ask"}]}
 ];
 const ICONS = {
   home: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',

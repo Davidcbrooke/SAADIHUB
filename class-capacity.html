@@ -775,6 +775,12 @@ async function saveWeek(){
     // Keep every class's booking link in its own store too, so a later sync without links (old bookmark, hand paste) can't wipe them.
     const lm={};parsed.classes.forEach(c=>{if(c.link)lm[linkKey(c.day,c.name)]=c.link});
     if(Object.keys(lm).length)await db.doc("config/classLinks").set({links:lm,updatedAt:new Date().toISOString()},{merge:true}).catch(()=>{});
+    // Email assistant: the same class list (no family details) for Claude's replies about trials and bookings.
+    try{const k=await db.doc("config/emailAssist").get();const ak=k.exists&&k.data().key;
+      if(ak){const ex=await db.doc("config/classLinks").get().catch(()=>null);const all=Object.assign({},(ex&&ex.exists&&ex.data().links)||{},lm);
+        const ed=await db.doc("config/enquiryDesk").get().catch(()=>null);const trialLink=(ed&&ed.exists&&ed.data().trialLink)||"";
+        const classes=parsed.classes.filter(c=>!c.legacy).map(c=>({day:c.day||"",time:c.time||"",name:c.name||"",group:c.group||"",term:c.term||"",spaces:Math.max(0,+c.avail||0),booked:+c.booked||0,waiting:+c.wl||0,link:c.link||all[linkKey(c.day,c.name)]||""}));
+        await firebase.firestore().doc(`data/${ak}/emailAssist/_classes`).set({weekOf:wk,savedAt:doc.savedAt,copiedAt:new Date().toISOString(),trialLink,classes});}}catch(e){console.warn("Class list not copied for the email assistant",e)}
     // Term Renewals page: this term's and next term's registers, as read by the JustGo button.
     if(syncRen){const json=JSON.stringify(syncRen);if(json.length<900000)await db.doc("renewals/latest").set({json,at:syncRen.at,savedAt:new Date().toISOString()}).catch(()=>{});syncRen=null}
     selected=wk;$("saveMsg").textContent="Saved week commencing "+fmtDate(wk)+".";

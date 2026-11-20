@@ -201,6 +201,17 @@ async function connect(on){$("connMsg").textContent="Connecting…";
 $("connect").onclick=()=>connect(true);
 $("copyRoutine").onclick=async()=>{try{await navigator.clipboard.writeText("SAADI_ASSIST_PROJECT="+window.SAADI_FIREBASE_CONFIG.projectId+"\nSAADI_ASSIST_KEY="+(await assistKey())+"\n");$("routineMsg").textContent="Copied ✓"}catch(e){$("routineMsg").textContent="Couldn't copy. Try again."}};$("switchOff").onclick=()=>connect(false);
 
+/* Claude's class list: the latest week's classes from Class Capacity (no family details), with each class's
+   JustGo booking link, so replies about trials and bookings can suggest the right class and include its link. */
+async function syncClasses(){
+  const q=await Hub.col("snapshots").orderBy("weekOf","desc").limit(1).get();if(q.empty)return;
+  const snap=q.docs[0].data();let links={};
+  try{const l=await Hub.doc("config/classLinks").get();links=l.exists&&l.data().links||{}}catch(e){}
+  const key=(d,n)=>String(d||"").slice(0,3).toLowerCase()+"|"+String(n||"").replace(/\s+/g," ").trim().toUpperCase();
+  const classes=(snap.classes||[]).filter(c=>!c.legacy).map(c=>({day:c.day||"",time:c.time||"",name:c.name||"",group:c.group||"",term:c.term||"",
+    spaces:Math.max(0,+c.avail||0),booked:+c.booked||0,waiting:+c.wl||0,link:EQ.linkFor(Object.assign({},c,{link:c.link||links[key(c.day,c.name)]}),S)||""}));
+  await A("emailAssist/_classes").set({weekOf:snap.weekOf,savedAt:snap.savedAt||"",copiedAt:new Date().toISOString(),trialLink:S.trialLink||"",classes});
+}
 async function load(){
   try{const d=await Hub.doc("config/enquiryDesk").get();S=EQ.settings(d.exists?d.data():{})}catch(e){}
   Hub.doc("config/enquiryDesk").onSnapshot(d=>{if(d.exists)S=EQ.settings(d.data())},()=>{});
@@ -209,6 +220,7 @@ async function load(){
   A("emailAssist/_config").onSnapshot(c=>{if(c.exists)CFG=Object.assign(CFG,{lastClaude:c.data().lastClaude})},()=>{});
   $("facts").value=CFG.facts||STARTER_FACTS;$("signOff").value=CFG.signOff||(S.signOff||"Kind regards,\nSAADI Gymnastics Reception");
   if(!CFG.facts)$("factsMsg").textContent="These are starter facts: check them and press Save.";
+  syncClasses().catch(e=>console.warn("Class list not copied for Claude",e));
   AC("emailAssist").where("status","in",["new","waiting"]).onSnapshot(s=>{ITEMS=s.docs.map(d=>d.data());render()},
     e=>{$("statusNote").hidden=false;$("statusNote").textContent="Couldn't load the emails ("+(e.code||"error")+")."});
   status();setInterval(status,60000);

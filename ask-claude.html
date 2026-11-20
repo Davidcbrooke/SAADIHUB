@@ -86,7 +86,7 @@ details summary{cursor:pointer;font-weight:700;color:var(--accent);font-size:14p
         <label class="f" for="aText">The change
           <textarea id="aText" required></textarea></label>
         <div class="grid2">
-          <label class="f" for="aName">Your name<input type="text" id="aName" placeholder="e.g. Steph" required></label>
+          <label class="f" for="aName">Your name<select id="aName" required><option value="">Choose your name</option><option>Ash</option><option>Carole</option><option>Cat</option><option>Dave</option><option>Julie</option><option>Kasia</option><option>Kayleigh</option><option>Mel</option></select></label>
         </div>
         <div class="shotbox" id="shotBox" tabindex="0" role="button" aria-label="Add a screenshot">
           <div id="shotPrev"></div>
@@ -157,7 +157,7 @@ $("shotBox").onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();$
 $("shotFile").onchange=e=>takeImage(e.target.files[0]);
 document.addEventListener("paste",e=>{const it=[...(e.clipboardData||{}).items||[]].find(i=>i.type.startsWith("image/"));if(it){e.preventDefault();takeImage(it.getAsFile())}});
 
-$("aName").value=me();
+$("aName").value=[...$("aName").options].some(o=>o.value&&o.value===me())?me():"";
 /* the example in the box follows the choice */
 const EXAMPLE={"JustGo":"e.g. Christmas camp 22 Dec: change the capacity from 30 to 36, and add 'Bring a packed lunch' to the description.",
   "SAADI Website":"e.g. Holiday camps page: change the February dates to 16 to 20 Feb 2027.","Something else":"Describe what you'd like changed and where it is."};
@@ -167,7 +167,7 @@ $("askForm").addEventListener("submit",async e=>{
   e.preventDefault();
   const text=$("aText").value.trim(), by=$("aName").value.trim();
   if(!text){$("aMsg").textContent="Write what you'd like changed first.";$("aText").focus();return}
-  if(!by){$("aMsg").textContent="Add your name, so Claude knows who to ask.";$("aName").focus();return}
+  if(!by){$("aMsg").textContent="Choose your name, so Claude knows who to ask.";$("aName").focus();return}
   try{localStorage.setItem("saadiAssistName",by)}catch(x){}
   $("aGo").disabled=true;$("aMsg").textContent="Sending…";
   try{

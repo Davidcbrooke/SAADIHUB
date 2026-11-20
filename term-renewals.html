@@ -131,7 +131,7 @@ input[type=text]{width:100%}
       </section>
 
       <section class="panel" id="changesPanel">
-        <div class="panel-head"><h2>Class change requests</h2><span class="muted small" id="chNote"></span></div>
+        <div class="panel-head"><h2>Class change requests</h2><span class="row" style="gap:8px"><span class="muted small" id="chNote"></span><button type="button" id="reread" title="Read every emailed class change and leaving request again, with the latest reading rules">Re-read emailed requests</button></span></div>
         <div class="tbl-wrap"><table class="t"><thead><tr><th>Child and class now</th><th>Would like</th><th>Notes</th><th>Next term's classes that fit</th></tr></thead><tbody id="chBody"></tbody></table></div>
         <p class="hint">Matched to next term's classes on the requested days and times, for the child's school year (worked out from their current class and their age in JustGo), not by colour, as colours cover different years in different classes. <b>Space now</b>: free after holding places for children who haven't renewed yet, so you can send the booking link now. <b>Wait</b>: the class only has room once renewals close. <b>Full</b>: no room even then. For Wait or Full you can still press <b>Send link anyway</b>: that email doesn't promise a place, and tells the family to join the waiting list if the class is full.</p>
       </section>
@@ -183,7 +183,7 @@ input[type=text]{width:100%}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="hub-core.js"></script>
-<script src="enquiry-core.js?v=19"></script>
+<script src="enquiry-core.js?v=20"></script>
 <script>
 if("serviceWorker" in navigator&&location.protocol==="https:"){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))}
 (function(){
@@ -216,17 +216,20 @@ function mailState(){const ok=mailerReady();$("mailState").className="pill "+(ok
 const DEFAULT_SHEET="17boEMurQUThsl_dLuErVX7bEbjYS9EhiDgTSsf3KZ4s";
 const sheetId=()=>{const v=String(cfg.sheetId||DEFAULT_SHEET);return (v.match(/\/d\/([\w-]{20,})/)||[0,v])[1]};
 let loading=false;
-async function loadResponses(){
+async function loadResponses(reimport){
   if(loading||!R)return;
   if(!mailerReady()){$("respNote").textContent="Set up sending from reception@ first (Enquiry Desk > Emails & settings) to read the form responses.";return}
-  loading=true;$("respNote").textContent="Reading the form responses…";
-  try{const r=await fetch(S.mailerUrl,{method:"POST",body:JSON.stringify({token:S.mailerToken,sheet:sheetId()})});const j=await r.json();
+  loading=true;$("respNote").textContent=reimport?"Reading every emailed request again… (this can take a minute)":"Reading the form responses…";
+  try{const r=await fetch(S.mailerUrl,{method:"POST",body:JSON.stringify({token:S.mailerToken,sheet:sheetId(),reimport:!!reimport})});const j=await r.json();
     if(!j.ok||!j.tabs){
       // An older mailer doesn't know how to read the sheet and treats the request as an email with no address.
       if(/email address|nothing to send/i.test(j.error||"")){$("mailerOld").hidden=false;throw new Error("the mailer needs updating")}
       throw new Error(j.error||"not read")}
     // Version 3 also copies families' "Change of class" / "Not continuing" emails from reception's inbox into the sheet.
-    const old3=!(j.v>=4);$("mailerOld").hidden=!old3;if(old3)$("mailerOldWhy").textContent="To file families' emailed class changes and leavers in a Renewal replies folder and add them to the sheet automatically";
+    const old3=!(j.v>=4),old7=!(j.v>=7);$("mailerOld").hidden=!old7;
+    if(old3)$("mailerOldWhy").textContent="To file families' emailed class changes and leavers in a Renewal replies folder and add them to the sheet automatically";
+    else if(old7)$("mailerOldWhy").textContent="To read emailed class change requests properly (what they wrote anywhere in the email, wrapped lines, 'weekends') and to re-read the ones already in";
+    if(reimport&&old7)toast("Update the mailer first: re-reading needs version 7");
     resp=EQ.parseResponses(j.tabs);respAt=new Date();
     const fromEmails=[...resp.changes,...resp.leavers].filter(x=>/email/i.test(x.tab)).length;
     $("respNote").textContent=`From "${j.name}": ${resp.changes.length} class change${resp.changes.length===1?"":"s"}, ${resp.leavers.length} leaving${fromEmails?` (${fromEmails} from emails${j.added?`, ${j.added} new`:""})`:""}${j.importError?" · couldn't check the inbox: "+j.importError:""} · read at ${respAt.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}`;
@@ -234,6 +237,7 @@ async function loadResponses(){
   loading=false;render();
 }
 $("respRefresh").onclick=()=>{respAt=null;loadResponses()};
+$("reread").onclick=()=>{if(!confirm("Read every emailed class change and leaving request again? The two \"(emails)\" tabs in the renewal sheet are rebuilt from reception's Renewal replies folder. Anything you've removed from the list here stays removed."))return;respAt=null;loadResponses(true)};
 $("setSave").onclick=async()=>{try{await Hub.doc("config/renewals").set({sheetId:$("sheetId").value.trim(),closeDate:$("closeDate").value},{merge:true});$("setMsg").textContent="Saved ✓";respAt=null;loadResponses()}catch(e){$("setMsg").textContent="Couldn't save"}};
 const yrsTxt=ys=>ys&&ys.length?EQ.yearsText(ys):"their age";
 const SCOL={renewed:"var(--good)",changing:"var(--warn)",leaving:"var(--bad)",none:"var(--none)"},SLAB={renewed:"Renewed",changing:"Class change requested",leaving:"Leaving",none:"No response yet"};
@@ -261,13 +265,14 @@ function renderStatus(){
   if($("chShowRm"))$("chShowRm").onclick=e=>{e.preventDefault();showRemoved=!showRemoved;render()};
   $("chBody").innerHTML=rows.map(({ch,ck,rk},i)=>{const k=ck.kid,of=offered(ch.email,ck.name),isRm=!!removed[rk];
     const now=k&&k.cur?`${esc(k.cur.day)} ${esc(timeOf(k.cur))} ${esc(title(k.cur))}${k.age?" · age "+esc(String(k.age).replace(/\D+$/,"")):""}${ck.years&&ck.years.length?" · "+esc(yrsTxt(ck.years)):""}`:`${esc(ck.day)} ${esc(ck.time)} ${esc(ck.colour)}`;
-    const opts=ck.options.length?ck.options.slice(0,4).map((o,j)=>{const n=o.n,lab=`${esc(n.day)} ${esc(timeOf(n))} ${esc(title(n))}`;
+    const nr=ck.noRequest?`<div class="small" style="color:var(--warn);margin-bottom:4px"><b>Their email didn't say which days or times.</b> ${ck.options.length?`Classes for ${esc(yrsTxt(ck.years))}:`:"Open their email to see what they'd like."}</div>`:"";
+    const opts=nr+(ck.options.length?ck.options.slice(0,4).map((o,j)=>{const n=o.n,lab=`${esc(n.day)} ${esc(timeOf(n))} ${esc(title(n))}`;
       const pill=o.free>0?`<span class="pill good">Space now (${o.free})</span>`:o.freeAfter>0?`<span class="pill warn">Wait: ${o.freeAfter} free after renewals close${cfg.closeDate?" ("+new Date(cfg.closeDate).toLocaleDateString("en-GB",{day:"numeric",month:"short"})+")":""}</span>`:'<span class="pill bad">Full</span>';
       const ageP=ck.otherAge?` <span class="pill none">${n.years&&n.years.length?esc(EQ.yearsText(n.years)):"Other age group"}</span>`:"";
       return `<div class="opt"><span class="chip" style="--bc:${EQ.BAND_COLOURS[n.colour]||"var(--none)"}"></span>${lab}${ageP} ${pill}${(()=>{const sent=sentFor(ch.email,ck.name,n.g);
         if(sent)return ` <button type="button" class="sentbtn" data-offer="${i}:${j}"${o.free>0?"":' data-full="1"'} data-sent="${esc(fmtD(sent))}" title="Sent ${esc(fmtD(sent))}. Click to send again">✓ Sent ${esc(fmtD(sent))}</button>`;
         return o.free>0?` <button type="button" class="primary" data-offer="${i}:${j}">Send offer</button>`:` <button type="button" data-offer="${i}:${j}" data-full="1">Send link anyway</button>`})()}</div>`}).join("")+(ck.otherAge?`<div class="small" style="color:var(--warn)">No ${esc(yrsTxt(ck.years))} class on the requested day${ck.options.length>1?"s":""}: these are for a different age group, so check before offering.</div>`:"")+(ck.otherTime?`<div class="small" style="color:var(--warn)">No class for ${esc(yrsTxt(ck.years))} at the requested time${ck.options.length>1?"s":""}: these are ${esc(yrsTxt(ck.years))} classes on the requested day${ck.options.length>1?"s":""} at other times.</div>`:"")+(ck.yearsKnown?"":'<div class="small" style="color:var(--warn)">Couldn\'t tell this child\'s school year: check the class suits them.</div>')
-      :`<span class="muted small">No ${esc(yrsTxt(ck.years))} class next term on the requested days.</span>`;
+      :ck.noRequest?"":`<span class="muted small">No ${esc(yrsTxt(ck.years))} class next term on the requested days.</span>`);
     const rmBtn=isRm?`<div><span class="pill none">Removed ${esc(fmtD(removed[rk]))}</span> <button type="button" class="rmbtn" data-restore="${esc(rk)}">Put back on list</button></div>`:`<div><button type="button" class="rmbtn" data-remove="${esc(rk)}">Remove from list</button></div>`;
     return `<tr${isRm?' style="opacity:.55"':""}><td><b>${esc(ck.name)}</b>${ck.renewed?' <span class="pill good">Already booked</span>':""}${of?` <span class="pill warn">Offered ${new Date(of).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</span>`:""}<div class="small muted">${now}</div><div class="small muted">${esc(ch.email)}</div>${whenMs(ch.at)?`<div class="small muted">Asked ${new Date(whenMs(ch.at)).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}${/email/i.test(ch.tab||"")?" by email":""}</div>`:""}${rmBtn}</td>
       <td class="small">${esc(ch.reqText||"")}${ch.borrowed?`<div class="muted">Using the family's later request: ${esc(ch.borrowed)}</div>`:""}</td><td class="small">${esc(ch.notes||"")}</td><td>${opts}</td></tr>`}).join("")||'<tr><td colspan="4" class="muted">No class change requests yet.</td></tr>';

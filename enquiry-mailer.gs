@@ -1,7 +1,7 @@
 // Template only. Get your own copy, with the desk's key filled in, from the desk:
 // Emails & settings > Sending emails > Copy the mailer code.
 /**
- * SAADI Enquiry Desk mailer (version 6). Sends the desk's emails from reception@saadigymnastics.co.uk,
+ * SAADI Enquiry Desk mailer (version 7). Sends the desk's emails from reception@saadigymnastics.co.uk,
  * reads the renewal form responses for the Term Renewals page, and every 5 minutes moves families' emailed
  * "Change of class" / "Not continuing" requests into the "Renewal replies" folder and adds them to that spreadsheet.
  * Set up from the desk: Emails & settings > Sending emails. Don't share this code: it contains the desk's key.
@@ -15,7 +15,7 @@ function doPost(e) {
     if (p.token !== KEY) return reply({ ok: false, error: 'wrong key' });
     var me = Session.getEffectiveUser().getEmail();
     if (me.toLowerCase() !== SENDER.toLowerCase()) return reply({ ok: false, from: me, error: 'this mailer is in ' + me + "'s Google account, not " + SENDER });
-    if (p.ping) return reply({ ok: true, from: me, left: MailApp.getRemainingDailyQuota(), v: 6 });
+    if (p.ping) return reply({ ok: true, from: me, left: MailApp.getRemainingDailyQuota(), v: 7 });
     if (p.assist) return reply(assistHandle(p, me));
     // Term Renewals: read the renewal form responses (class change / non renewal) from a spreadsheet reception can open.
     if (p.sheet) {
@@ -24,10 +24,10 @@ function doPost(e) {
       PropertiesService.getScriptProperties().setProperty('RENEWAL_SHEET', p.sheet);
       var lock = LockService.getScriptLock();
       if (lock.tryLock(20000)) {
-        try { moveRenewalEmails(); added = importRenewalEmails(ss); } catch (ie) { importError = String(ie.message || ie); } finally { lock.releaseLock(); }
+        try { moveRenewalEmails(); added = p.reimport ? reimportRenewalEmails(ss) : importRenewalEmails(ss); } catch (ie) { importError = String(ie.message || ie); } finally { lock.releaseLock(); }
       }
       ss.getSheets().forEach(function (sh) { tabs[sh.getName()] = sh.getDataRange().getDisplayValues(); });
-      return reply({ ok: true, from: me, name: ss.getName(), tabs: tabs, added: added, importError: importError, v: 4 });
+      return reply({ ok: true, from: me, name: ss.getName(), tabs: tabs, added: added, importError: importError, v: 7 });
     }
     if (!p.to || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(p.to)) return reply({ ok: false, error: 'email address missing or not valid' });
     if (!p.subject || !p.html) return reply({ ok: false, error: 'nothing to send' });
@@ -114,13 +114,17 @@ function importRenewalEmails(ss) {
       var ts = Utilities.formatDate(m.getDate(), tz, 'MM/dd/yyyy HH:mm:ss');
       var kids = kidsFrom(subj, body);
       if (isChange) {
-        var wish = section(body, /Days and times that would suit us\s*:/i);
+        // What they'd like: the words after "Days and times that would suit us:", or, if they wrote somewhere else
+        // in the email (at the top, or after "Thank you"), whatever they wrote that isn't part of the ready-made email.
+        var wish = section(body, /Days and times that would suit us\s*:/i) || freeText(body);
         var row = [ts, email];
-        for (var i = 0; i < 4; i++) { var k = kids[i] || ['', '', '', '']; row.push(k[0], k[1], k[2], k[3]); }
+        // The current class goes with the colour (e.g. "Yellow · YEAR 1 - 2"), so the hub can tell the school year
+        // even when the email address isn't the one in JustGo.
+        for (var i = 0; i < 4; i++) { var k = kids[i] || ['', '', '', '', '']; row.push(k[0], k[1], k[2], [k[3], k[4]].filter(String).join(' · ')); }
         row.push(wish, daysIn(wish).join(', '), wish.replace(/\s+or\s+/gi, ', '), subj);
         change.push(row);
       } else {
-        var reason = section(body, /Reason \(optional\)\s*:/i) || 'Not continuing (emailed reception)';
+        var reason = section(body, /Reason \(optional\)\s*:/i) || freeText(body) || 'Not continuing (emailed reception)';
         (kids.length ? kids : [['', '', '', '']]).forEach(function (k) {
           leave.push([ts, email, reason, k[0], [k[1], k[2], k[4] || ''].join(' ').trim(), subj]);
         });
@@ -133,13 +137,34 @@ function importRenewalEmails(ss) {
   return change.length + leave.length;
 }
 
-/* Children named in the subject ("...: Mia Smith and Tom Smith"), with their class from the "This term:" line. */
+/* Read every emailed request again (after this code improves): empties the two "(emails)" tabs, which only this
+   script writes, and adds the emails back. Reception's "Remove from list" marks in the hub are kept. */
+function reimportRenewalEmails(ss) {
+  ss = ss || SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('RENEWAL_SHEET'));
+  ['Class change (emails)', 'Non Renewal (emails)'].forEach(function (name) {
+    var sh = ss.getSheetByName(name);
+    if (sh && sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).clearContent();
+    if (sh && sh.getLastRow() > 1) sh.deleteRows(2, sh.getLastRow() - 1);
+  });
+  var done = labelNamed(DONE_LABEL);
+  GmailApp.search('label:renewal-replies-added-to-sheet newer_than:90d', 0, 500).forEach(function (t) { t.removeLabel(done); });
+  var n = 0;
+  for (var round = 0; round < 10; round++) {
+    n += importRenewalEmails(ss);
+    if (!GmailApp.search('label:renewal-replies -label:renewal-replies-added-to-sheet newer_than:90d', 0, 1).length) break;
+  }
+  return n;
+}
+
+/* Children named in the subject ("...: Mia Smith and Tom Smith"), with their class from the "This term:" line.
+   Email apps sometimes wrap that line, so it's read up to the next blank line or the next label. */
 function kidsFrom(subj, body) {
   var who = subj.split(':').slice(1).join(':').trim();
   var names = who && !/^my child$/i.test(who) ? who.split(/\s+and\s+|\s*,\s*|\s*&\s*/).filter(String) : [];
-  var line = (body.match(/This term\s*:\s*([^\n]*)/i) || [])[1] || '', segs = [];
+  var tm = body.match(/This term\s*:\s*([\s\S]*?)(?:\n\s*\n|Days and times|Reason \(optional\)|$)/i);
+  var line = tm ? tm[1].replace(/\s*\n\s*/g, ' ') : '', segs = [];
   line.split(/\s*;\s*/).forEach(function (s) {
-    var m = s.match(/^\s*([^:]+?)\s*:\s*(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s+(\S+)\s*(.*)$/i);
+    var m = s.match(/^\s*([^:]+?)\s*:\s*(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s+(\d[\d:.]*\s*(?:am|pm)?(?:\s*-\s*\d[\d:.]*\s*(?:am|pm)?)?)\s*(.*)$/i);
     if (m) segs.push({ first: m[1].trim(), day: m[2], time: m[3], cls: m[4].trim() });
   });
   if (!names.length) names = segs.map(function (s) { return s.first; });
@@ -164,12 +189,30 @@ function section(body, re) {
   return out.join(' ').replace(/\s+/g, ' ').trim();
 }
 
-function daysIn(text) {
-  var found = [];
-  (String(text).match(/\b(mon|tue|wed|thu|fri|sat|sun)[a-z]*/gi) || []).forEach(function (w) {
-    var d = DAYS.filter(function (x) { return x.slice(0, 3).toLowerCase() === w.slice(0, 3).toLowerCase(); })[0];
-    if (d && found.indexOf(d) < 0) found.push(d);
+/* Anything the parent typed that isn't part of the ready-made email (greeting, "This term:", labels, sign-off, quotes). */
+function freeText(body) {
+  var out = [], stop = false;
+  body.split('\n').forEach(function (l) {
+    if (stop) return;
+    var t = l.trim();
+    if (/^>/.test(t) || /^On .+wrote:\s*$/.test(t) || /^-{2,}\s*Original Message/i.test(t) || /^Sent from my /i.test(t)) { stop = true; return; }
+    if (!t) return;
+    if (/^(hi|hello|dear)\b.{0,30}(saadi|team)?[,!]?\s*$/i.test(t)) return;
+    if (/^We'?d like .+ to move to a different class/i.test(t) || /won'?t be continuing in/i.test(t)) return;
+    if (/^This term\s*:/i.test(t) || /^(Days and times that would suit us|Reason \(optional\))\s*:\s*$/i.test(t)) return;
+    if (/^(thank you|thanks|many thanks|kind regards|best wishes|regards)\b[\s,!.]*$/i.test(t)) return;
+    out.push(t.replace(/^(Days and times that would suit us|Reason \(optional\))\s*:\s*/i, ''));
   });
+  return out.join(' ').replace(/\s+/g, ' ').trim().slice(0, 500);
+}
+
+function daysIn(text) {
+  var found = [], add = function (d) { if (d && found.indexOf(d) < 0) found.push(d); };
+  // Whole day names and the usual short forms only ("month", "friend", "satisfied" aren't days).
+  (String(text).match(/\b(mondays?|mon|tuesdays?|tues?|wednesdays?|weds?|thursdays?|thurs?|thu|fridays?|fri|saturdays?|sat|sundays?|sun)\b/gi) || []).forEach(function (w) {
+    add(DAYS.filter(function (x) { return x.slice(0, 3).toLowerCase() === w.slice(0, 3).toLowerCase(); })[0]);
+  });
+  if (/\bweek-?ends?\b/i.test(text)) { add('Saturday'); add('Sunday'); }
   return found;
 }
 

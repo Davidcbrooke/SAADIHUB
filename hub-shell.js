@@ -118,7 +118,7 @@ async function badges(){
     C("paymentEmails").onSnapshot(s => { LOG = {}; s.docs.forEach(x => LOG[x.id] = x.data()); show(); }, () => {});
   }
   // Enquiry Desk: follow-ups due today
-  if (!window.EQ) await loadScript("enquiry-core.js?v=19");
+  if (!window.EQ) await loadScript("enquiry-core.js?v=20");
   if (window.EQ) Promise.all([D("config/enquiryDesk").get().catch(() => null), C("enquiries").get()]).then(([d, q]) => {
     const S = EQ.settings(d && d.exists ? d.data() : {}), recs = q.docs.map(x => ({id: x.id, ...x.data()}));
     const due = EQ.actions(recs, S, todayIso()).filter(a => a.dueNow).length;

@@ -13,7 +13,8 @@
 //      plus each class's public booking link (what JustGo's "Copy Link" gives), for the Enquiry Desk emails,
 //   5. Term Renewals: when next term's classes are set up (e.g. Spring), reads the registers of this term's Recreational and
 //      Pre-School classes and next term's (child, parent's first name and email, trial / pay-as-you-go), so the hub can show who has renewed,
-//   6. only when every class is in, offers an "Open SAADI Hub" button, which sends it all to the hub
+//   6. Failed Payments: one-off class payments that failed and weren't paid since, and regular payments still failing (Club Finances),
+//   7. only when every class is in, offers an "Open SAADI Hub" button, which sends it all to the hub
 //      in the address after "#jg=" (that part never leaves the browser).
 // It reads only; it never clicks Book, Cancel or anything that changes JustGo.
 (async () => {
@@ -176,10 +177,55 @@
       } else renNote = " (Couldn't read the registers for renewals this time.)";
     }
   } catch (e) { renNote = " (Couldn't read the registers for renewals this time.)"; }
+  // Failed payments, for the hub's Failed Payments page (reads only):
+  //   one-off class payments that failed and haven't been paid since (same payer, same amount, later),
+  //   and regular payments (memberships, squads, flexi school) from JustGo's failure log that haven't been paid since.
+  let pay = null, payNote = "";
+  try {
+    if (alive()) say("Checking failed payments…");
+    const CLUB_DOC = 1187472;
+    const cmd = async (method, args) => {
+      const r = await fetch("/WidgetService.mvc/ExecuteWidgetCommandAlt", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ payload: { commands: [{ Id: 1, Service: "GoMembership", Method: method, Arguments: args }] }, paths: ["commands"] }) });
+      const j = (await r.json())[0];
+      if (!j || !j.IsSuccess) throw new Error(method);
+      return j.Result;
+    };
+    const jd = s => { const m = String(s || "").match(/Date\((\d+),(\d+),(\d+)/); return m ? new Date(+m[1], +m[2], +m[3], 12).getTime() : 0; };
+    const ymd = t => new Date(t).toISOString().slice(0, 10);
+    const since = Date.now() - 60 * 864e5;
+    const all = [];
+    for (let pg = 1; pg <= 30; pg++) {
+      const res = await cmd("GetPaymentByOwner", [1, CLUB_DOC, pg, 200, 0, "", 0, 2]);
+      const list = (res && res.payments) || [];
+      all.push(...list);
+      if (list.length < 200 || list.every(p => jd(p.PaymentDate) < since)) break;
+    }
+    const recent = all.filter(p => jd(p.PaymentDate) >= since);
+    const paidSince = f => recent.some(p => p.Payeename === f.Payeename && /^paid$/i.test(p.Status) && p.DocId > f.DocId && Math.abs(p.Total - f.Total) < 0.01);
+    const logRes = await cmd("SelectRecurringFailureLogSummary", ["club", CLUB_DOC, ymd(since), ymd(Date.now()), 1, 1000, ""]);
+    const logs = (logRes && logRes.failureLogs) || [];
+    const regularRefs = new Set(logs.map(l => l.Paymentid));
+    const byRef = {};
+    recent.forEach(p => { byRef[p.PaymentId] = p; });
+    const one = [];
+    const failedOne = recent.filter(p => /fail/i.test(p.Status) && !regularRefs.has(p.PaymentId) && !paidSince(p));
+    for (const f of failedOne) {
+      if (!alive()) break;
+      try {
+        const r = await cmd("SelectReceiptById", [f.DocId, f.MerchantId]);
+        const items = ((r && r.Items) || []).map(i => String(i.ProductName || i.Name || i.Description || ""));
+        one.push([f.PaymentId, jd(f.PaymentDate), f.Total, items.join("\n"), String((r && r.PayeeName) || f.Payeename || ""), String((r && r.PaymentUserEmail) || "")]);
+      } catch (e) {}
+    }
+    const reg = logs.filter(l => { const p = byRef[l.Paymentid]; return !(p && paidSince(p)); })
+      .map(l => [l.Paymentid, jd(l.Date), l.GrossAmount, String(l.Description || ""), ((l.FirstName || "") + " " + (l.LastName || "")).trim(), String(l.EmailAddress || ""), String(l.OwnerUserId || "")]);
+    pay = { v: 1, at: new Date().toISOString(), since: ymd(since), one, reg };
+    payNote = " Failed payments: " + one.length + " one-off, " + reg.length + " regular.";
+  } catch (e) { payNote = " (Couldn't read the failed payments this time.)"; }
   if (!alive()) return;
   frames.forEach(x => x.remove());
-  const url = HUB + "#jg=" + encodeURIComponent(JSON.stringify({ v: 5, at: new Date().toISOString(), n, total, terms: [...terms], text, club, links, ren }));
-  say("All " + n + " classes are ready." + renNote, "Open the hub, check the summary and press Save week.");
+  const url = HUB + "#jg=" + encodeURIComponent(JSON.stringify({ v: 6, at: new Date().toISOString(), n, total, terms: [...terms], text, club, links, ren, pay }));
+  say("All " + n + " classes are ready." + renNote + payNote, "Open the hub, check the summary and press Save week.");
   ov.querySelector("#saadiSyncBtns").innerHTML = "";
   btn("Open SAADI Hub", () => { const w = window.open(url, "saadiHubSync"); if (!w) location.href = url; close(); }, true);
   btn("Cancel", close);

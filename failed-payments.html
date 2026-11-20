@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f20779">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="favicon.ico" sizes="48x48">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>SAADI Failed Payments</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="hub.css">
+<style>
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:640px){.kpis{grid-template-columns:1fr}}
+.kpi .v{font-family:var(--display);font-size:40px;font-weight:700;line-height:1}
+.sec h2{display:flex;align-items:center;gap:10px}
+.row2{border:1px solid var(--line);border-left:6px solid var(--bad);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;background:var(--surface)}
+.row2.quiet{border-left-color:var(--muted);opacity:.85}
+.row2.again{border-left-color:var(--warn)}
+.top3{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.who{margin-right:auto;min-width:0}
+.who b{font-size:16px}
+.who small{display:block;color:var(--muted);font-size:13px}
+.amt{font-family:var(--display);font-size:24px;font-weight:700;white-space:nowrap}
+.what{font-weight:600}
+.meta{font-size:13px;color:var(--muted)}
+.mail{white-space:pre-wrap;background:var(--surface-2);border-radius:8px;padding:10px 12px;font-size:14px}
+.acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button.send{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button.send.sure{background:#7d0b1c;border-color:#7d0b1c;color:#fff}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:10px 18px;border-radius:99px;font-weight:600;z-index:60}
+.small{font-size:13px}
+details summary{cursor:pointer;font-weight:700;color:var(--accent);font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="index.html">
+      <img src="saadi-logo-white.png" alt="SAADI Gymnastics" width="64" height="61">
+      <div><div class="eyebrow">SAADI Gymnastics</div><h1>Failed Payments</h1></div>
+    </a>
+    <div class="head-right">
+      <nav class="hubnav needs-auth" aria-label="Hub pages"><a href="index.html">Hub</a><a href="enquiry-desk.html">Enquiry Desk</a><a href="email-assistant.html">Email Assistant</a><a href="failed-payments.html" aria-current="page">Failed Payments</a><a href="term-renewals.html">Term Renewals</a><a href="class-capacity.html">Class Capacity</a><a href="business-plan.html">Business Plan</a><a href="calendar.html">Club Calendar</a></nav>
+      <button type="button" class="needs-auth" data-lock>Lock</button>
+    </div>
+  </header>
+
+  <div id="statusNote" class="notice" hidden></div>
+
+  <section class="panel auth" id="authPanel" hidden>
+    <h2>Enter the password</h2>
+    <p class="muted" style="margin:0">Failed Payments uses the SAADI Hub password.</p>
+    <form id="authForm" class="wrap" style="gap:12px;margin:0" novalidate>
+      <label class="f" for="authPass">Password <input type="password" id="authPass" autocomplete="current-password" required></label>
+      <label class="row" for="authRemember" style="font-size:14px;gap:6px"><input type="checkbox" id="authRemember" checked> Remember on this device</label>
+      <div class="row"><button class="primary" type="submit" id="authGo">Open</button><span id="authMsg" class="muted" aria-live="polite"></span></div>
+    </form>
+  </section>
+
+  <main class="wrap needs-auth" id="main">
+    <p class="muted" style="margin:0" id="syncLine">Loading…</p>
+    <div class="kpis">
+      <div class="kpi bad"><span class="v" id="kOne">0</span><span class="s">one-off class payments not completed</span></div>
+      <div class="kpi bad"><span class="v" id="kReg">0</span><span class="s">regular payments still failing</span></div>
+      <div class="kpi good"><span class="v" id="kSent">0</span><span class="s">families emailed (last 60 days)</span></div>
+    </div>
+    <div class="row small" style="gap:10px"><label class="row" style="gap:6px">Your name <input type="text" id="myName" placeholder="e.g. Steph" style="width:140px"></label></div>
+
+    <section class="panel sec">
+      <h2>One-off class payments <span class="pill bad" id="pOne">0</span></h2>
+      <p class="small muted" style="margin:0">Play Gym, Pre-School, Parent &amp; Child, camps and other single sessions where the payment failed and the family hasn't paid since. The email checks they still want the place and offers help to book.</p>
+      <div id="listOne" class="wrap" style="gap:10px"></div>
+    </section>
+
+    <section class="panel sec">
+      <h2>Regular payments <span class="pill bad" id="pReg">0</span></h2>
+      <p class="small muted" style="margin:0">Memberships, squads and flexi school plans where JustGo's automatic payment keeps failing. The email asks the family to update their card and offers help.</p>
+      <div id="listReg" class="wrap" style="gap:10px"></div>
+    </section>
+
+    <details class="panel"><summary>Already emailed or sorted</summary><div id="listDone" class="wrap small" style="gap:6px;margin-top:10px"></div></details>
+  </main>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="hub-core.js"></script>
+<script src="enquiry-core.js?v=19"></script>
+<script>
+"use strict";
+const $=Hub.$, esc=Hub.esc;
+let S=EQ.settings({}), PAY=null, LOG={}, BUSY={};
+const QUIET_DAYS=10;
+function toast(m){const t=document.createElement("div");t.className="toast";t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),3200)}
+const me=()=>{try{return localStorage.getItem("saadiAssistName")||""}catch(e){return""}};
+const day=ms=>new Date(ms).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"});
+const dayLong=ms=>new Date(ms).toLocaleDateString("en-GB",{day:"numeric",month:"long"});
+const money=n=>"£"+(+n).toFixed(2).replace(/\.00$/,"");
+const clean=s=>String(s||"").replace(/\s+/g," ").trim();
+const firstName=n=>{const f=clean(n).split(" ")[0]||"";return f?f.charAt(0).toUpperCase()+f.slice(1).toLowerCase():""};
+const keyOf=s=>clean(s).toLowerCase().replace(/[^a-z0-9@.]+/g,"-").slice(0,140);
+const titleish=s=>clean(s).replace(/ \| /g,", ").toLowerCase().replace(/\b([a-z])/g,c=>c.toUpperCase()).replace(/\b(Am|Pm)\b/g,c=>c.toLowerCase()).replace(/\b(\d+(?:\.\d+)?)(Am|Pm)\b/gi,(m,a,b)=>a+b.toLowerCase());
+
+/* "AGED 3 AND 4 YEARS | WEDS 11AM | MIXED  (Child Name) - Preschool Classes for 3-5 Y..." -> class, child, group.
+   The child can also come at the very end ("One to one ... - One 2 One Private Coaching (C2025…) (Child)"). */
+function splitItem(s){
+  s=clean(String(s||"").replace(/\s*\(C\d{8,}[^)]*\)/g,""));
+  let child="";const end=s.match(/^(.*)\(([^()]*)\)\s*$/);
+  const dash=s.indexOf(" - ");let head=dash>-1?s.slice(0,dash):s, group=dash>-1?s.slice(dash+3):"";
+  const hm=head.match(/^(.*)\(([^()]*)\)\s*$/);
+  if(hm){head=hm[1];child=hm[2]}else if(end&&dash>-1&&group.endsWith(")")){const gm=group.match(/^(.*)\(([^()]*)\)\s*$/);if(gm){group=gm[1];child=gm[2]}}
+  const cls=head.replace(/\|\s*MIXED\s*$/i,"").replace(/\s*\|\s*$/,"").trim();
+  return {cls,child:clean(child),group:clean(group.replace(/\s*\([^()]*\)\s*$/,""))};
+}
+const isCheckout=desc=>/PendingCardCapture/i.test(desc);
+function oneOffRows(){
+  const by={};
+  (PAY.one||[]).forEach(([ref,date,total,items,payer,email])=>{
+    String(items||"").split("\n").filter(Boolean).forEach(it=>{
+      const x=splitItem(it);const k="o-"+keyOf(email+"-"+x.child+"-"+x.cls);
+      const r=by[k]||(by[k]={key:k,type:"one",payer,email,child:x.child,cls:x.cls,group:x.group,amount:total,dates:[],refs:[]});
+      r.dates.push(date);r.refs.push(ref);if(date>=Math.max(...r.dates))r.amount=total;
+    });
+  });
+  (PAY.reg||[]).filter(x=>isCheckout(x[3])).forEach(([ref,date,amount,desc,payer,email])=>{
+    plansOf(desc).forEach(it=>{
+      const x=splitItem(it);const k="o-"+keyOf(email+"-"+x.child+"-"+x.cls);
+      const r=by[k]||(by[k]={key:k,type:"one",payer,email,child:x.child,cls:x.cls,group:x.group,amount,dates:[],refs:[]});
+      r.dates.push(date);r.refs.push(ref);
+    });
+  });
+  return Object.values(by);
+}
+/* Affected plans are separated by "|" with no spaces (class names contain " | " with spaces) */
+const plansOf=desc=>(String(desc).split(/Affected Plans:/i)[1]||"").split(/(?<! )\|(?! )/).map(clean).filter(Boolean);
+/* "Payment Failed for PR… because Payment Unsuccessful - Refused by Card Issuer. Please use an alternative card.\n Affected Plans:\nPLAN (Child) - Group (C…)|PLAN2 (Child)" */
+function regRows(){
+  const by={};
+  (PAY.reg||[]).filter(x=>!isCheckout(x[3])&&plansOf(x[3]).length&&x[2]).forEach(([ref,date,amount,desc,payer,email,owner])=>{
+    const reason=clean((String(desc).match(/because\s+([\s\S]*?)\s*Affected Plans:/i)||[,""])[1]).replace(/^Payment Unsuccessful\s*-\s*/i,"").replace(/\.\s*Please.*$/i,"");
+    const plans=plansOf(desc);
+    const x=splitItem(plans[0]||"");const k="r-"+keyOf(owner+"-"+x.cls+"-"+x.child);
+    const r=by[k]||(by[k]={key:k,type:"reg",payer,email,child:x.child,cls:x.cls,group:x.group,amount,reason,extra:plans.length-1,dates:[],refs:[]});
+    r.dates.push(date);r.refs.push(ref);if(date>=Math.max(...r.dates)){r.amount=amount;r.reason=reason||r.reason}
+  });
+  return Object.values(by);
+}
+function emailFor(r){
+  const name=firstName(r.payer), what=titleish(r.cls), kid=r.child?firstName(r.child)+"'s":"your", last=Math.max(...r.dates);
+  const subject="A quick note about your SAADI payment";
+  let body;
+  if(r.type==="one"){
+    const thing=/^additional payment$/i.test(r.cls)?`your additional payment${r.child?" for "+firstName(r.child):""}`:`${kid} ${what}`;
+    body=`Hi ${name||"there"},\n\nWe noticed your payment for ${thing} on ${dayLong(last)} (${money(r.amount)}) didn't go through, so the place isn't booked yet.\n\nIf you'd still like it, you can try again on our website, or just reply to this email and we'll help you book.`;
+  }else{
+    body=`Hi ${name||"there"},\n\nThe latest payment for ${kid} ${what} (${money(r.amount)}) didn't go through.${r.reason?` The card provider said: "${r.reason}".`:""}\n\nThis usually means a card has expired or been replaced. You can update it in your MyBG account, or just reply to this email and we'll happily help.`;
+  }
+  const sign=S.signOff||"Kind regards,\nSAADI Gymnastics Reception";
+  const text=body+"\n\n"+sign;
+  const html='<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.55;color:#222">'+esc(text).replace(/\n/g,"<br>")+"</div>";
+  return {subject,text,html};
+}
+function stateOf(r){
+  const L=LOG[r.key], last=Math.max(...r.dates);
+  if(L&&L.status==="sorted"&&(L.at||0)>=last)return "sorted";
+  if(L&&L.status==="emailed")return last>(L.at||0)?"again":"emailed";
+  return "open";
+}
+function card(r){
+  const st=stateOf(r), last=Math.max(...r.dates), quiet=r.type==="reg"&&Date.now()-last>QUIET_DAYS*864e5, e=emailFor(r), n=r.dates.length;
+  return `<article class="row2 ${st==="again"?"again":quiet?"quiet":""}" data-k="${esc(r.key)}">
+    <div class="top3"><div class="who"><b>${esc(clean(r.payer)||r.email)}</b> <small style="display:inline">${esc(r.email)}</small>
+      <div class="what">${esc(r.child?r.child+" · ":"")}${esc(titleish(r.cls))}${r.extra?` <span class="muted">+${r.extra} more plan${r.extra>1?"s":""}</span>`:""}</div>
+      <div class="meta">${n>1?`Failed ${n} times, last on `:"Failed on "}${esc(day(last))}${r.reason?" · "+esc(r.reason):""}${r.group?" · "+esc(r.group):""}</div>
+      ${st==="again"?`<div class="meta" style="color:var(--warn);font-weight:700">Emailed on ${esc(day(LOG[r.key].at))}, and it has failed again since.</div>`:""}
+      ${quiet?`<div class="meta">No failure for ${Math.floor((Date.now()-last)/864e5)} days: it may be sorted. Check in JustGo before emailing.</div>`:""}</div>
+      <span class="amt">${money(r.amount)}</span></div>
+    <details><summary>See the email</summary><div class="mail"><b>${esc(e.subject)}</b>\n\n${esc(e.text)}</div></details>
+    <div class="acts">${r.email?`<button type="button" class="send" data-a="send">Send the email</button>`:`<span class="pill warn">No email address in JustGo</span>`}<button type="button" data-a="sorted" title="Paid or dealt with: take it off this list">Sorted</button></div>
+  </article>`;
+}
+function render(){
+  if(!PAY){$("syncLine").innerHTML="No failed payments read yet. In JustGo, click <b>Send to SAADI Hub</b> (the same button as the weekly numbers): it now reads the failed payments too.";return}
+  const at=new Date(PAY.at), age=Math.round((Date.now()-at)/36e5);
+  $("syncLine").innerHTML=`From JustGo <b>${esc(at.toLocaleString("en-GB",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}))}</b> (last 60 days).`+(age>30?` <span style="color:var(--warn)">Click <b>Send to SAADI Hub</b> in JustGo to refresh.</span>`:"");
+  const one=oneOffRows(), reg=regRows();
+  const open=a=>a.filter(r=>["open","again"].includes(stateOf(r))).sort((a,b)=>Math.max(...b.dates)-Math.max(...a.dates));
+  const o=open(one), g=open(reg);
+  $("kOne").textContent=o.length;$("kReg").textContent=g.length;$("pOne").textContent=o.length;$("pReg").textContent=g.length;
+  $("kSent").textContent=Object.values(LOG).filter(l=>l.status==="emailed"&&Date.now()-(l.at||0)<60*864e5).length;
+  $("listOne").innerHTML=o.map(card).join("")||'<p class="muted small" style="margin:0">None: every failed one-off payment has been paid since, emailed or sorted.</p>';
+  $("listReg").innerHTML=g.map(card).join("")||'<p class="muted small" style="margin:0">None.</p>';
+  const done=[...one,...reg].filter(r=>["emailed","sorted"].includes(stateOf(r)));
+  $("listDone").innerHTML=done.map(r=>{const L=LOG[r.key];return `<div>${esc(clean(r.payer))} · ${esc(r.child?r.child+" · ":"")}${esc(titleish(r.cls))} · <b>${L.status==="sorted"?"Sorted":"Emailed"}</b> ${esc(day(L.at))}${L.by?" by "+esc(L.by):""} <button type="button" data-undo="${esc(r.key)}" style="padding:2px 8px;font-size:12px">Undo</button></div>`}).join("")||'<span class="muted">Nothing yet.</span>';
+  window.__rows=Object.fromEntries([...one,...reg].map(r=>[r.key,r]));
+}
+document.addEventListener("click",async e=>{
+  const u=e.target.closest("button[data-undo]");
+  if(u){await Hub.doc("paymentEmails/"+u.dataset.undo).delete().catch(()=>{});return}
+  const b=e.target.closest("button[data-a]");if(!b)return;
+  const k=b.closest("[data-k]").dataset.k, r=window.__rows[k];if(!r||BUSY[k])return;
+  if(b.dataset.a==="sorted"){await Hub.doc("paymentEmails/"+k).set({status:"sorted",at:Date.now(),by:me(),email:r.email,what:r.cls});toast("Marked as sorted.");return}
+  if(!(S.mailerUrl&&S.mailerToken))return toast("Sending from reception@ isn't set up (Enquiry Desk > Emails & settings).");
+  if(!b.classList.contains("sure")){b.classList.add("sure");b.textContent="Tap again to email "+(firstName(r.payer)||r.email);setTimeout(()=>{if(b.isConnected){b.classList.remove("sure");b.textContent="Send the email"}},5000);return}
+  BUSY[k]=true;b.disabled=true;b.textContent="Sending…";
+  try{
+    const m=emailFor(r);
+    const res=await fetch(S.mailerUrl,{method:"POST",body:JSON.stringify({token:S.mailerToken,to:r.email,subject:m.subject,html:m.html,text:m.text,fromName:S.fromName||"SAADI Gymnastics"})});
+    const j=await res.json();if(!j.ok)throw new Error(j.error||"The mailer refused it.");
+    await Hub.doc("paymentEmails/"+k).set({status:"emailed",at:Date.now(),by:me(),email:r.email,what:r.cls,type:r.type,amount:r.amount});
+    toast("Email sent to "+(firstName(r.payer)||r.email)+".");
+  }catch(err){toast("Not sent: "+err.message);b.disabled=false;b.classList.remove("sure");b.textContent="Send the email"}
+  delete BUSY[k];
+});
+$("myName").value=me();$("myName").onchange=()=>{try{localStorage.setItem("saadiAssistName",$("myName").value.trim())}catch(e){}};
+async function load(){
+  Hub.doc("config/enquiryDesk").onSnapshot(d=>{S=EQ.settings(d.exists?d.data():{});render()},()=>{});
+  Hub.doc("payments/latest").onSnapshot(d=>{try{PAY=d.exists?JSON.parse(d.data().json):null}catch(e){PAY=null}render()},e=>{$("statusNote").hidden=false;$("statusNote").textContent="Couldn't load the payments ("+(e.code||"error")+")."});
+  Hub.col("paymentEmails").onSnapshot(s=>{LOG={};s.docs.forEach(d=>LOG[d.id]=d.data());render()},()=>{});
+}
+Hub.gate(load);
+</script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-﻿// SAADI Business Hub: the shared layout on every page.
+// SAADI Business Hub: the shared layout on every page.
 // A slim top bar (logo, page name on phones, Lock), a menu grouped by job with live counts, and a clean page heading.
 // Each page keeps its own header in the HTML; this moves that page's controls (week picker, "Updating as", Lock...)
 // into the new layout and hides the rest, so every existing button keeps working exactly as before.

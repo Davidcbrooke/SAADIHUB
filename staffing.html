@@ -157,7 +157,7 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
       <p class="small" style="margin:0" id="needSummary"></p>
       <p class="small muted" style="margin:0">From today to the end of the week. <b>Send</b> emails everyone qualified; when someone says yes, <b>Confirm</b> puts them on the rota.</p>
       <div class="list" id="needList"></div>
-      <details class="small" style="margin-top:8px" id="doneWrap"><summary>Covered this week <span id="doneCount"></span></summary><div class="list" id="doneList" style="margin-top:6px"></div></details>
+      <details class="small" style="margin-top:8px" id="doneWrap"><summary>Covered or sorted this week <span id="doneCount"></span></summary><div class="list" id="doneList" style="margin-top:6px"></div></details>
     </section>
 
     <section class="panel" id="positionsPanel" data-pane="positions" hidden>
@@ -345,11 +345,11 @@ function eligibleFor(g){return STAFF.filter(s=>(!g.off||s.id!==g.off.id)&&!isRet
 function renderCover(offCount){
   NEEDS=groupNeeds(needsThisWeek());
   const wkEnd=addDays(weekStart,6);
-  const open=NEEDS.filter(g=>!(COVER[g.id]&&COVER[g.id].status==="covered"));
+  const open=NEEDS.filter(g=>!(COVER[g.id]&&["covered","sorted"].includes(COVER[g.id].status)));
   const offered=open.filter(g=>COVER[g.id]&&COVER[g.id].status==="offered");
-  const done=Object.entries(COVER).filter(([,d])=>d.status==="covered"&&d.date>=weekStart&&d.date<=wkEnd).sort((a,b)=>a[1].date.localeCompare(b[1].date));
+  const done=Object.entries(COVER).filter(([,d])=>["covered","sorted"].includes(d.status)&&d.date>=weekStart&&d.date<=wkEnd).sort((a,b)=>a[1].date.localeCompare(b[1].date));
   const yesCount=open.filter(g=>((REPLIES[g.id]&&REPLIES[g.id].yes)||[]).length).length;
-  $("needSummary").innerHTML=`<b>${open.length-offered.length}</b> need cover · <b>${offered.length}</b> offered${yesCount?` · <b style="color:var(--good)">${yesCount} with a yes to confirm</b>`:""} · <b>${done.length}</b> covered · ${offCount} staff off this week`;
+  $("needSummary").innerHTML=`<b>${open.length-offered.length}</b> need cover · <b>${offered.length}</b> offered${yesCount?` · <b style="color:var(--good)">${yesCount} with a yes to confirm</b>`:""} · <b>${done.length}</b> covered or sorted · ${offCount} staff off this week`;
   $("needCount").textContent=open.length;
   const mailerOk=!!(S.mailerUrl&&S.mailerToken);
   const everyone=STAFF.slice().sort((a,b)=>fullName(a).localeCompare(fullName(b)));
@@ -365,13 +365,16 @@ function renderCover(offCount){
       <td><b>${esc(g.pos.join(" + "))}</b><div class="shs">${shifts}</div></td>
       <td>${status}</td>
       <td class="nac"><div class="na">${yes.map(s=>`<button type="button" class="ok sm" data-confirm="${s.id}">Confirm ${esc(firstOf(s))}</button>`).join("")}${send}
+        <button type="button" class="sm" data-sorted title="Dealt with another way: take it off the list (the rota sheet isn't changed)">Sorted</button>
         <button type="button" class="link sm" data-find title="See or untick who it goes to">${showFind?"▴ names":"▾ names"}</button>
         ${CFG.waOn&&el.length?`<button type="button" class="wa sm" data-wagroup>WhatsApp group</button>`:""}
         <select data-cover class="sm" title="Covered another way"><option value="">Covered by…</option>${everyone.map(s=>`<option value="${s.id}">${esc(fullName(s))}${isRetained(s.id)?" (retained)":g.pos.every(p=>posOf(s.id).includes(p))?"":" (not all positions)"}</option>`).join("")}</select></div></td></tr>
       ${showFind?`<tr class="nx"><td></td><td colspan="4"><div class="elig">${el.map(s=>`<label class="pp"><input type="checkbox" data-elig="${s.id}" ${s.email?"checked":"disabled"}> ${esc(fullName(s))}${s.email?"":" (no email)"}${CFG.waOn&&s.wa?` <button type="button" class="wa sm" data-wa="${s.id}">WhatsApp</button>`:""}</label>`).join("")||'<span class="muted">Nobody with these positions is free. Check the Positions tab.</span>'}</div></td></tr>`:""}</tbody>`});
   $("needList").innerHTML=rows.length?`<table class="nt"><thead><tr><th>Day</th><th>Who's off</th><th>Level needed · shifts</th><th>Status</th><th></th></tr></thead>${rows.join("")}</table>`:'<p class="small muted" style="margin:0">Nothing needs cover from today to the end of this week.</p>';
   $("doneCount").textContent=done.length?`(${done.length})`:"";
-  $("doneList").innerHTML=done.map(([id,d])=>`<div class="it" style="border-left-color:var(--good)"><b>${esc(d.coverName)}</b> covering ${esc(d.shift)}${d.offName?` for ${esc(d.offName)}`:""}${d.by?` · confirmed by ${esc(d.by)}`:""}</div>`).join("")||'<span class="muted">None yet.</span>';
+  $("doneList").innerHTML=done.map(([id,d])=>d.status==="sorted"
+    ?`<div class="it" style="border-left-color:var(--muted)"><b>Sorted</b> · ${esc(d.shift||"")}${d.offName?` (${esc(d.offName)} off)`:""}${d.by?` · by ${esc(d.by)}`:""} <button type="button" class="sm" data-unsort="${esc(id)}">Undo</button></div>`
+    :`<div class="it" style="border-left-color:var(--good)"><b>${esc(d.coverName)}</b> covering ${esc(d.shift)}${d.offName?` for ${esc(d.offName)}`:""}${d.by?` · confirmed by ${esc(d.by)}`:""}</div>`).join("")||'<span class="muted">None yet.</span>';
 }
 async function post(body){const r=await fetch(CFG.url,{method:"POST",body:JSON.stringify(Object.assign({token:CFG.token},body))});const j=await r.json();if(!j.ok)throw new Error(j.error||"The Google script refused");return j}
 async function sendMail(to,subject,heading,paras,foot){
@@ -431,6 +434,12 @@ async function offer(g,ids){
   await Hub.doc("cover/"+g.id).set({status:"offered",date:g.date,shift:groupText(g),pos:g.pos,offName:g.off?fullName(g.off):"",offeredTo:[...new Set([...(prev.offeredTo||[]),...sent])],offeredAt:Date.now(),by:me()},{merge:true});
   SENDING.delete(g.id);FIND.delete(g.id);
   toast(`Sent to ${sent.length}${failed.length?`. Not sent: ${failed.join(", ")}`:""}`);render();
+}
+async function markSorted(g){
+  if(!confirm("Mark as sorted?"+NL+NL+groupText(g)+(g.off?NL+"("+fullName(g.off)+" off)":"")+NL+NL+"It comes off the list. The rota sheet isn't changed."))return;
+  await post({action:"close",c:g.id,by:me()||"sorted"}).catch(()=>{});
+  await Hub.doc("cover/"+g.id).set({status:"sorted",date:g.date,shift:groupText(g),pos:g.pos,offName:g.off?fullName(g.off):"",sortedAt:Date.now(),by:me()},{merge:true});
+  toast("Marked as sorted");
 }
 async function confirmCover(g,pid){
   const s=STAFF.find(x=>String(x.id)===String(pid));if(!s)return;
@@ -561,7 +570,11 @@ document.addEventListener("click",e=>{const t=e.target.closest("button[data-tab]
   const w=e.target.closest("button[data-wa]");if(w){waOne(n,w.dataset.wa);return}
   if(e.target.closest("button[data-wagroup]")){waGroup(n);return}
   if(e.target.closest("button[data-offer]")){const box=card.querySelectorAll("input[data-elig]");offer(n,box.length?[...card.querySelectorAll("input[data-elig]:checked")].map(i=>i.dataset.elig):eligibleFor(n).filter(s=>s.email).map(s=>s.id));return}
+  if(e.target.closest("button[data-sorted]")){markSorted(n);return}
   const c=e.target.closest("button[data-confirm]");if(c)confirmCover(n,c.dataset.confirm)});
+document.addEventListener("click",async e=>{const u=e.target.closest("button[data-unsort]");if(!u)return;const id=u.dataset.unsort;
+  await post({action:"reopen",c:id}).catch(()=>{});
+  const prev=COVER[id]||{};await Hub.doc("cover/"+id).set({status:(prev.offeredTo||[]).length?"offered":"open",sortedAt:null},{merge:true});toast("Back on the list")});
 document.addEventListener("change",e=>{const s=e.target.closest("select[data-cover]");if(!s||!s.value)return;const card=s.closest("[data-need]");const n=NEEDS.find(x=>x.id===card.dataset.need);if(n)confirmCover(n,s.value);s.value=""});
 $("posFilter").oninput=renderPositions;$("posAll").onchange=renderPositions;
 $("savePos").onclick=async()=>{const m=Object.assign({},POS());const rows={};

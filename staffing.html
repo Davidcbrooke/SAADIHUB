@@ -77,14 +77,15 @@ table.nt tr.nr.offered td:first-child{border-left-color:var(--warn)}
 table.nt td.nd{white-space:nowrap;font-weight:700}
 table.nt .shs{display:flex;flex-wrap:wrap;gap:2px 10px;font-size:13px;color:var(--muted)}
 table.nt .sh{white-space:nowrap}
-table.nt td.na{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end}
+table.nt td.nac{width:1%;white-space:nowrap}
+table.nt .na{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end;min-width:260px;max-width:420px}
 table.nt tr.nx td{background:var(--surface-2);border-bottom:1px solid var(--line)}
 table.nt .elig{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px}
 button.sm,select.sm{padding:4px 10px;font-size:13px}
 select.sm{max-width:150px}
 button.ok{background:var(--good);border-color:var(--good);color:#fff}
 button.link{background:none;border-color:transparent;color:var(--accent);font-weight:700}
-@media (max-width:760px){table.nt thead{display:none}table.nt tr.nr td{display:block;border-bottom:none}table.nt tr.nr td:first-child{border-left:none}table.nt td.na{justify-content:flex-start}table.nt tbody{display:block;border-bottom:1px solid var(--line);padding:4px 0}}
+@media (max-width:760px){table.nt thead{display:none}table.nt tr.nr td{display:block;border-bottom:none}table.nt tr.nr td:first-child{border-left:none}table.nt .na{justify-content:flex-start;max-width:none}table.nt tbody{display:block;border-bottom:1px solid var(--line);padding:4px 0}}
 .anom{border:1px solid var(--line);border-left:5px solid var(--warn);border-radius:8px;padding:10px 12px;background:var(--surface);display:flex;flex-direction:column;gap:6px}
 .anom.leave{border-left-color:var(--bad)}
 .anom .top{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
@@ -363,10 +364,10 @@ function renderCover(offCount){
       <td><b>${g.off?esc(fullName(g.off)):"Nobody on rota"}</b>${g.off?`<div class="small muted">${g.o.kind==="holiday"?"Holiday":"Off"}${g.off.job?" · "+esc(g.off.job):""}</div>`:""}</td>
       <td><b>${esc(g.pos.join(" + "))}</b><div class="shs">${shifts}</div></td>
       <td>${status}</td>
-      <td class="na">${yes.map(s=>`<button type="button" class="ok sm" data-confirm="${s.id}">Confirm ${esc(firstOf(s))}</button>`).join("")}${send}
+      <td class="nac"><div class="na">${yes.map(s=>`<button type="button" class="ok sm" data-confirm="${s.id}">Confirm ${esc(firstOf(s))}</button>`).join("")}${send}
         <button type="button" class="link sm" data-find title="See or untick who it goes to">${showFind?"▴ names":"▾ names"}</button>
         ${CFG.waOn&&el.length?`<button type="button" class="wa sm" data-wagroup>WhatsApp group</button>`:""}
-        <select data-cover class="sm" title="Covered another way"><option value="">Covered by…</option>${everyone.map(s=>`<option value="${s.id}">${esc(fullName(s))}${isRetained(s.id)?" (retained)":g.pos.every(p=>posOf(s.id).includes(p))?"":" (not all positions)"}</option>`).join("")}</select></td></tr>
+        <select data-cover class="sm" title="Covered another way"><option value="">Covered by…</option>${everyone.map(s=>`<option value="${s.id}">${esc(fullName(s))}${isRetained(s.id)?" (retained)":g.pos.every(p=>posOf(s.id).includes(p))?"":" (not all positions)"}</option>`).join("")}</select></div></td></tr>
       ${showFind?`<tr class="nx"><td></td><td colspan="4"><div class="elig">${el.map(s=>`<label class="pp"><input type="checkbox" data-elig="${s.id}" ${s.email?"checked":"disabled"}> ${esc(fullName(s))}${s.email?"":" (no email)"}${CFG.waOn&&s.wa?` <button type="button" class="wa sm" data-wa="${s.id}">WhatsApp</button>`:""}</label>`).join("")||'<span class="muted">Nobody with these positions is free. Check the Positions tab.</span>'}</div></td></tr>`:""}</tbody>`});
   $("needList").innerHTML=rows.length?`<table class="nt"><thead><tr><th>Day</th><th>Who's off</th><th>Level needed · shifts</th><th>Status</th><th></th></tr></thead>${rows.join("")}</table>`:'<p class="small muted" style="margin:0">Nothing needs cover from today to the end of this week.</p>';
   $("doneCount").textContent=done.length?`(${done.length})`:"";

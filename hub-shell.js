@@ -18,7 +18,7 @@ const PAGES = [
     {href: "business-plan.html", name: "Business Plan", desc: "Every objective with its owner, due date and progress.", icon: "target"},
     {href: "calendar.html", name: "Club Calendar", desc: "Term dates, assessments and competitions, with clashes flagged.", icon: "calendar"}]},
   {group: "Team", items: [
-    {href: "staffing.html", name: "Staffing", desc: "Who's coaching each class this week, from the rota sheet, with anyone off in Breathe flagged.", icon: "people"}]}
+    {href: "staffing.html", name: "Staffing", desc: "Who's off, who's covering, and offering spare shifts to the people who can do them.", icon: "people"}]}
 ];
 const ICONS = {
   home: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',

@@ -2,7 +2,7 @@
  * SAADI Hub: Staffing connector (Google Apps Script web app).
  * Reads the termly staffing sheet and Breathe HR, and gives the Hub only what the Staffing page needs:
  *   - the rota tabs (cell text, and the class column's colours),
- *   - current staff: id, names, job title, department (no pay, bank, address or other personal details),
+ *   - current staff: id, names, work email (for cover requests), job title, department (no pay, bank, address or other personal details),
  *   - time off in a date range: who, from, to, half days, and "holiday" or "off" (never the reason or sickness type).
  * The Breathe key stays in this script's properties and never reaches the Hub or anyone's browser.
  *
@@ -23,17 +23,66 @@ function doPost(e) {
   try {
     var q = JSON.parse(e.postData.contents || '{}');
     if (!q.token || q.token !== prop_('TOKEN')) return out_({ ok: false, error: 'Wrong token' });
+    var res = { ok: true, at: new Date().toISOString(), version: 3 };
+    // cover: write the confirmed person into the rota, or close a shift so late "I can do it" taps are thanked and turned away
+    if (q.action === 'write') { res.written = write_(q.sheetId || prop_('SHEET_ID'), q); return out_(res); }
+    if (q.action === 'close') { P.setProperty('X:' + q.c, JSON.stringify({ by: q.by || '', at: res.at })); return out_(res); }
+    if (q.action === 'reopen') { P.deleteProperty('X:' + q.c); return out_(res); }
     var want = q.want || ['rota', 'staff', 'off'];
-    var res = { ok: true, at: new Date().toISOString(), version: 2 };
     if (want.indexOf('rota') >= 0) res.rota = rota_(q.sheetId || prop_('SHEET_ID'));
     if (want.indexOf('staff') >= 0) res.staff = staff_();
     if (want.indexOf('off') >= 0) res.off = off_(q.from, q.to);
+    if (want.indexOf('replies') >= 0) res.replies = replies_();
     return out_(res);
   } catch (err) {
     return out_({ ok: false, error: String(err && err.message || err) });
   }
 }
-function doGet() { return out_({ ok: true, hello: 'SAADI Hub Staffing connector', version: 2 }); }
+
+/* The "I can do it" link in a cover email: ?c=shift&p=person&n=first name&s=shift text&k=signature */
+function doGet(e) {
+  var p = (e && e.parameter) || {};
+  if (!p.c) return out_({ ok: true, hello: 'SAADI Hub Staffing connector', version: 3 });
+  var ok = p.k && p.k === sign_(p.c + '|' + p.p);
+  var msg, head;
+  if (!ok) { head = 'That link doesn\'t look right'; msg = 'Please reply to the email instead and reception will sort it out.'; }
+  else if (P.getProperty('X:' + p.c)) { head = 'Thank you, ' + (p.n || '') + '!'; msg = 'This shift has already been covered, so you\'re not needed this time. Thanks for offering.'; }
+  else {
+    var key = 'R:' + p.c, list = JSON.parse(P.getProperty(key) || '[]');
+    if (!list.some(function (x) { return String(x.p) === String(p.p); })) list.push({ p: p.p, n: p.n || '', at: new Date().toISOString() });
+    P.setProperty(key, JSON.stringify(list));
+    head = 'Thanks, ' + (p.n || '') + '!';
+    msg = 'You\'ve said you can cover <b>' + esc_(p.s || 'this shift') + '</b>. Reception will confirm by email. It isn\'t yours until they do, as someone else may have said yes first.';
+  }
+  var html = '<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>SAADI cover</title>' +
+    '<div style="font-family:Arial,sans-serif;max-width:520px;margin:40px auto;padding:24px;border-radius:14px;border-top:8px solid #f20779;background:#fff;box-shadow:0 4px 20px rgba(0,0,0,.08)">' +
+    '<h2 style="margin:0 0 10px;color:#1d1a1f">' + esc_(head) + '</h2><p style="font-size:16px;line-height:1.5;color:#333;margin:0">' + msg + '</p>' +
+    '<p style="font-size:13px;color:#888;margin:18px 0 0">SAADI Gymnastics</p></div>';
+  return HtmlService.createHtmlOutput(html).setTitle('SAADI cover').addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+function esc_(s) { return String(s || '').replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function sign_(msg) {
+  var b = Utilities.computeHmacSha256Signature(msg, prop_('TOKEN'));
+  return b.map(function (x) { return ('0' + ((x + 256) % 256).toString(16)).slice(-2); }).join('').slice(0, 20);
+}
+function replies_() {
+  var all = P.getProperties(), out = {};
+  Object.keys(all).forEach(function (k) {
+    if (k.indexOf('R:') === 0) (out[k.slice(2)] = out[k.slice(2)] || {}).yes = JSON.parse(all[k] || '[]');
+    if (k.indexOf('X:') === 0) (out[k.slice(2)] = out[k.slice(2)] || {}).closed = JSON.parse(all[k] || '{}');
+  });
+  return out;
+}
+/* Put the cover person's name in the rota cell, but only if the cell still says what the Hub saw (nobody has changed it since). */
+function write_(id, q) {
+  var sh = SpreadsheetApp.openById(id).getSheetByName(q.tab);
+  if (!sh) throw new Error('No tab called ' + q.tab);
+  var cell = sh.getRange(q.row + 1, q.col + 1), now = String(cell.getDisplayValue()).trim();
+  if (now !== String(q.expect || '').trim()) throw new Error('The rota cell has changed since the Hub read it (it now says "' + now + '"). Refresh and try again.');
+  cell.setValue(q.value);
+  if (q.note) cell.setNote(q.note);
+  return { tab: q.tab, row: q.row + 1, col: q.col + 1, value: q.value };
+}
 function out_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
 
 function rota_(id) {
@@ -70,7 +119,7 @@ function breathe_(path) {
 function staff_() {
   return breathe_('employees').filter(function (e) { return e.status !== 'Ex-employee'; }).map(function (e) {
     return { id: e.id, first: e.first_name || '', last: e.last_name || '', known: e.known_as || '',
-      job: e.job_title || '', dept: (e.department && e.department.name) || '', leaving: e.status === 'Pending leaver' ? (e.leaving_date || 'soon') : '' };
+      email: e.email || e.personal_email || '', job: e.job_title || '', dept: (e.department && e.department.name) || '', leaving: e.status === 'Pending leaver' ? (e.leaving_date || 'soon') : '' };
   });
 }
 

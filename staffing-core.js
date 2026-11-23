@@ -79,9 +79,47 @@ ST.parseTab=(name,values,bgC,ref)=>{
     const cells=weeks.map(w=>String(values[i][w.col]==null?"":values[i][w.col]).trim());
     if(!role||/^[-–]$/.test(role)){continue}
     if(!cls&&!session){session=cls="Desk/Reception"}
-    rows.push({session,cls,termly,role,colour,cells});
+    rows.push({ri:i,session,cls,termly,role,colour,cells,tab:name});
   }
-  return {day,weeks,rows};
+  return {day,weeks,rows,tab:name};
+};
+
+/* ---------- positions: who can do which kind of shift ---------- */
+ST.POSITIONS=["Lead Coach","Assistant","Young Leader","Squad Coach","Pre-School & Drop In","Desk/Reception"];
+const SQUAD=/pearl|diamond|amethyst|topaz|emerald|sapphire|ruby|\bwag\b|\bmag\b|\d\s*hrs?\b|\bdev\b|development|excel|squad|seniors?|juniors?|inters?|starters?|comp practice|tumbl/i;
+const PRE=/pre-?school|parent\s*&?\s*child|drop\s*in|home\s*ed|toddler|flexi|\bsen\b|play\s*gym/i;
+/* The position a rota row needs. */
+ST.positionFor=r=>{
+  const role=clean(r.role),cls=clean(r.cls),ses=clean(r.session);
+  if(/desk|reception/i.test(ses+" "+cls)||/^(morning|afternoon|evening|desk)$/i.test(role))return "Desk/Reception";
+  if(/young\s*leader|^yl\b/i.test(role))return "Young Leader";
+  if(PRE.test(cls))return "Pre-School & Drop In";
+  if(SQUAD.test(cls))return "Squad Coach";
+  if(/assist/i.test(role))return "Assistant";
+  return "Lead Coach";
+};
+/* Suggested positions for each person: what they've done on the rota this term, plus their Breathe job title.
+   Someone who leads can also assist. */
+ST.suggestPositions=(days,staff,who)=>{
+  const out={};const add=(id,p)=>{(out[id]=out[id]||new Set()).add(p)};
+  days.forEach(t=>t.rows.forEach(r=>{const pos=ST.positionFor(r);r.cells.forEach(c=>ST.namesIn(c).forEach(n=>{const p=who(n);if(p&&!p.ignore)add(p.id,pos)}))}));
+  staff.forEach(s=>{const j=low(s.job);
+    if(/duty manager|general manager|operations|owner|^manager/.test(j))add(s.id,"Desk/Reception");
+    if(/senior coach/.test(j)){add(s.id,"Lead Coach");add(s.id,"Assistant")}
+    if(/junior coach/.test(j))add(s.id,"Assistant");
+    if(/young leader/.test(j))add(s.id,"Young Leader")});
+  Object.values(out).forEach(set=>{if(set.has("Lead Coach")||set.has("Squad Coach"))set.add("Assistant")});
+  const res={};for(const k in out)res[k]=ST.POSITIONS.filter(p=>out[k].has(p));return res;
+};
+
+/* A stable id for one shift: date + tab + sheet row. */
+ST.shiftId=(date,r)=>date+"_"+String(r.tab||"").slice(0,3)+"_"+r.ri;
+
+/* Short signature for "I can do it" links (must match the Google script's). */
+ST.sign=async(token,msg)=>{
+  const k=await crypto.subtle.importKey("raw",new TextEncoder().encode(token),{name:"HMAC",hash:"SHA-256"},false,["sign"]);
+  const s=new Uint8Array(await crypto.subtle.sign("HMAC",k,new TextEncoder().encode(msg)));
+  return [...s].map(b=>b.toString(16).padStart(2,"0")).join("").slice(0,20);
 };
 
 ST.parseRota=tabs=>tabs.map(t=>ST.parseTab(t.name,t.values,t.bg)).filter(Boolean);

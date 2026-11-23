@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="hub.css">
-<script src="hub-shell.js?v=2" defer></script>
+<script src="hub-shell.js?v=3" defer></script>
 <style>
 .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 @media (max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -44,6 +44,27 @@
 .names label{display:flex;gap:8px;align-items:center;justify-content:space-between}
 .names select{max-width:190px}
 .names .bad{color:var(--bad);font-weight:700}
+.tabs button{padding:8px 14px;font-weight:700}
+.tabs button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.need{border:1px solid var(--line);border-left:7px solid var(--bad);border-radius:10px;padding:12px 14px;background:var(--surface);display:flex;flex-direction:column;gap:8px}
+.need.offered{border-left-color:var(--warn)}
+.need .top{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.need .when{font-family:var(--display);font-weight:700;font-size:17px}
+.need .what{font-weight:600}
+.need .st{margin-left:auto}
+.need .meta{font-size:13px;color:var(--muted)}
+.need .elig{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:14px}
+.need .elig label{display:flex;gap:5px;align-items:center}
+.need .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.need .yes{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:14px}
+.need .yes button{background:var(--good);border-color:var(--good);color:#fff}
+.swatch{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:middle}
+table.pos{border-collapse:collapse;font-size:13px;min-width:720px}
+table.pos th,table.pos td{border-bottom:1px solid var(--line);padding:5px 8px;text-align:center}
+table.pos th:first-child,table.pos td:first-child{text-align:left;white-space:nowrap}
+table.pos thead th{position:sticky;top:0;background:var(--surface);font-size:12px}
+table.pos td.s{background:#fff6e0}
+.sug{background:#fff6e0;padding:0 4px;border-radius:4px}
 .anom{border:1px solid var(--line);border-left:5px solid var(--warn);border-radius:8px;padding:10px 12px;background:var(--surface);display:flex;flex-direction:column;gap:6px}
 .anom.leave{border-left-color:var(--bad)}
 .anom .top{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
@@ -100,47 +121,57 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
     </section>
 
     <div class="bar" id="topBar" hidden>
-      <div class="bar days" id="days"></div>
+      <div class="bar tabs" id="tabs"><button type="button" data-tab="cover">Cover</button><button type="button" data-tab="rota">Rota</button><button type="button" data-tab="positions">Positions</button><button type="button" data-tab="names">Names &amp; settings <span class="pill warn" id="namesBadge" hidden></span></button></div>
       <span style="flex:1"></span>
       <button type="button" id="prevWk" aria-label="Previous week">&larr;</button><span class="wk" id="wkLabel"></span><button type="button" id="nextWk" aria-label="Next week">&rarr;</button>
       <button type="button" id="thisWk">This week</button>
-      <button type="button" id="reload" title="Read the sheet and Breathe again">Refresh</button>
+      <button type="button" id="reload" title="Read the sheet, Breathe and any replies again">Refresh</button>
     </div>
     <p class="small muted" style="margin:0" id="syncLine"></p>
 
-    <div class="kpis" id="kpis" hidden></div>
+    <div class="kpis" id="kpis" data-pane="cover" hidden></div>
 
-    <section class="panel" id="clashPanel" hidden>
-      <h2>On the rota but off this week <span class="pill bad" id="clashCount">0</span></h2>
-      <p class="small muted" style="margin:0">Booked as holiday or off in Breathe on a day they're on the rota. Find cover, then update the sheet.</p>
-      <div class="list" id="clashList"></div>
+    <section class="panel" id="coverPanel" data-pane="cover" hidden>
+      <h2>Needs cover <span class="pill bad" id="needCount">0</span></h2>
+      <p class="small muted" style="margin:0">Shifts this week where the person on the rota is off in Breathe, or nobody is down. Offer it to everyone who can do that position; when someone says yes, confirm them and the Hub writes their name into the rota.</p>
+      <div class="list" id="needList"></div>
+      <details class="small" style="margin-top:8px" id="doneWrap"><summary>Covered this week <span id="doneCount"></span></summary><div class="list" id="doneList" style="margin-top:6px"></div></details>
     </section>
 
-    <section class="panel" id="anomPanel" hidden>
+    <section class="panel" id="positionsPanel" data-pane="positions" hidden>
+      <h2>Positions</h2>
+      <p class="small muted" style="margin:0">Who can do which kind of shift. Cover is only offered to people with the right position. Ticks start from what each person has done on this term's rota and their Breathe job title (<span class="sug">suggested</span>); change any and press Save.</p>
+      <div class="row small" style="gap:8px;margin:8px 0"><input type="search" id="posFilter" placeholder="Find a name…" style="width:200px"><label class="row" style="gap:6px"><input type="checkbox" id="posAll"> Show everyone in Breathe (not just people on the rota)</label></div>
+      <div style="overflow:auto"><table class="pos" id="posTable"></table></div>
+      <div class="row" style="margin-top:10px"><button type="button" class="primary" id="savePos">Save positions</button><span class="small muted" id="posNote"></span></div>
+    </section>
+
+    <section class="panel" id="anomPanel" data-pane="names" hidden>
       <h2>Names that don't match Breathe <span class="pill warn" id="anomCount">0</span></h2>
       <p class="small muted" style="margin:0">Names on the rota that the Hub can't link to one person in Breathe, so it can't tell when they're off. Fix each one once: it's saved for everyone.</p>
       <div class="list" id="anomList"></div>
       <details class="small" style="margin-top:6px"><summary>Marked as not in Breathe <span id="ignCount"></span></summary><div class="list" id="ignList" style="margin-top:6px"></div></details>
     </section>
 
-    <section class="panel" id="dayPanel" hidden>
+    <section class="panel" id="dayPanel" data-pane="rota" hidden>
+      <div class="bar days" id="days"></div>
       <h2 id="dayTitle"></h2>
       <div id="dayBody"></div>
     </section>
 
-    <section class="panel" id="personPanel" hidden>
+    <section class="panel" id="personPanel" data-pane="rota" hidden>
       <h2>One person's week</h2>
       <div class="bar"><select id="personSel"><option value="">Choose someone…</option></select></div>
       <div class="list" id="personList" style="margin-top:8px"></div>
     </section>
 
-    <details class="panel" id="namesPanel" hidden><summary>Names on the rota and who they are in Breathe <span class="pill warn" id="unkCount" hidden></span></summary>
+    <details class="panel" id="namesPanel" data-pane="names" hidden><summary>Names on the rota and who they are in Breathe <span class="pill warn" id="unkCount" hidden></span></summary>
       <p class="small muted">The rota uses first names and nicknames. Most are matched to Breathe automatically; choose the person for any that aren't (or "Not a person"). Saved for everyone.</p>
       <div class="names" id="namesList"></div>
       <div class="row" style="margin-top:10px"><button type="button" class="primary" id="saveNames">Save names</button></div>
     </details>
 
-    <details class="panel" id="settingsPanel" hidden><summary>Settings</summary>
+    <details class="panel" id="settingsPanel" data-pane="names" hidden><summary>Settings</summary>
       <div class="wrap small" style="gap:10px;margin-top:10px">
         <label class="f">Staffing sheet link (change it each term) <input type="url" id="sheetIn" style="width:100%"></label>
         <label class="f">Connector URL <input type="url" id="urlIn2" style="width:100%"></label>
@@ -154,13 +185,17 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="hub-core.js"></script>
-<script src="staffing-core.js?v=4"></script>
+<script src="enquiry-core.js?v=21"></script>
+<script src="staffing-core.js?v=5"></script>
 <script>
 "use strict";
 const $=Hub.$, esc=Hub.esc;
 const DEFAULT_SHEET="1nP49fJsFAJWqSLZgUmeswqF1INp--4NBELo2gj-Id_s";
 const DAY_ORDER=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 let CFG={}, DATA=null, DAYS=[], STAFF=[], OFF=[], weekStart=null, day=null, busy=false;
+let pane="cover", COVER={}, REPLIES={}, S=EQ.settings({}), SUG={}, FIND=new Set(), SENDING=new Set();
+const POS=()=>CFG.positions||{};
+const me=()=>{try{return localStorage.getItem("saadiAssistName")||""}catch(e){return""}};
 function toast(m){const t=document.createElement("div");t.className="toast";t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),3200)}
 const iso=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 const addDays=(s,n)=>{const d=new Date(s+"T12:00:00");d.setDate(d.getDate()+n);return iso(d)};
@@ -179,7 +214,7 @@ function showSetup(on){$("setupPanel").hidden=!on;$("sheetIdShow").textContent=s
   if(!had)Hub.doc("config/staffing").set({token:CFG.token,sheet:CFG.sheet||DEFAULT_SHEET},{merge:true}).catch(()=>{});   // keep the same token if the page is reopened mid set-up
 }
 $("copyToken").onclick=()=>navigator.clipboard.writeText(token()).then(()=>toast("Token copied"));
-$("copyCode").onclick=async()=>{try{const t=await (await fetch("staffing.gs?v=2")).text();await navigator.clipboard.writeText(t);toast("Code copied: paste it into the script")}catch(e){toast("Couldn't copy: open staffing.gs from the Hub's GitHub")}};
+$("copyCode").onclick=async()=>{try{const t=await (await fetch("staffing.gs?v=3")).text();await navigator.clipboard.writeText(t);toast("Code copied: paste it into the script")}catch(e){toast("Couldn't copy: open staffing.gs from the Hub's GitHub")}};
 $("saveConn").onclick=async()=>{const u=$("urlIn").value.trim();if(!/^https:\/\/script\.google\.com\/macros\/s\//.test(u))return toast("That doesn't look like a Web app URL");
   await Hub.doc("config/staffing").set({url:u,token:token(),sheet:CFG.sheet||DEFAULT_SHEET},{merge:true});toast("Connected: reading the rota…")};
 $("saveSettings").onclick=async()=>{const s=sheetIdOf($("sheetIn").value);if($("sheetIn").value&&!s)return toast("That isn't a Google Sheets link");
@@ -191,9 +226,10 @@ async function load(force){
   if(!CFG.url||busy)return;busy=true;$("syncLine").textContent="Reading the rota and Breathe…";
   try{
     const from=addDays(mondayOf(Hub.todayIso()),-14),to=addDays(from,120);
-    const r=await fetch(CFG.url,{method:"POST",body:JSON.stringify({token:CFG.token,want:["rota","staff","off"],from,to,sheetId:sheetIdOf(CFG.sheet)||undefined})});
+    const r=await fetch(CFG.url,{method:"POST",body:JSON.stringify({token:CFG.token,want:["rota","staff","off","replies"],from,to,sheetId:sheetIdOf(CFG.sheet)||undefined})});
     const j=await r.json();if(!j.ok)throw new Error(j.error||"The connector refused");
-    DATA=j;STAFF=j.staff||[];OFF=j.off||[];
+    DATA=j;STAFF=j.staff||[];OFF=j.off||[];REPLIES=j.replies||{};
+    if(!j.version||j.version<3)toast("The Google script needs updating to version 3 for cover offers (see Names & settings).");
     DAYS=ST.parseRota(j.rota.tabs).sort((a,b)=>DAY_ORDER.indexOf(a.day)-DAY_ORDER.indexOf(b.day));
     $("syncLine").textContent=`From "${j.rota.title}" and Breathe, read at ${new Date(j.at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}.`;
     $("statusNote").hidden=true;
@@ -246,10 +282,117 @@ function dayView(d,date){
   return {html,gaps,clashes,rota:onRota.size};
 }
 
+/* ---------- cover ---------- */
+const posOf=id=>POS()[id]||SUG[id]||[];
+const firstOf=s=>s?(s.known||s.first):"";
+const shiftText=n=>`${pretty(n.date,{weekday:"long",day:"numeric",month:"long"})}, ${n.r.session} ${n.r.cls} (${n.r.role})`;
+/* Shifts this week that need someone: the person on the rota is off in Breathe, or a lead role is empty. */
+function needsThisWeek(){
+  const out=[];
+  DAY_ORDER.forEach(d=>{const t=tabFor(d),date=dateFor(d,weekStart);if(!t)return;const c=weekCol(t,date);if(c<0)return;const w=t.weeks[c];
+    if(NOT_RUN.test(w.label+" "+w.note)&&t.rows.every(r=>!ST.namesIn(r.cells[c]).length))return;
+    const notRun=new Set(t.rows.filter(r=>NOT_RUN.test(r.cells[c])).map(r=>r.session+"|"+r.cls));
+    t.rows.forEach(r=>{if(notRun.has(r.session+"|"+r.cls))return;const raw=r.cells[c];
+      ST.namesIn(raw).forEach(n=>{const p=who(n);if(!p||p.ignore)return;const o=ST.offOn(p.id,date,OFF);
+        if(o)out.push({id:ST.shiftId(date,r)+"_"+p.id,date,day:d,r,col:w.col,raw,tok:n,off:p,o,pos:ST.positionFor(r)})});
+      if((!raw||/^[-–]$/.test(raw))&&ST.isLeadRole(r.role))out.push({id:ST.shiftId(date,r),date,day:d,r,col:w.col,raw:raw||"",tok:null,off:null,pos:ST.positionFor(r)});
+    })});
+  return out.sort((a,b)=>a.date.localeCompare(b.date)||String(a.r.session).localeCompare(String(b.r.session)));
+}
+function busyAt(pid,d,date,session){const t=tabFor(d),c=weekCol(t,date);if(c<0)return false;
+  return t.rows.some(r=>r.session===session&&ST.namesIn(r.cells[c]).some(n=>{const p=who(n);return p&&!p.ignore&&String(p.id)===String(pid)}))}
+function eligible(n){return STAFF.filter(s=>(!n.off||s.id!==n.off.id)&&posOf(s.id).includes(n.pos)&&!ST.offOn(s.id,n.date,OFF)&&!busyAt(s.id,n.day,n.date,n.r.session))
+  .sort((a,b)=>fullName(a).localeCompare(fullName(b)))}
+let NEEDS=[];
+function renderCover(offCount){
+  NEEDS=needsThisWeek();
+  const wkEnd=addDays(weekStart,6);
+  const open=NEEDS.filter(n=>!(COVER[n.id]&&COVER[n.id].status==="covered"));
+  const offered=open.filter(n=>COVER[n.id]&&COVER[n.id].status==="offered");
+  const done=Object.entries(COVER).filter(([,d])=>d.status==="covered"&&d.date>=weekStart&&d.date<=wkEnd).sort((a,b)=>a[1].date.localeCompare(b[1].date));
+  const unk=ST.allTokens(DAYS).filter(t=>!who(t)).length;
+  $("kpis").innerHTML=[[open.length-offered.length,"shifts need cover",open.length-offered.length?"bad":"good"],[offered.length,"offered, waiting for a yes",offered.length?"warn":""],[done.length,"covered this week","good"],[offCount,"staff off this week (Breathe)",""]]
+    .map(([v,s,c])=>`<div class="kpi ${c}"><span class="v">${v}</span><span class="s">${esc(s)}</span></div>`).join("");
+  $("needCount").textContent=open.length;
+  const mailerOk=!!(S.mailerUrl&&S.mailerToken);
+  $("needList").innerHTML=open.map(n=>{
+    const d=COVER[n.id]||{},rep=(REPLIES[n.id]&&REPLIES[n.id].yes)||[],el=eligible(n),showFind=FIND.has(n.id);
+    const yes=rep.map(y=>STAFF.find(s=>String(s.id)===String(y.p))).filter(Boolean);
+    return `<div class="need${d.status==="offered"?" offered":""}" data-need="${esc(n.id)}">
+      <div class="top"><span class="when">${esc(pretty(n.date,{weekday:"short",day:"numeric",month:"short"}))} · ${esc(n.r.session)}</span>
+        <span class="what"><span class="swatch" style="background:${n.r.colour||"var(--muted)"}"></span>${esc(n.r.cls)} · ${esc(n.r.role)}</span>
+        <span class="st">${d.status==="offered"?`<span class="pill warn">Offered to ${(d.offeredTo||[]).length}</span>`:`<span class="pill bad">Needs cover</span>`}</span></div>
+      <div class="meta">${n.off?`${esc(fullName(n.off))} is ${n.o.kind==="holiday"?"on holiday":"off"}`:"Nobody is on the rota for this"} · needs a <b>${esc(n.pos)}</b> · ${el.length} ${el.length===1?"person":"people"} can do it${d.offeredAt?` · offered ${esc(new Date(d.offeredAt).toLocaleString("en-GB",{weekday:"short",hour:"2-digit",minute:"2-digit"}))}${d.by?" by "+esc(d.by):""}`:""}</div>
+      ${yes.length?`<div class="yes"><b>Said yes:</b> ${yes.map(s=>`<button type="button" data-confirm="${s.id}">Confirm ${esc(fullName(s))}</button>`).join("")}</div>`:""}
+      ${showFind?`<div class="elig">${el.map(s=>`<label><input type="checkbox" data-elig="${s.id}" ${s.email?"checked":"disabled"}> ${esc(fullName(s))}${s.email?"":" (no email)"}</label>`).join("")||'<span class="muted">Nobody with this position is free. Add positions on the Positions tab, or choose someone below.</span>'}</div>`:""}
+      <div class="acts">
+        <button type="button" data-find>${showFind?"Hide":"Find cover"}</button>
+        ${showFind&&el.length?`<button type="button" class="primary" data-offer ${mailerOk?"":"disabled title=\"Set up sending from reception@ on the Enquiry Desk first\""}>${SENDING.has(n.id)?"Sending…":`Email the shift to ${el.filter(s=>s.email).length}`}</button>`:""}
+        <select data-cover><option value="">Covered by (arranged another way)…</option>${STAFF.slice().sort((a,b)=>fullName(a).localeCompare(fullName(b))).map(s=>`<option value="${s.id}">${esc(fullName(s))}${posOf(s.id).includes(n.pos)?"":" (no "+esc(n.pos)+")"}</option>`).join("")}</select>
+      </div></div>`}).join("")||'<p class="small muted" style="margin:0">Nothing needs cover this week.</p>';
+  $("doneCount").textContent=done.length?`(${done.length})`:"";
+  $("doneList").innerHTML=done.map(([id,d])=>`<div class="it" style="border-left-color:var(--good)"><b>${esc(d.coverName)}</b> covering ${esc(d.shift)}${d.offName?` for ${esc(d.offName)}`:""}${d.by?` · confirmed by ${esc(d.by)}`:""}</div>`).join("")||'<span class="muted">None yet.</span>';
+}
+async function post(body){const r=await fetch(CFG.url,{method:"POST",body:JSON.stringify(Object.assign({token:CFG.token},body))});const j=await r.json();if(!j.ok)throw new Error(j.error||"The Google script refused");return j}
+async function sendMail(to,subject,heading,paras,foot){
+  const html=EQ.shell(subject,heading,paras,S,foot||"You're receiving this because you're on the SAADI coaching team.");
+  const text=paras.replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim()+"\n\n"+(S.signOff||"SAADI Gymnastics");
+  const r=await fetch(S.mailerUrl,{method:"POST",body:JSON.stringify({token:S.mailerToken,to,subject,html,text,fromName:S.fromName||"SAADI Gymnastics"})});
+  const j=await r.json();if(!j.ok)throw new Error(j.error||"not sent");
+}
+const btn=(href,label)=>`<p style="margin:18px 0"><a href="${esc(href)}" style="display:inline-block;padding:12px 22px;background:#d4066a;color:#ffffff;font-weight:700;font-size:16px;text-decoration:none;border-radius:999px;font-family:Arial,Helvetica,sans-serif">${esc(label)}</a></p>`;
+const para=t=>`<p style="margin:0 0 14px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.55;color:#1d1a1f">${t}</p>`;
+async function offer(n,ids){
+  if(!(S.mailerUrl&&S.mailerToken))return toast("Sending from reception@ isn't set up yet (Enquiry Desk > Emails & settings).");
+  if(!ids.length)return toast("Tick at least one person.");
+  if(!confirm(`Email this shift to ${ids.length} ${ids.length===1?"person":"people"}?\n\n${shiftText(n)}`))return;
+  SENDING.add(n.id);render();let sent=[],failed=[];
+  for(const id of ids){const s=STAFF.find(x=>String(x.id)===String(id));if(!s||!s.email)continue;
+    try{const k=await ST.sign(CFG.token,n.id+"|"+s.id);
+      const link=`${CFG.url}?c=${encodeURIComponent(n.id)}&p=${s.id}&n=${encodeURIComponent(firstOf(s))}&s=${encodeURIComponent(shiftText(n))}&k=${k}`;
+      const subj=`Cover needed: ${pretty(n.date,{weekday:"short",day:"numeric",month:"short"})} ${n.r.session} ${n.r.cls}`;
+      await sendMail(s.email,subj,"Can you cover a shift?",
+        para(`Hi ${esc(firstOf(s))},`)+para(`We need a <b>${esc(n.pos)}</b> for <b>${esc(n.r.cls)}</b> (${esc(n.r.role)}) on <b>${esc(shiftText(n).split(", ")[0])}</b> at <b>${esc(n.r.session)}</b>.`)+
+        para("If you can do it, tap the button. We've asked a few people, so reception will confirm by email who's got it.")+btn(link,"I can do it")+para("If you can't, no need to reply. Thank you!"));
+      sent.push(s.id)}catch(e){failed.push(fullName(s))}}
+  const prev=COVER[n.id]||{};
+  await Hub.doc("cover/"+n.id).set({status:"offered",date:n.date,shift:shiftText(n),pos:n.pos,offName:n.off?fullName(n.off):"",offeredTo:[...new Set([...(prev.offeredTo||[]),...sent])],offeredAt:Date.now(),by:me()},{merge:true});
+  SENDING.delete(n.id);FIND.delete(n.id);
+  toast(`Sent to ${sent.length}${failed.length?`. Not sent: ${failed.join(", ")}`:""}`);render();
+}
+async function confirmCover(n,pid){
+  const s=STAFF.find(x=>String(x.id)===String(pid));if(!s)return;
+  if(!confirm(`Confirm ${fullName(s)} for ${shiftText(n)}?\n\nThe Hub will put "${firstOf(s)}" in the rota sheet${n.off?" instead of "+n.tok:""} and email ${firstOf(s)} to confirm.`))return;
+  const re=n.tok?new RegExp(n.tok.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),"i"):null;
+  const value=re&&re.test(n.raw)?n.raw.replace(re,firstOf(s)):firstOf(s);
+  try{
+    await post({action:"write",tab:n.r.tab,row:n.r.ri,col:n.col,expect:n.raw,value,sheetId:sheetIdOf(CFG.sheet)||undefined,
+      note:`Cover${n.off?" for "+fullName(n.off):""}, confirmed in the SAADI Hub${me()?" by "+me():""} on ${new Date().toLocaleDateString("en-GB")}`});
+    await post({action:"close",c:n.id,by:firstOf(s)}).catch(()=>{});
+    await Hub.doc("cover/"+n.id).set({status:"covered",date:n.date,shift:shiftText(n),pos:n.pos,offName:n.off?fullName(n.off):"",coverId:s.id,coverName:fullName(s),confirmedAt:Date.now(),by:me()},{merge:true});
+    if(s.email&&S.mailerUrl&&S.mailerToken)await sendMail(s.email,`Confirmed: ${pretty(n.date,{weekday:"short",day:"numeric",month:"short"})} ${n.r.session} ${n.r.cls}`,"You're covering this shift",
+      para(`Hi ${esc(firstOf(s))},`)+para(`Thank you! You're confirmed for <b>${esc(n.r.cls)}</b> (${esc(n.r.role)}) on <b>${esc(shiftText(n).split(", ")[0])}</b> at <b>${esc(n.r.session)}</b>. It's on the rota now.`)).catch(()=>toast("Confirmed, but the confirmation email didn't send."));
+    toast(`${fullName(s)} confirmed and added to the rota.`);load(true);
+  }catch(e){toast("Not done: "+e.message)}
+}
+
+/* ---------- positions ---------- */
+function renderPositions(){
+  const onRota=new Set();DAYS.forEach(t=>t.rows.forEach(r=>r.cells.forEach(c=>ST.namesIn(c).forEach(n=>{const p=who(n);if(p&&!p.ignore)onRota.add(String(p.id))}))));
+  const f=$("posFilter").value.trim().toLowerCase(),saved=POS();
+  const ppl=STAFF.filter(s=>($("posAll").checked||onRota.has(String(s.id))||saved[s.id])&&(!f||fullName(s).toLowerCase().includes(f))).sort((a,b)=>fullName(a).localeCompare(fullName(b)));
+  $("posTable").innerHTML=`<thead><tr><th>Name</th>${ST.POSITIONS.map(p=>`<th>${esc(p)}</th>`).join("")}</tr></thead><tbody>`+
+    ppl.map(s=>{const mine=posOf(s.id),isSug=!saved[s.id];return `<tr><td>${esc(fullName(s))} <span class="muted">${esc(s.job||"")}</span></td>${ST.POSITIONS.map(p=>`<td class="${isSug&&mine.includes(p)?"s":""}"><input type="checkbox" data-pid="${s.id}" data-pos="${esc(p)}" ${mine.includes(p)?"checked":""} aria-label="${esc(fullName(s)+": "+p)}"></td>`).join("")}</tr>`}).join("")+"</tbody>";
+  $("posNote").textContent=`${ppl.length} people shown.`;
+}
+
 /* ---------- render ---------- */
 function render(){
   const ready=!!(CFG.url&&DATA);
-  ["topBar","kpis","clashPanel","dayPanel","personPanel","namesPanel","settingsPanel","anomPanel"].forEach(id=>$(id).hidden=!ready&&id!=="settingsPanel");
+  $("topBar").hidden=!ready;
+  document.querySelectorAll("[data-pane]").forEach(el=>el.hidden=!ready||el.dataset.pane!==pane);
+  if(!ready&&CFG.url)$("settingsPanel").hidden=false;
+  document.querySelectorAll("#tabs button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.tab===pane)));
   if(!CFG.url){showSetup(true);return}
   $("sheetIn").value="https://docs.google.com/spreadsheets/d/"+(sheetIdOf(CFG.sheet)||DEFAULT_SHEET)+"/edit";$("urlIn2").value=CFG.url||"";
   if(!DATA)return;
@@ -264,14 +407,10 @@ function render(){
   DAY_ORDER.forEach(d=>{const t=tabFor(d);if(!t)return;const c=weekCol(t,dateFor(d,weekStart));if(c<0)return;t.rows.forEach(r=>ST.namesIn(r.cells[c]).forEach(n=>{const p=who(n);if(p&&!p.ignore)rota.add(p.id)}))});
   const tokens=ST.allTokens(DAYS),unk=tokens.filter(t=>!who(t));
   const offWeek=new Set(OFF.filter(o=>o.start<=addDays(weekStart,6)&&(o.end||o.start)>=weekStart).map(o=>o.emp));
-  // one line per person per day, listing the classes they're down for
-  const grp={};clashes.forEach(x=>{const k=x.p.id+"|"+x.date;(grp[k]=grp[k]||{x,items:[]}).items.push(x)});
-  const lines=Object.values(grp).sort((a,b)=>a.x.date.localeCompare(b.x.date)||fullName(a.x.p).localeCompare(fullName(b.x.p)));
-  const clashPeople=new Set(clashes.map(x=>x.p.id)).size;
-  $("kpis").innerHTML=[[rota.size,"people on the rota this week",""],[clashPeople,"on the rota but off in Breathe",clashPeople?"bad":"good"],[gaps,"classes with no lead",gaps?"bad":"good"],[offWeek.size,"staff off this week (Breathe)",""]]
-    .map(([v,s,c])=>`<div class="kpi ${c}"><span class="v">${v}</span><span class="s">${esc(s)}</span></div>`).join("");
-  $("clashCount").textContent=clashPeople;
-  $("clashList").innerHTML=lines.map(({x,items})=>`<div class="it"><b>${esc(fullName(x.p))}</b> · ${esc(offKind(x.o))} · ${esc(pretty(x.date))} · ${items.length} slot${items.length>1?"s":""}<div class="small muted">${items.map(i=>esc(i.session+" "+i.cls+" ("+i.role+")")).join(" · ")}</div></div>`).join("")||'<p class="small muted" style="margin:0">Nobody on the rota is off this week.</p>';
+  SUG=ST.suggestPositions(DAYS,STAFF,who);
+  $("namesBadge").hidden=!unk.length;$("namesBadge").textContent=unk.length;
+  renderCover(offWeek.size);
+  if(pane==="positions")renderPositions();
   const v=dayView(day,dateFor(day,weekStart));
   $("dayTitle").textContent=`${day} ${pretty(dateFor(day,weekStart),{day:"numeric",month:"long"})}`;
   $("dayBody").innerHTML=v.html;
@@ -310,7 +449,7 @@ function renderAnomalies(tokens,opts){
   });
   const rank={leave:0,many:1,one:2,none:3};
   list.sort((a,b)=>rank[a.kind]-rank[b.kind]||b.a.wk.length-a.a.wk.length||a.t.localeCompare(b.t));
-  $("anomPanel").hidden=!list.length&&!Object.values(names()).includes("ignore");
+  $("anomPanel").hidden=pane!=="names"||(!list.length&&!Object.values(names()).includes("ignore"));
   $("anomCount").textContent=list.length;
   $("anomList").innerHTML=list.map(x=>`<div class="anom${x.kind==="leave"?" leave":""}" data-tok="${esc(x.t)}">
     <div class="top"><b>${esc(x.t)}</b><span class="why">${esc(x.why)}</span></div>
@@ -342,6 +481,16 @@ function renderPerson(){
 
 /* ---------- events ---------- */
 document.addEventListener("click",e=>{const b=e.target.closest("button[data-day]");if(b){day=b.dataset.day;render()}});
+document.addEventListener("click",e=>{const t=e.target.closest("button[data-tab]");if(t){pane=t.dataset.tab;render();return}
+  const card=e.target.closest("[data-need]");if(!card)return;const n=NEEDS.find(x=>x.id===card.dataset.need);if(!n)return;
+  if(e.target.closest("button[data-find]")){FIND.has(n.id)?FIND.delete(n.id):FIND.add(n.id);render();return}
+  if(e.target.closest("button[data-offer]")){offer(n,[...card.querySelectorAll("input[data-elig]:checked")].map(i=>i.dataset.elig));return}
+  const c=e.target.closest("button[data-confirm]");if(c)confirmCover(n,c.dataset.confirm)});
+document.addEventListener("change",e=>{const s=e.target.closest("select[data-cover]");if(!s||!s.value)return;const card=s.closest("[data-need]");const n=NEEDS.find(x=>x.id===card.dataset.need);if(n)confirmCover(n,s.value);s.value=""});
+$("posFilter").oninput=renderPositions;$("posAll").onchange=renderPositions;
+$("savePos").onclick=async()=>{const m=Object.assign({},POS());const rows={};
+  document.querySelectorAll("#posTable input[data-pid]").forEach(i=>{(rows[i.dataset.pid]=rows[i.dataset.pid]||[]);if(i.checked)rows[i.dataset.pid].push(i.dataset.pos)});
+  Object.assign(m,rows);await Hub.doc("config/staffing").set(Object.assign({},CFG,{positions:m}));toast("Positions saved")};
 $("prevWk").onclick=()=>{weekStart=addDays(weekStart,-7);render()};
 $("nextWk").onclick=()=>{weekStart=addDays(weekStart,7);render()};
 $("thisWk").onclick=()=>{weekStart=mondayOf(Hub.todayIso());render()};
@@ -351,6 +500,8 @@ $("saveNames").onclick=async()=>{const m={};document.querySelectorAll("#namesLis
   await Hub.doc("config/staffing").set(Object.assign({},CFG,{names:m}));toast("Names saved")};
 
 Hub.gate(()=>{
+  Hub.doc("config/enquiryDesk").onSnapshot(d=>{S=EQ.settings(d.exists?d.data():{});if(DATA)render()},()=>{});
+  Hub.col("cover").onSnapshot(s=>{COVER={};s.docs.forEach(d=>COVER[d.id]=d.data());if(DATA)render()},()=>{});
   Hub.doc("config/staffing").onSnapshot(d=>{const was=CFG.url;CFG=d.exists?d.data():{};if(!CFG.sheet)CFG.sheet=DEFAULT_SHEET;if(CFG.url&&(!DATA||CFG.url!==was))load();else render()},e=>{$("statusNote").hidden=false;$("statusNote").textContent="Couldn't load the settings ("+(e.code||"error")+")."});
 });
 </script>

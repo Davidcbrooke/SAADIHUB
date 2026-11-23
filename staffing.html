@@ -69,6 +69,13 @@ table.pos thead th{position:sticky;top:0;background:var(--surface);font-size:12p
 table.pos td.s{background:#fff6e0}
 table.pos tr.ret td{color:var(--muted)}
 .sug{background:#fff6e0;padding:0 4px;border-radius:4px}
+.wkdays{display:flex;gap:10px;margin:10px 0 4px;flex-wrap:wrap}
+.wd{position:relative;width:52px;height:52px;border-radius:14px;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--display);font-size:20px;font-weight:700;line-height:1}
+.wd small{font-family:var(--body,inherit);font-size:11px;font-weight:600;color:var(--muted);margin-top:2px}
+.wd em{position:absolute;top:-7px;right:-7px;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--bad);color:#fff;font:700 12px/22px Arial,sans-serif;font-style:normal;box-shadow:0 0 0 2px var(--surface)}
+.wd.today{border-color:var(--ink);border-width:2px}
+.wd.on{background:var(--ink);border-color:var(--ink);color:var(--surface)}.wd.on small{color:var(--surface)}
+.wd.past{opacity:.45}
 table.nt{width:100%;border-collapse:collapse;font-size:14px}
 table.nt th{font-size:12px;text-align:left;color:var(--muted);font-weight:600;padding:4px 8px;border-bottom:2px solid var(--line)}
 table.nt td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
@@ -155,6 +162,7 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
     <section class="panel" id="coverPanel" data-pane="cover" hidden>
       <h2>Needs cover <span class="pill bad" id="needCount">0</span></h2>
       <p class="small" style="margin:0" id="needSummary"></p>
+      <div class="wkdays" id="wkDays"></div>
       <p class="small muted" style="margin:0">From today to the end of the week. <b>Send</b> emails everyone qualified; when someone says yes, <b>Confirm</b> puts them on the rota.</p>
       <div class="list" id="needList"></div>
       <details class="small" style="margin-top:8px" id="doneWrap"><summary>Covered or sorted this week <span id="doneCount"></span></summary><div class="list" id="doneList" style="margin-top:6px"></div></details>
@@ -217,7 +225,7 @@ const $=Hub.$, esc=Hub.esc;
 const DEFAULT_SHEET="1nP49fJsFAJWqSLZgUmeswqF1INp--4NBELo2gj-Id_s";
 const DAY_ORDER=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 let CFG={}, DATA=null, DAYS=[], STAFF=[], OFF=[], weekStart=null, day=null, busy=false;
-let pane="cover", COVER={}, REPLIES={}, S=EQ.settings({}), SUG={}, FIND=new Set(), SENDING=new Set();
+let dayFilter="", pane="cover", COVER={}, REPLIES={}, S=EQ.settings({}), SUG={}, FIND=new Set(), SENDING=new Set();
 const POS=()=>CFG.positions||{};
 const me=()=>{try{return localStorage.getItem("saadiAssistName")||""}catch(e){return""}};
 function toast(m){const t=document.createElement("div");t.className="toast";t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),3200)}
@@ -353,7 +361,12 @@ function renderCover(offCount){
   $("needCount").textContent=open.length;
   const mailerOk=!!(S.mailerUrl&&S.mailerToken);
   const everyone=STAFF.slice().sort((a,b)=>fullName(a).localeCompare(fullName(b)));
-  const rows=open.map(g=>{
+  // day letters with a bubble: people off (or empty slots) still needing cover that day; tap to show just that day
+  const today=Hub.todayIso();
+  $("wkDays").innerHTML=DAY_ORDER.map(dn=>{const dt=dateFor(dn,weekStart),n=open.filter(g=>g.date===dt).length,past=dt<today;
+    return `<button type="button" class="wd${dayFilter===dt?" on":""}${past?" past":""}${dt===today?" today":""}" data-wd="${dt}" title="${esc(pretty(dt,{weekday:"long",day:"numeric",month:"long"}))}: ${n} need${n===1?"s":""} cover">${dn.charAt(0)}<small>${new Date(dt+"T12:00:00").getDate()}</small>${n?`<em>${n}</em>`:""}</button>`}).join("");
+  const shown=dayFilter?open.filter(g=>g.date===dayFilter):open;
+  const rows=shown.map(g=>{
     const d=COVER[g.id]||{},rep=(REPLIES[g.id]&&REPLIES[g.id].yes)||[],el=eligibleFor(g),showFind=FIND.has(g.id),withEmail=el.filter(s=>s.email);
     const yes=rep.map(y=>STAFF.find(s=>String(s.id)===String(y.p))).filter(Boolean);
     const shifts=g.items.map(i=>`<span class="sh"><i class="swatch" style="background:${i.r.colour||"var(--muted)"}"></i>${esc(String(i.r.session).replace(/:00\s*/,"").replace(/\s*(AM|PM)$/i,m=>m.trim().toLowerCase()))} ${esc(String(i.r.cls).replace(/\s*Group$/i,""))}</span>`).join("");
@@ -370,7 +383,7 @@ function renderCover(offCount){
         ${CFG.waOn&&el.length?`<button type="button" class="wa sm" data-wagroup>WhatsApp group</button>`:""}
         <select data-cover class="sm" title="Covered another way"><option value="">Covered by…</option>${everyone.map(s=>`<option value="${s.id}">${esc(fullName(s))}${isRetained(s.id)?" (retained)":g.pos.every(p=>posOf(s.id).includes(p))?"":" (not all positions)"}</option>`).join("")}</select></div></td></tr>
       ${showFind?`<tr class="nx"><td></td><td colspan="4"><div class="elig">${el.map(s=>`<label class="pp"><input type="checkbox" data-elig="${s.id}" ${s.email?"checked":"disabled"}> ${esc(fullName(s))}${s.email?"":" (no email)"}${CFG.waOn&&s.wa?` <button type="button" class="wa sm" data-wa="${s.id}">WhatsApp</button>`:""}</label>`).join("")||'<span class="muted">Nobody with these positions is free. Check the Positions tab.</span>'}</div></td></tr>`:""}</tbody>`});
-  $("needList").innerHTML=rows.length?`<table class="nt"><thead><tr><th>Day</th><th>Who's off</th><th>Level needed · shifts</th><th>Status</th><th></th></tr></thead>${rows.join("")}</table>`:'<p class="small muted" style="margin:0">Nothing needs cover from today to the end of this week.</p>';
+  $("needList").innerHTML=dayFilter&&!rows.length?`<p class="small muted" style="margin:0">Nothing needs cover on ${esc(pretty(dayFilter,{weekday:"long",day:"numeric",month:"long"}))}.</p>`:rows.length?`<table class="nt"><thead><tr><th>Day</th><th>Who's off</th><th>Level needed · shifts</th><th>Status</th><th></th></tr></thead>${rows.join("")}</table>`:'<p class="small muted" style="margin:0">Nothing needs cover from today to the end of this week.</p>';
   $("doneCount").textContent=done.length?`(${done.length})`:"";
   $("doneList").innerHTML=done.map(([id,d])=>d.status==="sorted"
     ?`<div class="it" style="border-left-color:var(--muted)"><b>Sorted</b> · ${esc(d.shift||"")}${d.offName?` (${esc(d.offName)} off)`:""}${d.by?` · by ${esc(d.by)}`:""} <button type="button" class="sm" data-unsort="${esc(id)}">Undo</button></div>`
@@ -564,6 +577,7 @@ function renderPerson(){
 
 /* ---------- events ---------- */
 document.addEventListener("click",e=>{const b=e.target.closest("button[data-day]");if(b){day=b.dataset.day;render()}});
+document.addEventListener("click",e=>{const w=e.target.closest("button[data-wd]");if(w){dayFilter=dayFilter===w.dataset.wd?"":w.dataset.wd;render()}});
 document.addEventListener("click",e=>{const t=e.target.closest("button[data-tab]");if(t){pane=t.dataset.tab;render();return}
   const card=e.target.closest("[data-need]");if(!card)return;const n=NEEDS.find(x=>x.id===card.dataset.need);if(!n)return;
   if(e.target.closest("button[data-find]")){FIND.has(n.id)?FIND.delete(n.id):FIND.add(n.id);render();return}
@@ -581,8 +595,8 @@ $("savePos").onclick=async()=>{const m=Object.assign({},POS());const rows={};
   document.querySelectorAll("#posTable input[data-pid]").forEach(i=>{(rows[i.dataset.pid]=rows[i.dataset.pid]||[]);if(i.checked)rows[i.dataset.pid].push(i.dataset.pos)});
   const ret=Object.assign({},RET());document.querySelectorAll("#posTable input[data-ret]").forEach(i=>{if(i.checked)ret[i.dataset.ret]=true;else delete ret[i.dataset.ret]});
   Object.assign(m,rows);await Hub.doc("config/staffing").set(Object.assign({},CFG,{positions:m,retained:ret}));toast("Positions saved")};
-$("prevWk").onclick=()=>{weekStart=addDays(weekStart,-7);render()};
-$("nextWk").onclick=()=>{weekStart=addDays(weekStart,7);render()};
+$("prevWk").onclick=()=>{weekStart=addDays(weekStart,-7);dayFilter="";render()};
+$("nextWk").onclick=()=>{weekStart=addDays(weekStart,7);dayFilter="";render()};
 $("thisWk").onclick=()=>{weekStart=mondayOf(Hub.todayIso());render()};
 $("reload").onclick=()=>load(true);
 $("personSel").onchange=renderPerson;

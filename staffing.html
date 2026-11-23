@@ -154,7 +154,7 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="hub-core.js"></script>
-<script src="staffing-core.js?v=3"></script>
+<script src="staffing-core.js?v=4"></script>
 <script>
 "use strict";
 const $=Hub.$, esc=Hub.esc;
@@ -303,9 +303,10 @@ function renderAnomalies(tokens,opts){
     if(m){ // matched, but leaving before they stop appearing on the rota
       if(m.leaving&&/^\d{4}-\d\d-\d\d$/.test(m.leaving)){const a=appearances(t);if(a.term.last>m.leaving)list.push({t,kind:"leave",why:`Leaving on ${pretty(m.leaving)} but on the rota until ${pretty(a.term.last)}`,a,cands:[m]})}
       return}
-    const c=ST.candidates(t,STAFF);
+    const c=ST.candidates(t,STAFF),near=c.length?[]:ST.candidates(t,STAFF,true),ini=(t.split(" ")[1]||"");
     list.push({t,kind:c.length>1?"many":c.length?"one":"none",cands:c,a:appearances(t),
-      why:c.length>1?`More than one person in Breathe could be "${t}": ${c.map(fullName).join(", ")}`:c.length?`Possibly ${fullName(c[0])}, but not certain enough to link automatically`:"Not in Breathe (a young leader, volunteer, new starter or a typo?)"});
+      why:c.length>1?`More than one person in Breathe could be "${t}": ${c.map(fullName).join(", ")}`:c.length?`Possibly ${fullName(c[0])}, but not certain enough to link automatically`:
+        near.length&&ini?`No ${t.split(" ")[0]} with a surname starting "${ini}" in Breathe (there's ${near.map(fullName).join(", ")}): a young leader, a new starter, or the wrong initial?`:"Not in Breathe (a young leader, volunteer, new starter or a typo?)"});
   });
   const rank={leave:0,many:1,one:2,none:3};
   list.sort((a,b)=>rank[a.kind]-rank[b.kind]||b.a.wk.length-a.a.wk.length||a.t.localeCompare(b.t));

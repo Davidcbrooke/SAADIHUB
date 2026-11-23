@@ -109,13 +109,14 @@ ST.matchName=(token,staff,map)=>{
   return null;
 };
 /* Everyone in Breathe this rota name could be (ignoring whether it's unique), for the anomalies list. */
-ST.candidates=(token,staff)=>{
+ST.candidates=(token,staff,loose)=>{
   const t=clean(token);if(!t)return [];
   const [first,ini]=t.split(" ");const f=low(first),i=low(ini||"").replace(/\./g,"");
   const firstOf=s=>[low(s.known),low(s.first)].filter(Boolean);
   const full=ALIASES[f]||[];
   let c=staff.filter(s=>firstOf(s).some(n=>n===f||full.includes(n)||(f.length>=3&&n.startsWith(f))||(f.length>=5&&n.length>=5&&dist(n,f)<=(f.length>=7?2:1))));
-  if(i){const w=c.filter(s=>low(s.last).startsWith(i));if(w.length)c=w}
+  // with an initial ("Sophia B"), only people whose surname starts with it; loose=true lists the near misses instead
+  if(i&&!loose)c=c.filter(s=>low(s.last).startsWith(i));
   return c;
 };
 const ALIASES={dave:["david"],davey:["david"],tash:["natasha","tasha"],becca:["rebecca"],becky:["rebecca"],bex:["rebecca"],izzy:["isabel","isabelle","isobel","isabella","isla"],issy:["isabel","isabelle","isobel","isabella"],

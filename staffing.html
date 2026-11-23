@@ -178,6 +178,7 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
       <div class="wrap small" style="gap:10px;margin-top:10px">
         <label class="f">Staffing sheet link (change it each term) <input type="url" id="sheetIn" style="width:100%"></label>
         <label class="f">Connector URL <input type="url" id="urlIn2" style="width:100%"></label>
+        <label class="f">SAADI WhatsApp number (send cover messages from this) <input type="tel" id="waIn" placeholder="07..." style="width:220px"></label>
         <div class="row"><button type="button" id="saveSettings" class="primary">Save</button><button type="button" id="showSetup">Show the set-up steps</button></div>
       </div>
     </details>
@@ -221,7 +222,7 @@ $("copyCode").onclick=async()=>{try{const t=await (await fetch("staffing.gs?v=5"
 $("saveConn").onclick=async()=>{const u=$("urlIn").value.trim();if(!/^https:\/\/script\.google\.com\/macros\/s\//.test(u))return toast("That doesn't look like a Web app URL");
   await Hub.doc("config/staffing").set({url:u,token:token(),sheet:CFG.sheet||DEFAULT_SHEET},{merge:true});toast("Connected: reading the rota…")};
 $("saveSettings").onclick=async()=>{const s=sheetIdOf($("sheetIn").value);if($("sheetIn").value&&!s)return toast("That isn't a Google Sheets link");
-  await Hub.doc("config/staffing").set({sheet:s||DEFAULT_SHEET,url:$("urlIn2").value.trim()||CFG.url||""},{merge:true});toast("Saved. If you changed the sheet, update SHEET_ID in the script too, or it keeps reading the old one.")};
+  await Hub.doc("config/staffing").set({sheet:s||DEFAULT_SHEET,url:$("urlIn2").value.trim()||CFG.url||"",waNumber:$("waIn").value.trim()},{merge:true});toast("Saved. If you changed the sheet, update SHEET_ID in the script too, or it keeps reading the old one.")};
 $("showSetup").onclick=()=>showSetup(true);
 
 /* ---------- loading ---------- */
@@ -344,6 +345,7 @@ function renderCover(offCount){
       ${showFind?`<div class="elig">${el.map(s=>`<span class="pp"><label><input type="checkbox" data-elig="${s.id}" ${s.email?"checked":"disabled"}> ${esc(fullName(s))}${s.email?"":" (no email)"}</label>${s.wa?`<button type="button" class="wa" data-wa="${s.id}" title="WhatsApp ${esc(firstOf(s))} this cover">WhatsApp${(d.waTo||[]).includes(s.id)?" ✓":""}</button>`:`<span class="muted small" title="No mobile in Breathe">no mobile</span>`}</span>`).join("")||'<span class="muted">Nobody with these positions is free for all of it. Add positions on the Positions tab, or choose someone below.</span>'}</div>`:""}
       <div class="acts">
         <button type="button" data-find>${showFind?"Hide":"Find cover"}</button>
+        ${showFind&&el.length&&CFG.waNumber?`<span class="small muted" style="flex-basis:100%">WhatsApp: send from the SAADI WhatsApp (${esc(CFG.waNumber)}), not a personal one.</span>`:""}
         ${showFind&&el.length?`<button type="button" class="wa" data-wagroup title="Copy a message for the staff WhatsApp group: whoever can do it taps the link and picks their name">Copy for WhatsApp group</button>`:""}
         ${showFind&&el.length?`<button type="button" class="primary" data-offer ${mailerOk?"":"disabled title=\"Set up sending from reception@ on the Enquiry Desk first\""}>${SENDING.has(g.id)?"Sending…":`Email it to ${el.filter(s=>s.email).length}`}</button>`:""}
         <select data-cover><option value="">Covered by (arranged another way)…</option>${everyone.map(s=>`<option value="${s.id}">${esc(fullName(s))}${g.pos.every(p=>posOf(s.id).includes(p))?"":" (not all positions)"}</option>`).join("")}</select>
@@ -367,7 +369,7 @@ const waText=(g,first,link)=>`Hi ${first}, can you cover? ${pretty(g.date,{weekd
 ${g.items.map(i=>"• "+itemText(i)).join(NL)}
 
 If you can, tap here to say yes: ${link}
-Reception will confirm. Thank you! SAADI Gymnastics`;
+Reception will confirm. Thank you! SAADI Gymnastics${CFG.waNumber?NL+"(This is the SAADI WhatsApp: save "+CFG.waNumber+" as SAADI Gymnastics.)":""}`;
 async function waOne(g,pid){
   const s=STAFF.find(x=>String(x.id)===String(pid));if(!s||!s.wa)return;
   const k=await ST.sign(CFG.token,g.id+"|"+s.id);
@@ -386,7 +388,7 @@ async function waGroup(g){
 ${g.items.map(i=>"• "+itemText(i)).join(NL)}
 
 Can you do it? Tap here and pick your name: ${link}
-Reception will confirm who's got it. Thank you!`;
+Reception will confirm who's got it. Thank you!${CFG.waNumber?NL+"(SAADI WhatsApp: "+CFG.waNumber+")":""}`;
   try{await navigator.clipboard.writeText(msg);toast("Copied: paste it into the staff WhatsApp group")}catch(e){prompt("Copy this message:",msg)}
   const prev=COVER[g.id]||{};
   await Hub.doc("cover/"+g.id).set({status:prev.status==="covered"?"covered":"offered",date:g.date,shift:groupText(g),pos:g.pos,offName:g.off?fullName(g.off):"",
@@ -446,7 +448,7 @@ function render(){
   if(!ready&&CFG.url)$("settingsPanel").hidden=false;
   document.querySelectorAll("#tabs button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.tab===pane)));
   if(!CFG.url){showSetup(true);return}
-  $("sheetIn").value="https://docs.google.com/spreadsheets/d/"+(sheetIdOf(CFG.sheet)||DEFAULT_SHEET)+"/edit";$("urlIn2").value=CFG.url||"";
+  $("waIn").value=CFG.waNumber||"";$("sheetIn").value="https://docs.google.com/spreadsheets/d/"+(sheetIdOf(CFG.sheet)||DEFAULT_SHEET)+"/edit";$("urlIn2").value=CFG.url||"";
   if(!DATA)return;
   if(!weekStart)weekStart=mondayOf(Hub.todayIso());
   if(!day){const t=new Date().getDay();day=DAY_ORDER[(t+6)%7]}

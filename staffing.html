@@ -81,6 +81,10 @@ table.nt th{font-size:12px;text-align:left;color:var(--muted);font-weight:600;pa
 table.nt td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
 table.nt tr.nr td:first-child{border-left:4px solid var(--bad)}
 table.nt tr.nr.offered td:first-child{border-left-color:var(--warn)}
+table.nt tr.nr.covered td:first-child{border-left-color:var(--good)}
+table.nt tr.nr.covered td{background:color-mix(in srgb,var(--good) 6%,transparent)}
+table.nt tr.nr.covered b{font-weight:600}
+.tick{display:inline-block;color:var(--good);font-weight:700;white-space:nowrap}
 table.nt td.nd{white-space:nowrap;font-weight:700}
 table.nt .shs{display:flex;flex-wrap:wrap;gap:2px 10px;font-size:13px;color:var(--muted)}
 table.nt .sh{white-space:nowrap}
@@ -165,7 +169,6 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
       <div class="wkdays" id="wkDays"></div>
       <p class="small muted" style="margin:0">From today to the end of the week. <b>Send</b> emails everyone qualified; when someone says yes, <b>Confirm</b> puts them on the rota.</p>
       <div class="list" id="needList"></div>
-      <details class="small" style="margin-top:8px" id="doneWrap"><summary>Covered or sorted this week <span id="doneCount"></span></summary><div class="list" id="doneList" style="margin-top:6px"></div></details>
     </section>
 
     <section class="panel" id="positionsPanel" data-pane="positions" hidden>
@@ -353,24 +356,50 @@ function eligibleFor(g){return STAFF.filter(s=>(!g.off||s.id!==g.off.id)&&!isRet
 function renderCover(offCount){
   NEEDS=groupNeeds(needsThisWeek());
   const wkEnd=addDays(weekStart,6);
-  const inBreathe=NEEDS.filter(g=>g.o&&g.o.cover&&g.o.cover.length&&!(COVER[g.id]&&["covered","sorted"].includes(COVER[g.id].status)));
-  const open=NEEDS.filter(g=>!(COVER[g.id]&&["covered","sorted"].includes(COVER[g.id].status))&&!inBreathe.includes(g));
+  const today=Hub.todayIso();
+  const who=ids=>(ids||[]).map(id=>STAFF.find(s=>String(s.id)===String(id))).filter(Boolean).map(fullName).join(" / ");
+  // covered = confirmed in the Hub, marked Sorted, or named as cover in the Breathe absence note
+  const covOf=g=>{const d=COVER[g.id];
+    if(d&&d.status==="covered")return{k:"covered",who:d.coverName||"",by:d.by};
+    if(d&&d.status==="sorted")return{k:"sorted",by:d.by};
+    if(g.o&&g.o.cover&&g.o.cover.length)return{k:"breathe",who:who(g.o.cover),part:g.o.coverPart};
+    return null};
+  NEEDS.forEach(g=>g.cov=covOf(g));
+  const open=NEEDS.filter(g=>!g.cov);
   const offered=open.filter(g=>COVER[g.id]&&COVER[g.id].status==="offered");
-  const done=Object.entries(COVER).filter(([,d])=>["covered","sorted"].includes(d.status)&&d.date>=weekStart&&d.date<=wkEnd).sort((a,b)=>a[1].date.localeCompare(b[1].date));
+  // covered in the Hub and already written into the sheet, so no longer a gap on the rota: keep showing them
+  const ids=new Set(NEEDS.map(g=>g.id));
+  const gone=Object.entries(COVER).filter(([id,d])=>!ids.has(id)&&["covered","sorted"].includes(d.status)&&d.date>=today&&d.date<=wkEnd)
+    .map(([id,d])=>({id,date:d.date,ghost:d,pos:d.pos||[],cov:d.status==="sorted"?{k:"sorted",by:d.by}:{k:"covered",who:d.coverName||"",by:d.by}}));
+  const all=[...NEEDS,...gone].sort((x,y)=>x.date.localeCompare(y.date));
+  const coveredN=all.length-open.length;
   const yesCount=open.filter(g=>((REPLIES[g.id]&&REPLIES[g.id].yes)||[]).length).length;
-  $("needSummary").innerHTML=`<b>${open.length-offered.length}</b> need cover · <b>${offered.length}</b> offered${yesCount?` · <b style="color:var(--good)">${yesCount} with a yes to confirm</b>`:""} · <b>${done.length+inBreathe.length}</b> covered or sorted${inBreathe.length?` (${inBreathe.length} from Breathe notes)`:""} · ${offCount} staff off this week`;
+  $("needSummary").innerHTML=`<b>${open.length-offered.length}</b> need cover · <b>${offered.length}</b> offered${yesCount?` · <b style="color:var(--good)">${yesCount} with a yes to confirm</b>`:""} · <b style="color:var(--good)">${coveredN}</b> covered · ${offCount} staff off this week`;
   $("needCount").textContent=open.length;
   const mailerOk=!!(S.mailerUrl&&S.mailerToken);
   const everyone=STAFF.slice().sort((a,b)=>fullName(a).localeCompare(fullName(b)));
   // day letters with a bubble: people off (or empty slots) still needing cover that day; tap to show just that day
-  const today=Hub.todayIso();
   $("wkDays").innerHTML=DAY_ORDER.map(dn=>{const dt=dateFor(dn,weekStart),n=open.filter(g=>g.date===dt).length,past=dt<today;
     return `<button type="button" class="wd${dayFilter===dt?" on":""}${past?" past":""}${dt===today?" today":""}" data-wd="${dt}" title="${esc(pretty(dt,{weekday:"long",day:"numeric",month:"long"}))}: ${n} need${n===1?"s":""} cover">${dn.charAt(0)}<small>${new Date(dt+"T12:00:00").getDate()}</small>${n?`<em>${n}</em>`:""}</button>`}).join("");
-  const shown=dayFilter?open.filter(g=>g.date===dayFilter):open;
+  const shown=dayFilter?all.filter(g=>g.date===dayFilter):all;
+  const shortSession=t=>String(t).replace(/:00\s*/,"").replace(/\s*(AM|PM)$/i,m=>m.trim().toLowerCase());
+  const coveredRow=g=>{const c=g.cov,gh=g.ghost;
+    const shifts=gh?`<span class="sh">${esc(String(gh.shift||"").replace(/^[^:]*:\s*/,""))}</span>`
+      :g.items.map(i=>`<span class="sh"><i class="swatch" style="background:${i.r.colour||"var(--muted)"}"></i>${esc(shortSession(i.r.session))} ${esc(String(i.r.cls).replace(/\s*Group$/i,""))}</span>`).join("");
+    const offWho=gh?(gh.offName||"Nobody on rota"):g.off?fullName(g.off):"Nobody on rota";
+    const status=c.k==="sorted"?`<span class="tick">✓ Sorted</span>`
+      :`<span class="tick">✓ Covered${c.who?" · "+esc(c.who):""}</span>${c.k==="breathe"?`<div class="small muted">from the Breathe note${c.part?' · <span style="color:var(--warn)" title="The note gives times: it may only be part of the shift">check times</span>':""}</div>`:c.by?`<div class="small muted">by ${esc(c.by)}</div>`:""}`;
+    return `<tbody data-done="${esc(g.id)}"><tr class="nr covered">
+      <td class="nd">${esc(pretty(g.date,{weekday:"short",day:"numeric"}))}</td>
+      <td><b>${esc(offWho)}</b>${!gh&&g.off?`<div class="small muted">${g.o.kind==="holiday"?"Holiday":"Off"}${g.off.job?" · "+esc(g.off.job):""}</div>`:""}</td>
+      <td><b>${esc((g.pos||[]).join(" + "))}</b><div class="shs">${shifts}</div></td>
+      <td>${status}</td>
+      <td class="nac"><div class="na">${c.k==="sorted"?`<button type="button" class="sm" data-unsort="${esc(g.id)}">Undo</button>`:""}</div></td></tr></tbody>`};
   const rows=shown.map(g=>{
+    if(g.cov)return coveredRow(g);
     const d=COVER[g.id]||{},rep=(REPLIES[g.id]&&REPLIES[g.id].yes)||[],el=eligibleFor(g),showFind=FIND.has(g.id),withEmail=el.filter(s=>s.email);
     const yes=rep.map(y=>STAFF.find(s=>String(s.id)===String(y.p))).filter(Boolean);
-    const shifts=g.items.map(i=>`<span class="sh"><i class="swatch" style="background:${i.r.colour||"var(--muted)"}"></i>${esc(String(i.r.session).replace(/:00\s*/,"").replace(/\s*(AM|PM)$/i,m=>m.trim().toLowerCase()))} ${esc(String(i.r.cls).replace(/\s*Group$/i,""))}</span>`).join("");
+    const shifts=g.items.map(i=>`<span class="sh"><i class="swatch" style="background:${i.r.colour||"var(--muted)"}"></i>${esc(shortSession(i.r.session))} ${esc(String(i.r.cls).replace(/\s*Group$/i,""))}</span>`).join("");
     const status=yes.length?`<span class="pill good">${yes.length} said yes</span>`:d.status==="offered"?`<span class="pill warn">Offered to ${(d.offeredTo||[]).length}</span>`:`<span class="pill bad">Needs cover</span>`;
     const send=el.length?`<button type="button" class="primary sm" data-offer ${mailerOk?"":"disabled title=\"Set up sending from reception@ on the Enquiry Desk first\""}>${SENDING.has(g.id)?"Sending…":`${d.status==="offered"?"Send again to":"Send to"} ${withEmail.length} qualified`}</button>`:`<span class="small muted">Nobody qualifies</span>`;
     return `<tbody data-need="${esc(g.id)}"><tr class="nr${d.status==="offered"?" offered":""}">
@@ -384,13 +413,7 @@ function renderCover(offCount){
         ${CFG.waOn&&el.length?`<button type="button" class="wa sm" data-wagroup>WhatsApp group</button>`:""}
         <select data-cover class="sm" title="Covered another way"><option value="">Covered by…</option>${everyone.map(s=>`<option value="${s.id}">${esc(fullName(s))}${isRetained(s.id)?" (retained)":g.pos.every(p=>posOf(s.id).includes(p))?"":" (not all positions)"}</option>`).join("")}</select></div></td></tr>
       ${showFind?`<tr class="nx"><td></td><td colspan="4"><div class="elig">${el.map(s=>`<label class="pp"><input type="checkbox" data-elig="${s.id}" ${s.email?"checked":"disabled"}> ${esc(fullName(s))}${s.email?"":" (no email)"}${CFG.waOn&&s.wa?` <button type="button" class="wa sm" data-wa="${s.id}">WhatsApp</button>`:""}</label>`).join("")||'<span class="muted">Nobody with these positions is free. Check the Positions tab.</span>'}</div></td></tr>`:""}</tbody>`});
-  $("needList").innerHTML=dayFilter&&!rows.length?`<p class="small muted" style="margin:0">Nothing needs cover on ${esc(pretty(dayFilter,{weekday:"long",day:"numeric",month:"long"}))}.</p>`:rows.length?`<table class="nt"><thead><tr><th>Day</th><th>Who's off</th><th>Level needed · shifts</th><th>Status</th><th></th></tr></thead>${rows.join("")}</table>`:'<p class="small muted" style="margin:0">Nothing needs cover from today to the end of this week.</p>';
-  $("doneCount").textContent=(done.length+inBreathe.length)?`(${done.length+inBreathe.length})`:"";
-  $("doneList").innerHTML=done.map(([id,d])=>d.status==="sorted"
-    ?`<div class="it" style="border-left-color:var(--muted)"><b>Sorted</b> · ${esc(d.shift||"")}${d.offName?` (${esc(d.offName)} off)`:""}${d.by?` · by ${esc(d.by)}`:""} <button type="button" class="sm" data-unsort="${esc(id)}">Undo</button></div>`
-    :`<div class="it" style="border-left-color:var(--good)"><b>${esc(d.coverName)}</b> covering ${esc(d.shift)}${d.offName?` for ${esc(d.offName)}`:""}${d.by?` · confirmed by ${esc(d.by)}`:""}</div>`).join("")+
-    inBreathe.map(g=>{const who=g.o.cover.map(id=>STAFF.find(s=>String(s.id)===String(id))).filter(Boolean).map(fullName).join(" / ");
-      return `<div class="it" style="border-left-color:var(--good)"><b>${esc(who)}</b> covering ${esc(groupText(g))} for ${esc(fullName(g.off))} <span class="pill good">Breathe note</span>${g.o.coverPart?' <span class="pill warn" title="The note gives times: it may only be part of the shift">check times</span>':""}</div>`}).join("")||'<span class="muted">None yet.</span>';
+  $("needList").innerHTML=dayFilter&&!rows.length?`<p class="small muted" style="margin:0">Nobody is off on ${esc(pretty(dayFilter,{weekday:"long",day:"numeric",month:"long"}))}.</p>`:rows.length?`<table class="nt"><thead><tr><th>Day</th><th>Who's off</th><th>Level needed · shifts</th><th>Status</th><th></th></tr></thead>${rows.join("")}</table>`:'<p class="small muted" style="margin:0">Nothing needs cover from today to the end of this week.</p>';
 }
 async function post(body){const r=await fetch(CFG.url,{method:"POST",body:JSON.stringify(Object.assign({token:CFG.token},body))});const j=await r.json();if(!j.ok)throw new Error(j.error||"The Google script refused");return j}
 async function sendMail(to,subject,heading,paras,foot){

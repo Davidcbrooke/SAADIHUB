@@ -231,8 +231,8 @@ async function loadResponses(reimport){
     else if(old7)$("mailerOldWhy").textContent="To read emailed class change requests properly (what they wrote anywhere in the email, wrapped lines, 'weekends') and to re-read the ones already in";
     if(reimport&&old7)toast("Update the mailer first: re-reading needs version 7");
     resp=EQ.parseResponses(j.tabs);respAt=new Date();
-    const fromEmails=[...resp.changes,...resp.leavers].filter(x=>/email/i.test(x.tab)).length;
-    $("respNote").textContent=`From "${j.name}": ${resp.changes.length} class change${resp.changes.length===1?"":"s"}, ${resp.leavers.length} leaving${fromEmails?` (${fromEmails} from emails${j.added?`, ${j.added} new`:""})`:""}${j.importError?" · couldn't check the inbox: "+j.importError:""} · read at ${respAt.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}`;
+    const em=x=>/email/i.test(x.tab),fc=resp.changes.filter(x=>!em(x)).length,ec=resp.changes.length-fc,fl=resp.leavers.filter(x=>!em(x)).length,el=resp.leavers.length-fl;
+    $("respNote").textContent=`From "${j.name}": Google form ${fc} class change${fc===1?"":"s"} and ${fl} leaving; emails ${ec} class change${ec===1?"":"s"} and ${el} leaving${j.added?` (${j.added} new)`:""}${j.importError?" · couldn't check the inbox: "+j.importError:""} · read at ${respAt.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}`;
   }catch(e){$("respNote").textContent="Couldn't read the form responses ("+e.message+")."}
   loading=false;render();
 }

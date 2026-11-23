@@ -69,6 +69,22 @@ table.pos thead th{position:sticky;top:0;background:var(--surface);font-size:12p
 table.pos td.s{background:#fff6e0}
 table.pos tr.ret td{color:var(--muted)}
 .sug{background:#fff6e0;padding:0 4px;border-radius:4px}
+table.nt{width:100%;border-collapse:collapse;font-size:14px}
+table.nt th{font-size:12px;text-align:left;color:var(--muted);font-weight:600;padding:4px 8px;border-bottom:2px solid var(--line)}
+table.nt td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+table.nt tr.nr td:first-child{border-left:4px solid var(--bad)}
+table.nt tr.nr.offered td:first-child{border-left-color:var(--warn)}
+table.nt td.nd{white-space:nowrap;font-weight:700}
+table.nt .shs{display:flex;flex-wrap:wrap;gap:2px 10px;font-size:13px;color:var(--muted)}
+table.nt .sh{white-space:nowrap}
+table.nt td.na{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end}
+table.nt tr.nx td{background:var(--surface-2);border-bottom:1px solid var(--line)}
+table.nt .elig{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px}
+button.sm,select.sm{padding:4px 10px;font-size:13px}
+select.sm{max-width:150px}
+button.ok{background:var(--good);border-color:var(--good);color:#fff}
+button.link{background:none;border-color:transparent;color:var(--accent);font-weight:700}
+@media (max-width:760px){table.nt thead{display:none}table.nt tr.nr td{display:block;border-bottom:none}table.nt tr.nr td:first-child{border-left:none}table.nt td.na{justify-content:flex-start}table.nt tbody{display:block;border-bottom:1px solid var(--line);padding:4px 0}}
 .anom{border:1px solid var(--line);border-left:5px solid var(--warn);border-radius:8px;padding:10px 12px;background:var(--surface);display:flex;flex-direction:column;gap:6px}
 .anom.leave{border-left-color:var(--bad)}
 .anom .top{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
@@ -133,11 +149,12 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
     </div>
     <p class="small muted" style="margin:0" id="syncLine"></p>
 
-    <div class="kpis" id="kpis" data-pane="cover" hidden></div>
+    <div class="kpis" id="kpis" hidden></div>
 
     <section class="panel" id="coverPanel" data-pane="cover" hidden>
       <h2>Needs cover <span class="pill bad" id="needCount">0</span></h2>
-      <p class="small muted" style="margin:0">From today to the end of the week: one card for each person who is off (all their shifts that day), or for a slot with nobody down. Email it to everyone who can do those positions; when someone says yes, confirm them and the Hub writes their name into the rota.</p>
+      <p class="small" style="margin:0" id="needSummary"></p>
+      <p class="small muted" style="margin:0">From today to the end of the week. <b>Send</b> emails everyone qualified; when someone says yes, <b>Confirm</b> puts them on the rota.</p>
       <div class="list" id="needList"></div>
       <details class="small" style="margin-top:8px" id="doneWrap"><summary>Covered this week <span id="doneCount"></span></summary><div class="list" id="doneList" style="margin-top:6px"></div></details>
     </section>
@@ -330,30 +347,28 @@ function renderCover(offCount){
   const open=NEEDS.filter(g=>!(COVER[g.id]&&COVER[g.id].status==="covered"));
   const offered=open.filter(g=>COVER[g.id]&&COVER[g.id].status==="offered");
   const done=Object.entries(COVER).filter(([,d])=>d.status==="covered"&&d.date>=weekStart&&d.date<=wkEnd).sort((a,b)=>a[1].date.localeCompare(b[1].date));
-  $("kpis").innerHTML=[[open.length-offered.length,"need cover",open.length-offered.length?"bad":"good"],[offered.length,"offered, waiting for a yes",offered.length?"warn":""],[done.length,"covered this week","good"],[offCount,"staff off this week (Breathe)",""]]
-    .map(([v,s,c])=>`<div class="kpi ${c}"><span class="v">${v}</span><span class="s">${esc(s)}</span></div>`).join("");
+  const yesCount=open.filter(g=>((REPLIES[g.id]&&REPLIES[g.id].yes)||[]).length).length;
+  $("needSummary").innerHTML=`<b>${open.length-offered.length}</b> need cover · <b>${offered.length}</b> offered${yesCount?` · <b style="color:var(--good)">${yesCount} with a yes to confirm</b>`:""} · <b>${done.length}</b> covered · ${offCount} staff off this week`;
   $("needCount").textContent=open.length;
   const mailerOk=!!(S.mailerUrl&&S.mailerToken);
   const everyone=STAFF.slice().sort((a,b)=>fullName(a).localeCompare(fullName(b)));
-  $("needList").innerHTML=open.map(g=>{
-    const d=COVER[g.id]||{},rep=(REPLIES[g.id]&&REPLIES[g.id].yes)||[],el=eligibleFor(g),showFind=FIND.has(g.id);
+  const rows=open.map(g=>{
+    const d=COVER[g.id]||{},rep=(REPLIES[g.id]&&REPLIES[g.id].yes)||[],el=eligibleFor(g),showFind=FIND.has(g.id),withEmail=el.filter(s=>s.email);
     const yes=rep.map(y=>STAFF.find(s=>String(s.id)===String(y.p))).filter(Boolean);
-    const n=g.items.length;
-    return `<div class="need${d.status==="offered"?" offered":""}" data-need="${esc(g.id)}">
-      <div class="top"><span class="when">${esc(pretty(g.date,{weekday:"short",day:"numeric",month:"short"}))}</span>
-        <span class="what">${g.off?`${esc(fullName(g.off))} is ${g.o.kind==="holiday"?"on holiday":"off"}`:`Nobody on the rota`} · ${n} shift${n>1?"s":""}</span>
-        <span class="st">${d.status==="offered"?`<span class="pill warn">Offered to ${(d.offeredTo||[]).length}</span>`:`<span class="pill bad">Needs cover</span>`}</span></div>
-      <div class="meta">${g.items.map(i=>`<span class="swatch" style="background:${i.r.colour||"var(--muted)"}"></span>${esc(itemText(i))}`).join(" · ")}</div>
-      <div class="meta">Needs: <b>${esc(g.pos.join(" + "))}</b> · ${el.length} ${el.length===1?"person":"people"} can do all of it${d.offeredAt?` · offered ${esc(new Date(d.offeredAt).toLocaleString("en-GB",{weekday:"short",hour:"2-digit",minute:"2-digit"}))}${d.by?" by "+esc(d.by):""}`:""}</div>
-      ${yes.length?`<div class="yes"><b>Said yes:</b> ${yes.map(s=>`<button type="button" data-confirm="${s.id}">Confirm ${esc(fullName(s))}</button>`).join("")}</div>`:""}
-      ${showFind?`<div class="elig">${el.map(s=>`<span class="pp"><label><input type="checkbox" data-elig="${s.id}" ${s.email?"checked":"disabled"}> ${esc(fullName(s))}${s.email?"":" (no email)"}</label>${!CFG.waOn?"":s.wa?`<button type="button" class="wa" data-wa="${s.id}" title="WhatsApp ${esc(firstOf(s))} this cover">WhatsApp${(d.waTo||[]).includes(s.id)?" ✓":""}</button>`:`<span class="muted small" title="No mobile in Breathe">no mobile</span>`}</span>`).join("")||'<span class="muted">Nobody with these positions is free for all of it. Add positions on the Positions tab, or choose someone below.</span>'}</div>`:""}
-      <div class="acts">
-        <button type="button" data-find>${showFind?"Hide":"Find cover"}</button>
-        ${showFind&&el.length&&CFG.waOn&&CFG.waNumber?`<span class="small muted" style="flex-basis:100%">WhatsApp: send from the SAADI WhatsApp (${esc(CFG.waNumber)}), not a personal one.</span>`:""}
-        ${showFind&&el.length&&CFG.waOn?`<button type="button" class="wa" data-wagroup title="Copy a message for the staff WhatsApp group: whoever can do it taps the link and picks their name">Copy for WhatsApp group</button>`:""}
-        ${showFind&&el.length?`<button type="button" class="primary" data-offer ${mailerOk?"":"disabled title=\"Set up sending from reception@ on the Enquiry Desk first\""}>${SENDING.has(g.id)?"Sending…":`Email it to ${el.filter(s=>s.email).length}`}</button>`:""}
-        <select data-cover><option value="">Covered by (arranged another way)…</option>${everyone.map(s=>`<option value="${s.id}">${esc(fullName(s))}${isRetained(s.id)?" (retained)":g.pos.every(p=>posOf(s.id).includes(p))?"":" (not all positions)"}</option>`).join("")}</select>
-      </div></div>`}).join("")||'<p class="small muted" style="margin:0">Nothing needs cover from today to the end of this week.</p>';
+    const shifts=g.items.map(i=>`<span class="sh"><i class="swatch" style="background:${i.r.colour||"var(--muted)"}"></i>${esc(String(i.r.session).replace(/:00\s*/,"").replace(/\s*(AM|PM)$/i,m=>m.trim().toLowerCase()))} ${esc(String(i.r.cls).replace(/\s*Group$/i,""))}</span>`).join("");
+    const status=yes.length?`<span class="pill good">${yes.length} said yes</span>`:d.status==="offered"?`<span class="pill warn">Offered to ${(d.offeredTo||[]).length}</span>`:`<span class="pill bad">Needs cover</span>`;
+    const send=el.length?`<button type="button" class="primary sm" data-offer ${mailerOk?"":"disabled title=\"Set up sending from reception@ on the Enquiry Desk first\""}>${SENDING.has(g.id)?"Sending…":`${d.status==="offered"?"Send again to":"Send to"} ${withEmail.length} qualified`}</button>`:`<span class="small muted">Nobody qualifies</span>`;
+    return `<tbody data-need="${esc(g.id)}"><tr class="nr${d.status==="offered"?" offered":""}">
+      <td class="nd">${esc(pretty(g.date,{weekday:"short",day:"numeric"}))}</td>
+      <td><b>${g.off?esc(fullName(g.off)):"Nobody on rota"}</b>${g.off?`<div class="small muted">${g.o.kind==="holiday"?"Holiday":"Off"}${g.off.job?" · "+esc(g.off.job):""}</div>`:""}</td>
+      <td><b>${esc(g.pos.join(" + "))}</b><div class="shs">${shifts}</div></td>
+      <td>${status}</td>
+      <td class="na">${yes.map(s=>`<button type="button" class="ok sm" data-confirm="${s.id}">Confirm ${esc(firstOf(s))}</button>`).join("")}${send}
+        <button type="button" class="link sm" data-find title="See or untick who it goes to">${showFind?"▴ names":"▾ names"}</button>
+        ${CFG.waOn&&el.length?`<button type="button" class="wa sm" data-wagroup>WhatsApp group</button>`:""}
+        <select data-cover class="sm" title="Covered another way"><option value="">Covered by…</option>${everyone.map(s=>`<option value="${s.id}">${esc(fullName(s))}${isRetained(s.id)?" (retained)":g.pos.every(p=>posOf(s.id).includes(p))?"":" (not all positions)"}</option>`).join("")}</select></td></tr>
+      ${showFind?`<tr class="nx"><td></td><td colspan="4"><div class="elig">${el.map(s=>`<label class="pp"><input type="checkbox" data-elig="${s.id}" ${s.email?"checked":"disabled"}> ${esc(fullName(s))}${s.email?"":" (no email)"}${CFG.waOn&&s.wa?` <button type="button" class="wa sm" data-wa="${s.id}">WhatsApp</button>`:""}</label>`).join("")||'<span class="muted">Nobody with these positions is free. Check the Positions tab.</span>'}</div></td></tr>`:""}</tbody>`});
+  $("needList").innerHTML=rows.length?`<table class="nt"><thead><tr><th>Day</th><th>Who's off</th><th>Level needed · shifts</th><th>Status</th><th></th></tr></thead>${rows.join("")}</table>`:'<p class="small muted" style="margin:0">Nothing needs cover from today to the end of this week.</p>';
   $("doneCount").textContent=done.length?`(${done.length})`:"";
   $("doneList").innerHTML=done.map(([id,d])=>`<div class="it" style="border-left-color:var(--good)"><b>${esc(d.coverName)}</b> covering ${esc(d.shift)}${d.offName?` for ${esc(d.offName)}`:""}${d.by?` · confirmed by ${esc(d.by)}`:""}</div>`).join("")||'<span class="muted">None yet.</span>';
 }
@@ -544,7 +559,7 @@ document.addEventListener("click",e=>{const t=e.target.closest("button[data-tab]
   if(e.target.closest("button[data-find]")){FIND.has(n.id)?FIND.delete(n.id):FIND.add(n.id);render();return}
   const w=e.target.closest("button[data-wa]");if(w){waOne(n,w.dataset.wa);return}
   if(e.target.closest("button[data-wagroup]")){waGroup(n);return}
-  if(e.target.closest("button[data-offer]")){offer(n,[...card.querySelectorAll("input[data-elig]:checked")].map(i=>i.dataset.elig));return}
+  if(e.target.closest("button[data-offer]")){const box=card.querySelectorAll("input[data-elig]");offer(n,box.length?[...card.querySelectorAll("input[data-elig]:checked")].map(i=>i.dataset.elig):eligibleFor(n).filter(s=>s.email).map(s=>s.id));return}
   const c=e.target.closest("button[data-confirm]");if(c)confirmCover(n,c.dataset.confirm)});
 document.addEventListener("change",e=>{const s=e.target.closest("select[data-cover]");if(!s||!s.value)return;const card=s.closest("[data-need]");const n=NEEDS.find(x=>x.id===card.dataset.need);if(n)confirmCover(n,s.value);s.value=""});
 $("posFilter").oninput=renderPositions;$("posAll").onchange=renderPositions;

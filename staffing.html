@@ -139,7 +139,7 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="hub-core.js"></script>
-<script src="staffing-core.js?v=1"></script>
+<script src="staffing-core.js?v=2"></script>
 <script>
 "use strict";
 const $=Hub.$, esc=Hub.esc;
@@ -249,10 +249,14 @@ function render(){
   DAY_ORDER.forEach(d=>{const t=tabFor(d);if(!t)return;const c=weekCol(t,dateFor(d,weekStart));if(c<0)return;t.rows.forEach(r=>ST.namesIn(r.cells[c]).forEach(n=>{const p=who(n);if(p&&!p.ignore)rota.add(p.id)}))});
   const tokens=ST.allTokens(DAYS),unk=tokens.filter(t=>!who(t));
   const offWeek=new Set(OFF.filter(o=>o.start<=addDays(weekStart,6)&&(o.end||o.start)>=weekStart).map(o=>o.emp));
-  $("kpis").innerHTML=[[rota.size,"people on the rota this week",""],[clashes.length,"on the rota but off in Breathe",clashes.length?"bad":"good"],[gaps,"classes with no lead",gaps?"bad":"good"],[offWeek.size,"staff off this week (Breathe)",""]]
+  // one line per person per day, listing the classes they're down for
+  const grp={};clashes.forEach(x=>{const k=x.p.id+"|"+x.date;(grp[k]=grp[k]||{x,items:[]}).items.push(x)});
+  const lines=Object.values(grp).sort((a,b)=>a.x.date.localeCompare(b.x.date)||fullName(a.x.p).localeCompare(fullName(b.x.p)));
+  const clashPeople=new Set(clashes.map(x=>x.p.id)).size;
+  $("kpis").innerHTML=[[rota.size,"people on the rota this week",""],[clashPeople,"on the rota but off in Breathe",clashPeople?"bad":"good"],[gaps,"classes with no lead",gaps?"bad":"good"],[offWeek.size,"staff off this week (Breathe)",""]]
     .map(([v,s,c])=>`<div class="kpi ${c}"><span class="v">${v}</span><span class="s">${esc(s)}</span></div>`).join("");
-  $("clashCount").textContent=clashes.length;
-  $("clashList").innerHTML=clashes.sort((a,b)=>a.date.localeCompare(b.date)).map(x=>`<div class="it"><b>${esc(x.name)}</b> (${esc(fullName(x.p))}) · ${esc(offKind(x.o))} · ${esc(pretty(x.date))} · ${esc(x.session)} ${esc(x.cls)} · ${esc(x.role)}</div>`).join("")||'<p class="small muted" style="margin:0">Nobody on the rota is off this week.</p>';
+  $("clashCount").textContent=clashPeople;
+  $("clashList").innerHTML=lines.map(({x,items})=>`<div class="it"><b>${esc(fullName(x.p))}</b> · ${esc(offKind(x.o))} · ${esc(pretty(x.date))} · ${items.length} slot${items.length>1?"s":""}<div class="small muted">${items.map(i=>esc(i.session+" "+i.cls+" ("+i.role+")")).join(" · ")}</div></div>`).join("")||'<p class="small muted" style="margin:0">Nobody on the rota is off this week.</p>';
   const v=dayView(day,dateFor(day,weekStart));
   $("dayTitle").textContent=`${day} ${pretty(dateFor(day,weekStart),{day:"numeric",month:"long"})}`;
   $("dayBody").innerHTML=v.html;

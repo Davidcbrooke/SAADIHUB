@@ -50,7 +50,7 @@ ST.namesIn=cell=>{
     .filter(n=>n.length<=24&&!STOP.test(n.split(" ")[0]));
 };
 /* Words that turn up in rota cells but aren't people. */
-const STOP=/^(cancelled|moved|coach|coaches|comp|day|no|school|closed|session|class|cover|desk|reception|lead|assistant|young|leader|leaders|tbc|ask|needed|free|spare|monday|tuesday|wednesday|thursday|friday|saturday|sunday|pearl|diamond|amethyst|topaz|emerald|group|groups|squad|novice|holiday|half|term|bank|off|sick|p-s)$/i;
+const STOP=/^(don'?t|dont|in|need|needs|on|one|two|to|the|trial|trials|only|please|new|tbc|see|with|for|if|not|all|any|staff|extra|help|cancelled|moved|coach|coaches|comp|day|no|school|closed|session|class|cover|desk|reception|lead|assistant|young|leader|leaders|tbc|ask|needed|free|spare|monday|tuesday|wednesday|thursday|friday|saturday|sunday|pearl|diamond|amethyst|topaz|emerald|group|groups|squad|novice|holiday|half|term|bank|off|sick|p-s)$/i;
 
 /* One day tab -> {day, weeks:[{col,date,label,note}], rows:[{session,cls,termly,role,colour,cells:[text per week]}]} */
 ST.parseTab=(name,values,bgC,ref)=>{
@@ -95,13 +95,28 @@ ST.matchName=(token,staff,map)=>{
   let c=staff.filter(s=>firstOf(s).includes(f));
   if(i)c=c.filter(s=>low(s.last).startsWith(i));
   if(c.length===1)return c[0];
+  const narrow=list=>{if(i)list=list.filter(s=>low(s.last).startsWith(i));return list.length===1?list[0]:null};
+  // a nickname: Dave -> David, Tash -> Natasha, Becca -> Rebecca, Izzy -> Isabel/Isobel/Isabella...
+  const full=ALIASES[f];
+  if(!c.length&&full){const r=narrow(staff.filter(s=>firstOf(s).some(n=>full.includes(n))));if(r)return r}
   if(!c.length&&f.length>=3){
-    let p=staff.filter(s=>firstOf(s).some(n=>n.startsWith(f)));
-    if(i)p=p.filter(s=>low(s.last).startsWith(i));
-    if(p.length===1)return p[0];
+    const r=narrow(staff.filter(s=>firstOf(s).some(n=>n.startsWith(f))));if(r)return r;
+  }
+  // a spelling slip: "Ameila" -> Amelia, "Rebbca" -> Rebecca (one or two letters out, names of five letters or more)
+  if(!c.length&&f.length>=5){
+    const r=narrow(staff.filter(s=>firstOf(s).some(n=>n.length>=5&&dist(n,f)<=(f.length>=7?2:1))));if(r)return r;
   }
   return null;
 };
+const ALIASES={dave:["david"],davey:["david"],tash:["natasha","tasha"],becca:["rebecca"],becky:["rebecca"],bex:["rebecca"],izzy:["isabel","isabelle","isobel","isabella","isla"],issy:["isabel","isabelle","isobel","isabella"],
+  bella:["isabella","arabella","annabella"],ed:["edward","edwin","edmund"],josie:["josephine"],jo:["joanne","joanna","josephine"],maddie:["madeleine","madeline","madison","madelyn"],penny:["penelope"],ellie:["eleanor","elena","eloise","elizabeth"],
+  liz:["elizabeth"],beth:["bethany","elizabeth"],kate:["katherine","catherine","kathryn"],katie:["katherine","catherine","kathryn"],kat:["katherine","catherine","katarzyna"],kasia:["katarzyna"],sam:["samantha","samuel"],
+  alex:["alexandra","alexander"],lexi:["alexis","alexandra"],millie:["amelia","millicent","emily"],milly:["amelia","millicent","emily"],tilly:["matilda"],tilda:["matilda"],libby:["elizabeth","liberty"],
+  nat:["natalie","natasha"],nicky:["nicola","nicole"],nikki:["nicola","nicole"],abby:["abigail"],abi:["abigail"],gabby:["gabriella","gabrielle"],sophie:["sophia"],sophia:["sophie"],chris:["christopher","christine","christina"],
+  mike:["michael"],matt:["matthew"],tom:["thomas"],jamie:["james"],will:["william"],ollie:["oliver","olivia"],liv:["olivia"],em:["emily","emma"],steph:["stephanie"],fran:["frances","francesca"],
+  annie:["anne","anna","annabel"],sisi:["cecilia","cecily"]};
+function dist(a,b){const m=a.length,n=b.length,d=Array.from({length:m+1},(_,i)=>[i]);for(let j=1;j<=n;j++)d[0][j]=j;
+  for(let i=1;i<=m;i++)for(let j=1;j<=n;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return d[m][n]}
 
 /* Is this person off on this ISO date? Returns the time-off record or null. */
 ST.offOn=(personId,iso,off)=>off.find(o=>String(o.emp)===String(personId)&&o.start<=iso&&iso<=(o.end||o.start))||null;

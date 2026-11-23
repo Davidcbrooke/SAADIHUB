@@ -164,7 +164,7 @@ function showSetup(on){$("setupPanel").hidden=!on;$("sheetIdShow").textContent=s
   if(!had)Hub.doc("config/staffing").set({token:CFG.token,sheet:CFG.sheet||DEFAULT_SHEET},{merge:true}).catch(()=>{});   // keep the same token if the page is reopened mid set-up
 }
 $("copyToken").onclick=()=>navigator.clipboard.writeText(token()).then(()=>toast("Token copied"));
-$("copyCode").onclick=async()=>{try{const t=await (await fetch("staffing.gs?v=1")).text();await navigator.clipboard.writeText(t);toast("Code copied: paste it into the script")}catch(e){toast("Couldn't copy: open staffing.gs from the Hub's GitHub")}};
+$("copyCode").onclick=async()=>{try{const t=await (await fetch("staffing.gs?v=2")).text();await navigator.clipboard.writeText(t);toast("Code copied: paste it into the script")}catch(e){toast("Couldn't copy: open staffing.gs from the Hub's GitHub")}};
 $("saveConn").onclick=async()=>{const u=$("urlIn").value.trim();if(!/^https:\/\/script\.google\.com\/macros\/s\//.test(u))return toast("That doesn't look like a Web app URL");
   await Hub.doc("config/staffing").set({url:u,token:token(),sheet:CFG.sheet||DEFAULT_SHEET},{merge:true});toast("Connected: reading the rota…")};
 $("saveSettings").onclick=async()=>{const s=sheetIdOf($("sheetIn").value);if($("sheetIn").value&&!s)return toast("That isn't a Google Sheets link");

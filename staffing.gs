@@ -16,14 +16,16 @@
  * Each new term: change SHEET_ID to the new term's sheet (or paste the new link into the Hub's Staffing settings).
  */
 var P = PropertiesService.getScriptProperties();
+/* A property's value with any stray spaces, line breaks, quotes or a leading "=" removed (easy to paste by mistake). */
+function prop_(name) { return String(P.getProperty(name) || '').replace(/^[\s"'=]+|[\s"']+$/g, ''); }
 
 function doPost(e) {
   try {
     var q = JSON.parse(e.postData.contents || '{}');
-    if (!q.token || q.token !== P.getProperty('TOKEN')) return out_({ ok: false, error: 'Wrong token' });
+    if (!q.token || q.token !== prop_('TOKEN')) return out_({ ok: false, error: 'Wrong token' });
     var want = q.want || ['rota', 'staff', 'off'];
-    var res = { ok: true, at: new Date().toISOString(), version: 1 };
-    if (want.indexOf('rota') >= 0) res.rota = rota_(q.sheetId || P.getProperty('SHEET_ID'));
+    var res = { ok: true, at: new Date().toISOString(), version: 2 };
+    if (want.indexOf('rota') >= 0) res.rota = rota_(q.sheetId || prop_('SHEET_ID'));
     if (want.indexOf('staff') >= 0) res.staff = staff_();
     if (want.indexOf('off') >= 0) res.off = off_(q.from, q.to);
     return out_(res);
@@ -31,7 +33,7 @@ function doPost(e) {
     return out_({ ok: false, error: String(err && err.message || err) });
   }
 }
-function doGet() { return out_({ ok: true, hello: 'SAADI Hub Staffing connector', version: 1 }); }
+function doGet() { return out_({ ok: true, hello: 'SAADI Hub Staffing connector', version: 2 }); }
 function out_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
 
 function rota_(id) {
@@ -49,13 +51,13 @@ function rota_(id) {
 }
 
 function breathe_(path) {
-  var key = P.getProperty('BREATHE_API_KEY');
+  var key = prop_('BREATHE_API_KEY');
   if (!key) throw new Error('No Breathe key set (BREATHE_API_KEY)');
   var all = [], page = 1;
   while (page <= 30) {
     var url = 'https://api.breathehr.com/v1/' + path + (path.indexOf('?') >= 0 ? '&' : '?') + 'per_page=100&page=' + page;
     var r = UrlFetchApp.fetch(url, { headers: { 'X-API-KEY': key }, muteHttpExceptions: true });
-    if (r.getResponseCode() !== 200) throw new Error('Breathe said ' + r.getResponseCode() + ' for ' + path.split('?')[0]);
+    if (r.getResponseCode() !== 200) throw new Error('Breathe said ' + r.getResponseCode() + ' for ' + path.split('?')[0] + (r.getResponseCode() === 401 ? ' (the key in Script properties is ' + key.length + ' characters; a Breathe key is usually 48)' : ''));
     var j = JSON.parse(r.getContentText()), k = Object.keys(j).filter(function (x) { return Array.isArray(j[x]); })[0];
     var items = k ? j[k] : [];
     all = all.concat(items);

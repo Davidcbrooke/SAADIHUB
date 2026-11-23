@@ -2,7 +2,7 @@
  * SAADI Hub: Staffing connector (Google Apps Script web app).
  * Reads the termly staffing sheet and Breathe HR, and gives the Hub only what the Staffing page needs:
  *   - the rota tabs (cell text, and the class column's colours),
- *   - current staff: id, names, work email (for cover requests), job title, department (no pay, bank, address or other personal details),
+ *   - current staff: id, names, work email and mobile (for cover requests; never shown in the Hub), job title, department (no pay, bank, address or other personal details),
  *   - time off in a date range: who, from, to, half days, and "holiday" or "off" (never the reason or sickness type).
  * The Breathe key stays in this script's properties and never reaches the Hub or anyone's browser.
  *
@@ -23,7 +23,7 @@ function doPost(e) {
   try {
     var q = JSON.parse(e.postData.contents || '{}');
     if (!q.token || q.token !== prop_('TOKEN')) return out_({ ok: false, error: 'Wrong token' });
-    var res = { ok: true, at: new Date().toISOString(), version: 4 };
+    var res = { ok: true, at: new Date().toISOString(), version: 5 };
     // cover: write the confirmed person into the rota, or close a shift so late "I can do it" taps are thanked and turned away
     if (q.action === 'write') { res.written = write_(q.sheetId || prop_('SHEET_ID'), q); return out_(res); }
     if (q.action === 'close') { P.setProperty('X:' + q.c, JSON.stringify({ by: q.by || '', at: res.at })); return out_(res); }
@@ -42,7 +42,8 @@ function doPost(e) {
 /* The "I can do it" link in a cover email: ?shift=id&who=person&name=first name&what=shift text&sig=signature (Google reserves ?c=) */
 function doGet(e) {
   var q = (e && e.parameter) || {}, p = { c: q.shift, p: q.who, n: q.name, s: q.what, k: q.sig };
-  if (!p.c) return out_({ ok: true, hello: 'SAADI Hub Staffing connector', version: 4 });
+  if (q.shift && q.pick) return pickPage_(q);
+  if (!p.c) return out_({ ok: true, hello: 'SAADI Hub Staffing connector', version: 5 });
   var ok = p.k && p.k === sign_(p.c + '|' + p.p);
   var msg, head;
   if (!ok) { head = 'That link doesn\'t look right'; msg = 'Please reply to the email instead and reception will sort it out.'; }
@@ -58,6 +59,22 @@ function doGet(e) {
     '<div style="font-family:Arial,sans-serif;max-width:520px;margin:40px auto;padding:24px;border-radius:14px;border-top:8px solid #f20779;background:#fff;box-shadow:0 4px 20px rgba(0,0,0,.08)">' +
     '<h2 style="margin:0 0 10px;color:#1d1a1f">' + esc_(head) + '</h2><p style="font-size:16px;line-height:1.5;color:#333;margin:0">' + msg + '</p>' +
     '<p style="font-size:13px;color:#888;margin:18px 0 0">SAADI Gymnastics</p></div>';
+  return HtmlService.createHtmlOutput(html).setTitle('SAADI cover').addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+/* From a WhatsApp group message: everyone who can do the shift picks their own name, then lands on the normal "I can do it" page. */
+function pickPage_(q) {
+  var ok = q.sig && q.sig === sign_(q.shift + '|' + q.pick), base = ScriptApp.getService().getUrl(), body;
+  if (!ok) body = '<h2>That link doesn't look right</h2><p>Please message reception instead.</p>';
+  else if (P.getProperty('X:' + q.shift)) body = '<h2>Thank you!</h2><p>This shift has already been covered.</p>';
+  else {
+    var people = String(q.pick).split(',').map(function (x) { var i = x.indexOf(':'); return { id: x.slice(0, i), n: x.slice(i + 1) }; });
+    body = '<h2>Can you cover?</h2><p style="color:#333">' + esc_(q.what || '') + '</p><p style="color:#333">Tap your name:</p>' +
+      people.map(function (x) {
+        var link = base + '?shift=' + encodeURIComponent(q.shift) + '&who=' + encodeURIComponent(x.id) + '&name=' + encodeURIComponent(x.n) + '&what=' + encodeURIComponent(q.what || '') + '&sig=' + sign_(q.shift + '|' + x.id);
+        return '<a href="' + esc_(link) + '" target="_top" style="display:block;margin:8px 0;padding:12px 16px;border-radius:10px;background:#f20779;color:#fff;font-weight:700;text-decoration:none;font-size:16px">' + esc_(x.n) + '</a>';
+      }).join('') + '<p style="font-size:13px;color:#888">Not on the list? This shift needs a particular position, so please message reception.</p>';
+  }
+  var html = '<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><div style="font-family:Arial,sans-serif;max-width:520px;margin:30px auto;padding:22px;border-radius:14px;border-top:8px solid #f20779;background:#fff;box-shadow:0 4px 20px rgba(0,0,0,.08)">' + body + '<p style="font-size:13px;color:#888;margin-top:16px">SAADI Gymnastics</p></div>';
   return HtmlService.createHtmlOutput(html).setTitle('SAADI cover').addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 function esc_(s) { return String(s || '').replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
@@ -119,8 +136,17 @@ function breathe_(path) {
 function staff_() {
   return breathe_('employees').filter(function (e) { return e.status !== 'Ex-employee'; }).map(function (e) {
     return { id: e.id, first: e.first_name || '', last: e.last_name || '', known: e.known_as || '',
-      email: e.email || e.personal_email || '', job: e.job_title || '', dept: (e.department && e.department.name) || '', leaving: e.status === 'Pending leaver' ? (e.leaving_date || 'soon') : '' };
+      email: e.email || e.personal_email || '', wa: waNumber_(e.personal_mobile || e.ddi || ''), job: e.job_title || '', dept: (e.department && e.department.name) || '', leaving: e.status === 'Pending leaver' ? (e.leaving_date || 'soon') : '' };
   });
+}
+
+/* A UK mobile for a wa.me link: digits only, 07... -> 447... (only mobiles; landlines can't take WhatsApp messages from staff phones) */
+function waNumber_(n) {
+  var d = String(n || '').replace(/[^0-9+]/g, '').replace(/^\+/, '').replace(/^00/, '');
+  if (/^07\d{9}$/.test(d)) d = '44' + d.slice(1);
+  else if (/^7\d{9}$/.test(d)) d = '44' + d;
+  if (/^447\d{9}$/.test(d)) return d;                                   // UK mobile
+  return (/^(?!44)[1-9]\d{9,14}$/.test(d)) ? d : '';                     // another country's number, as entered
 }
 
 function off_(from, to) {

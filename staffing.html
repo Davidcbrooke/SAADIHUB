@@ -57,6 +57,9 @@
 .need .elig label{display:flex;gap:5px;align-items:center}
 .need .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .need .yes{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:14px}
+.need .elig .pp{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:99px;padding:2px 4px 2px 10px}
+button.wa{background:#25d366;border-color:#25d366;color:#fff;padding:3px 10px;font-size:13px;font-weight:700}
+.need .acts button.wa{padding:8px 14px;font-size:14px}
 .need .yes button{background:var(--good);border-color:var(--good);color:#fff}
 .swatch{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:middle}
 table.pos{border-collapse:collapse;font-size:13px;min-width:720px}
@@ -214,7 +217,7 @@ function showSetup(on){$("setupPanel").hidden=!on;$("sheetIdShow").textContent=s
   if(!had)Hub.doc("config/staffing").set({token:CFG.token,sheet:CFG.sheet||DEFAULT_SHEET},{merge:true}).catch(()=>{});   // keep the same token if the page is reopened mid set-up
 }
 $("copyToken").onclick=()=>navigator.clipboard.writeText(token()).then(()=>toast("Token copied"));
-$("copyCode").onclick=async()=>{try{const t=await (await fetch("staffing.gs?v=4")).text();await navigator.clipboard.writeText(t);toast("Code copied: paste it into the script")}catch(e){toast("Couldn't copy: open staffing.gs from the Hub's GitHub")}};
+$("copyCode").onclick=async()=>{try{const t=await (await fetch("staffing.gs?v=5")).text();await navigator.clipboard.writeText(t);toast("Code copied: paste it into the script")}catch(e){toast("Couldn't copy: open staffing.gs from the Hub's GitHub")}};
 $("saveConn").onclick=async()=>{const u=$("urlIn").value.trim();if(!/^https:\/\/script\.google\.com\/macros\/s\//.test(u))return toast("That doesn't look like a Web app URL");
   await Hub.doc("config/staffing").set({url:u,token:token(),sheet:CFG.sheet||DEFAULT_SHEET},{merge:true});toast("Connected: reading the rota…")};
 $("saveSettings").onclick=async()=>{const s=sheetIdOf($("sheetIn").value);if($("sheetIn").value&&!s)return toast("That isn't a Google Sheets link");
@@ -229,7 +232,7 @@ async function load(force){
     const r=await fetch(CFG.url,{method:"POST",body:JSON.stringify({token:CFG.token,want:["rota","staff","off","replies"],from,to,sheetId:sheetIdOf(CFG.sheet)||undefined})});
     const j=await r.json();if(!j.ok)throw new Error(j.error||"The connector refused");
     DATA=j;STAFF=j.staff||[];OFF=j.off||[];REPLIES=j.replies||{};
-    if(!j.version||j.version<4)toast("The Google script needs updating to version 4 for cover offers (see Names & settings).");
+    if(!j.version||j.version<5)toast("The Google script needs updating to version 5 for cover offers (see Names & settings).");
     DAYS=ST.parseRota(j.rota.tabs).sort((a,b)=>DAY_ORDER.indexOf(a.day)-DAY_ORDER.indexOf(b.day));
     $("syncLine").textContent=`From "${j.rota.title}" and Breathe, read at ${new Date(j.at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}.`;
     $("statusNote").hidden=true;
@@ -338,9 +341,10 @@ function renderCover(offCount){
       <div class="meta">${g.items.map(i=>`<span class="swatch" style="background:${i.r.colour||"var(--muted)"}"></span>${esc(itemText(i))}`).join(" · ")}</div>
       <div class="meta">Needs: <b>${esc(g.pos.join(" + "))}</b> · ${el.length} ${el.length===1?"person":"people"} can do all of it${d.offeredAt?` · offered ${esc(new Date(d.offeredAt).toLocaleString("en-GB",{weekday:"short",hour:"2-digit",minute:"2-digit"}))}${d.by?" by "+esc(d.by):""}`:""}</div>
       ${yes.length?`<div class="yes"><b>Said yes:</b> ${yes.map(s=>`<button type="button" data-confirm="${s.id}">Confirm ${esc(fullName(s))}</button>`).join("")}</div>`:""}
-      ${showFind?`<div class="elig">${el.map(s=>`<label><input type="checkbox" data-elig="${s.id}" ${s.email?"checked":"disabled"}> ${esc(fullName(s))}${s.email?"":" (no email)"}</label>`).join("")||'<span class="muted">Nobody with these positions is free for all of it. Add positions on the Positions tab, or choose someone below.</span>'}</div>`:""}
+      ${showFind?`<div class="elig">${el.map(s=>`<span class="pp"><label><input type="checkbox" data-elig="${s.id}" ${s.email?"checked":"disabled"}> ${esc(fullName(s))}${s.email?"":" (no email)"}</label>${s.wa?`<button type="button" class="wa" data-wa="${s.id}" title="WhatsApp ${esc(firstOf(s))} this cover">WhatsApp${(d.waTo||[]).includes(s.id)?" ✓":""}</button>`:`<span class="muted small" title="No mobile in Breathe">no mobile</span>`}</span>`).join("")||'<span class="muted">Nobody with these positions is free for all of it. Add positions on the Positions tab, or choose someone below.</span>'}</div>`:""}
       <div class="acts">
         <button type="button" data-find>${showFind?"Hide":"Find cover"}</button>
+        ${showFind&&el.length?`<button type="button" class="wa" data-wagroup title="Copy a message for the staff WhatsApp group: whoever can do it taps the link and picks their name">Copy for WhatsApp group</button>`:""}
         ${showFind&&el.length?`<button type="button" class="primary" data-offer ${mailerOk?"":"disabled title=\"Set up sending from reception@ on the Enquiry Desk first\""}>${SENDING.has(g.id)?"Sending…":`Email it to ${el.filter(s=>s.email).length}`}</button>`:""}
         <select data-cover><option value="">Covered by (arranged another way)…</option>${everyone.map(s=>`<option value="${s.id}">${esc(fullName(s))}${g.pos.every(p=>posOf(s.id).includes(p))?"":" (not all positions)"}</option>`).join("")}</select>
       </div></div>`}).join("")||'<p class="small muted" style="margin:0">Nothing needs cover from today to the end of this week.</p>';
@@ -357,6 +361,37 @@ async function sendMail(to,subject,heading,paras,foot){
 const btn=(href,label)=>`<p style="margin:18px 0"><a href="${esc(href)}" style="display:inline-block;padding:12px 22px;background:#d4066a;color:#ffffff;font-weight:700;font-size:16px;text-decoration:none;border-radius:999px;font-family:Arial,Helvetica,sans-serif">${esc(label)}</a></p>`;
 const para=t=>`<p style="margin:0 0 14px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.55;color:#1d1a1f">${t}</p>`;
 const listHtml=g=>`<ul style="margin:0 0 14px 18px;padding:0;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.6;color:#1d1a1f">${g.items.map(i=>`<li><b>${esc(i.r.session)}</b> ${esc(i.r.cls)} (${esc(i.r.role)})</li>`).join("")}</ul>`;
+/* ---------- WhatsApp: opens WhatsApp on this device with the message written; you press Send ---------- */
+const NL=String.fromCharCode(10);
+const waText=(g,first,link)=>`Hi ${first}, can you cover? ${pretty(g.date,{weekday:"long",day:"numeric",month:"long"})}:
+${g.items.map(i=>"• "+itemText(i)).join(NL)}
+
+If you can, tap here to say yes: ${link}
+Reception will confirm. Thank you! SAADI Gymnastics`;
+async function waOne(g,pid){
+  const s=STAFF.find(x=>String(x.id)===String(pid));if(!s||!s.wa)return;
+  const k=await ST.sign(CFG.token,g.id+"|"+s.id);
+  const link=`${CFG.url}?shift=${encodeURIComponent(g.id)}&who=${s.id}&name=${encodeURIComponent(firstOf(s))}&what=${encodeURIComponent(groupText(g))}&sig=${k}`;
+  window.open(`https://wa.me/${s.wa}?text=${encodeURIComponent(waText(g,firstOf(s),link))}`,"_blank","noopener");
+  const prev=COVER[g.id]||{};
+  await Hub.doc("cover/"+g.id).set({status:prev.status==="covered"?"covered":"offered",date:g.date,shift:groupText(g),pos:g.pos,offName:g.off?fullName(g.off):"",
+    offeredTo:[...new Set([...(prev.offeredTo||[]),s.id])],waTo:[...new Set([...(prev.waTo||[]),s.id])],offeredAt:Date.now(),by:me()},{merge:true});
+}
+async function waGroup(g){
+  const el=eligibleFor(g);if(!el.length)return;
+  const pick=el.map(s=>s.id+":"+firstOf(s)+" "+String(s.last||"").charAt(0)).join(",");
+  const k=await ST.sign(CFG.token,g.id+"|"+pick);
+  const link=`${CFG.url}?shift=${encodeURIComponent(g.id)}&pick=${encodeURIComponent(pick)}&what=${encodeURIComponent(groupText(g))}&sig=${k}`;
+  const msg=`Cover needed ${pretty(g.date,{weekday:"long",day:"numeric",month:"long"})}:
+${g.items.map(i=>"• "+itemText(i)).join(NL)}
+
+Can you do it? Tap here and pick your name: ${link}
+Reception will confirm who's got it. Thank you!`;
+  try{await navigator.clipboard.writeText(msg);toast("Copied: paste it into the staff WhatsApp group")}catch(e){prompt("Copy this message:",msg)}
+  const prev=COVER[g.id]||{};
+  await Hub.doc("cover/"+g.id).set({status:prev.status==="covered"?"covered":"offered",date:g.date,shift:groupText(g),pos:g.pos,offName:g.off?fullName(g.off):"",
+    offeredTo:[...new Set([...(prev.offeredTo||[]),...el.map(s=>s.id)])],waGroup:true,offeredAt:Date.now(),by:me()},{merge:true});
+}
 async function offer(g,ids){
   if(!(S.mailerUrl&&S.mailerToken))return toast("Sending from reception@ isn't set up yet (Enquiry Desk > Emails & settings).");
   if(!ids.length)return toast("Tick at least one person.");
@@ -501,6 +536,8 @@ document.addEventListener("click",e=>{const b=e.target.closest("button[data-day]
 document.addEventListener("click",e=>{const t=e.target.closest("button[data-tab]");if(t){pane=t.dataset.tab;render();return}
   const card=e.target.closest("[data-need]");if(!card)return;const n=NEEDS.find(x=>x.id===card.dataset.need);if(!n)return;
   if(e.target.closest("button[data-find]")){FIND.has(n.id)?FIND.delete(n.id):FIND.add(n.id);render();return}
+  const w=e.target.closest("button[data-wa]");if(w){waOne(n,w.dataset.wa);return}
+  if(e.target.closest("button[data-wagroup]")){waGroup(n);return}
   if(e.target.closest("button[data-offer]")){offer(n,[...card.querySelectorAll("input[data-elig]:checked")].map(i=>i.dataset.elig));return}
   const c=e.target.closest("button[data-confirm]");if(c)confirmCover(n,c.dataset.confirm)});
 document.addEventListener("change",e=>{const s=e.target.closest("select[data-cover]");if(!s||!s.value)return;const card=s.closest("[data-need]");const n=NEEDS.find(x=>x.id===card.dataset.need);if(n)confirmCover(n,s.value);s.value=""});

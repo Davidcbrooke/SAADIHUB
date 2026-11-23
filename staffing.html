@@ -44,6 +44,14 @@
 .names label{display:flex;gap:8px;align-items:center;justify-content:space-between}
 .names select{max-width:190px}
 .names .bad{color:var(--bad);font-weight:700}
+.anom{border:1px solid var(--line);border-left:5px solid var(--warn);border-radius:8px;padding:10px 12px;background:var(--surface);display:flex;flex-direction:column;gap:6px}
+.anom.leave{border-left-color:var(--bad)}
+.anom .top{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.anom .top b{font-size:16px}
+.anom .why{font-weight:600}
+.anom .where{font-size:13px;color:var(--muted)}
+.anom .fix{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.anom .fix button{padding:4px 10px;font-size:13px}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:10px 18px;border-radius:99px;font-weight:600;z-index:60}
 details summary{cursor:pointer;font-weight:700;color:var(--accent);font-size:14px}
 .small{font-size:13px}
@@ -108,6 +116,13 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
       <div class="list" id="clashList"></div>
     </section>
 
+    <section class="panel" id="anomPanel" hidden>
+      <h2>Names that don't match Breathe <span class="pill warn" id="anomCount">0</span></h2>
+      <p class="small muted" style="margin:0">Names on the rota that the Hub can't link to one person in Breathe, so it can't tell when they're off. Fix each one once: it's saved for everyone.</p>
+      <div class="list" id="anomList"></div>
+      <details class="small" style="margin-top:6px"><summary>Marked as not in Breathe <span id="ignCount"></span></summary><div class="list" id="ignList" style="margin-top:6px"></div></details>
+    </section>
+
     <section class="panel" id="dayPanel" hidden>
       <h2 id="dayTitle"></h2>
       <div id="dayBody"></div>
@@ -139,7 +154,7 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="hub-core.js"></script>
-<script src="staffing-core.js?v=2"></script>
+<script src="staffing-core.js?v=3"></script>
 <script>
 "use strict";
 const $=Hub.$, esc=Hub.esc;
@@ -234,7 +249,7 @@ function dayView(d,date){
 /* ---------- render ---------- */
 function render(){
   const ready=!!(CFG.url&&DATA);
-  ["topBar","kpis","clashPanel","dayPanel","personPanel","namesPanel","settingsPanel"].forEach(id=>$(id).hidden=!ready&&id!=="settingsPanel");
+  ["topBar","kpis","clashPanel","dayPanel","personPanel","namesPanel","settingsPanel","anomPanel"].forEach(id=>$(id).hidden=!ready&&id!=="settingsPanel");
   if(!CFG.url){showSetup(true);return}
   $("sheetIn").value="https://docs.google.com/spreadsheets/d/"+(sheetIdOf(CFG.sheet)||DEFAULT_SHEET)+"/edit";$("urlIn2").value=CFG.url||"";
   if(!DATA)return;
@@ -269,8 +284,51 @@ function render(){
   $("unkCount").hidden=!unk.length;$("unkCount").textContent=unk.length+" not matched";
   const opts=STAFF.slice().sort((a,b)=>fullName(a).localeCompare(fullName(b))).map(s=>`<option value="${s.id}">${esc(fullName(s))}${s.job?" · "+esc(s.job):""}</option>`).join("");
   $("namesList").innerHTML=tokens.map(t=>{const set=names()[t],m=who(t);const val=set!==undefined?set:(m&&!m.ignore?m.id:"");
-    return `<label><span class="${m?"":"bad"}">${esc(t)}</span><select data-tok="${esc(t)}"><option value="">${m&&set===undefined?"Auto: "+esc(fullName(m)):"Not matched"}</option><option value="ignore"${set==="ignore"?" selected":""}>Not a person</option>${opts.replace(`value="${val}"`,`value="${val}" selected`)}</select></label>`}).join("");
+    return `<label><span class="${m?"":"bad"}">${esc(t)}</span><select data-tok="${esc(t)}"><option value="">${m&&set===undefined?"Auto: "+esc(fullName(m)):"Not matched"}</option><option value="ignore"${set==="ignore"?" selected":""}>Not in Breathe / not a person</option>${opts.replace(`value="${val}"`,`value="${val}" selected`)}</select></label>`}).join("");
+  renderAnomalies(tokens,opts);
 }
+
+/* ---------- anomalies: rota names that don't line up with Breathe ---------- */
+function appearances(tok){
+  const wk=[],term={n:0,first:"",last:""};
+  DAYS.forEach(t=>t.rows.forEach(r=>r.cells.forEach((c,i)=>{if(!ST.namesIn(c).includes(tok))return;const d=t.weeks[i].date;term.n++;
+    if(d&&(!term.first||d<term.first))term.first=d;if(d&&d>term.last)term.last=d;
+    if(d&&d>=weekStart&&d<=addDays(weekStart,6))wk.push(`${pretty(d,{weekday:"short"})} ${r.session} ${r.cls} (${r.role})`)})));
+  return {wk,term};
+}
+function renderAnomalies(tokens,opts){
+  const list=[];
+  tokens.forEach(t=>{const m=who(t);
+    if(m&&m.ignore)return;
+    if(m){ // matched, but leaving before they stop appearing on the rota
+      if(m.leaving&&/^\d{4}-\d\d-\d\d$/.test(m.leaving)){const a=appearances(t);if(a.term.last>m.leaving)list.push({t,kind:"leave",why:`Leaving on ${pretty(m.leaving)} but on the rota until ${pretty(a.term.last)}`,a,cands:[m]})}
+      return}
+    const c=ST.candidates(t,STAFF);
+    list.push({t,kind:c.length>1?"many":c.length?"one":"none",cands:c,a:appearances(t),
+      why:c.length>1?`More than one person in Breathe could be "${t}": ${c.map(fullName).join(", ")}`:c.length?`Possibly ${fullName(c[0])}, but not certain enough to link automatically`:"Not in Breathe (a young leader, volunteer, new starter or a typo?)"});
+  });
+  const rank={leave:0,many:1,one:2,none:3};
+  list.sort((a,b)=>rank[a.kind]-rank[b.kind]||b.a.wk.length-a.a.wk.length||a.t.localeCompare(b.t));
+  $("anomPanel").hidden=!list.length&&!Object.values(names()).includes("ignore");
+  $("anomCount").textContent=list.length;
+  $("anomList").innerHTML=list.map(x=>`<div class="anom${x.kind==="leave"?" leave":""}" data-tok="${esc(x.t)}">
+    <div class="top"><b>${esc(x.t)}</b><span class="why">${esc(x.why)}</span></div>
+    <div class="where">${x.a.wk.length?"This week: "+x.a.wk.map(esc).join(" · ")+".":"Not on the rota this week."} On the rota ${x.a.term.n} time${x.a.term.n===1?"":"s"} this term${x.a.term.first?` (${esc(pretty(x.a.term.first))} to ${esc(pretty(x.a.term.last))})`:""}.</div>
+    ${x.kind==="leave"?"":`<div class="fix">${x.cands.slice(0,4).map(c=>`<button type="button" data-set="${c.id}">It's ${esc(fullName(c))}</button>`).join("")}
+      <button type="button" data-set="ignore">Not in Breathe</button>
+      <select data-pick><option value="">Someone else…</option>${opts}</select></div>`}
+  </div>`).join("")||'<p class="small muted" style="margin:0">Every name on the rota is linked to someone in Breathe.</p>';
+  const ign=Object.entries(names()).filter(([,v])=>v==="ignore").map(([k])=>k).sort();
+  $("ignCount").textContent=ign.length?`(${ign.length})`:"";
+  $("ignList").innerHTML=ign.map(k=>`<div data-tok="${esc(k)}">${esc(k)} <button type="button" data-set="" style="padding:2px 8px;font-size:12px">Undo</button></div>`).join("")||'<span class="muted">None.</span>';
+}
+async function setName(tok,val){
+  const m=Object.assign({},names());if(val)m[tok]=val;else delete m[tok];
+  await Hub.doc("config/staffing").set(Object.assign({},CFG,{names:m}));
+  toast(val==="ignore"?`"${tok}" marked as not in Breathe`:val?`"${tok}" linked to ${fullName(STAFF.find(s=>String(s.id)===String(val)))}`:`"${tok}" put back on the list`);
+}
+document.addEventListener("click",e=>{const b=e.target.closest("button[data-set]");if(!b)return;const row=b.closest("[data-tok]");if(row)setName(row.dataset.tok,b.dataset.set)});
+document.addEventListener("change",e=>{const s=e.target.closest("select[data-pick]");if(!s||!s.value)return;const row=s.closest("[data-tok]");if(row)setName(row.dataset.tok,s.value)});
 function renderPerson(){
   const id=$("personSel").value;if(!id){$("personList").innerHTML="";return}
   const rows=[];

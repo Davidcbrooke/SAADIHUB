@@ -108,13 +108,23 @@ ST.matchName=(token,staff,map)=>{
   }
   return null;
 };
+/* Everyone in Breathe this rota name could be (ignoring whether it's unique), for the anomalies list. */
+ST.candidates=(token,staff)=>{
+  const t=clean(token);if(!t)return [];
+  const [first,ini]=t.split(" ");const f=low(first),i=low(ini||"").replace(/\./g,"");
+  const firstOf=s=>[low(s.known),low(s.first)].filter(Boolean);
+  const full=ALIASES[f]||[];
+  let c=staff.filter(s=>firstOf(s).some(n=>n===f||full.includes(n)||(f.length>=3&&n.startsWith(f))||(f.length>=5&&n.length>=5&&dist(n,f)<=(f.length>=7?2:1))));
+  if(i){const w=c.filter(s=>low(s.last).startsWith(i));if(w.length)c=w}
+  return c;
+};
 const ALIASES={dave:["david"],davey:["david"],tash:["natasha","tasha"],becca:["rebecca"],becky:["rebecca"],bex:["rebecca"],izzy:["isabel","isabelle","isobel","isabella","isla"],issy:["isabel","isabelle","isobel","isabella"],
   bella:["isabella","arabella","annabella"],ed:["edward","edwin","edmund"],josie:["josephine"],jo:["joanne","joanna","josephine"],maddie:["madeleine","madeline","madison","madelyn"],penny:["penelope"],ellie:["eleanor","elena","eloise","elizabeth"],
   liz:["elizabeth"],beth:["bethany","elizabeth"],kate:["katherine","catherine","kathryn"],katie:["katherine","catherine","kathryn"],kat:["katherine","catherine","katarzyna"],kasia:["katarzyna"],sam:["samantha","samuel"],
   alex:["alexandra","alexander"],lexi:["alexis","alexandra"],millie:["amelia","millicent","emily"],milly:["amelia","millicent","emily"],tilly:["matilda"],tilda:["matilda"],libby:["elizabeth","liberty"],
   nat:["natalie","natasha"],nicky:["nicola","nicole"],nikki:["nicola","nicole"],abby:["abigail"],abi:["abigail"],gabby:["gabriella","gabrielle"],sophie:["sophia"],sophia:["sophie"],chris:["christopher","christine","christina"],
   mike:["michael"],matt:["matthew"],tom:["thomas"],jamie:["james"],will:["william"],ollie:["oliver","olivia"],liv:["olivia"],em:["emily","emma"],steph:["stephanie"],fran:["frances","francesca"],
-  annie:["anne","anna","annabel"],sisi:["cecilia","cecily"]};
+  annie:["anne","anna","annabel"],susie:["susan","susannah","suzanne"],suzy:["susan","susannah","suzanne"],sue:["susan","susannah"],sisi:["cecilia","cecily"]};
 function dist(a,b){const m=a.length,n=b.length,d=Array.from({length:m+1},(_,i)=>[i]);for(let j=1;j<=n;j++)d[0][j]=j;
   for(let i=1;i<=m;i++)for(let j=1;j<=n;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return d[m][n]}
 

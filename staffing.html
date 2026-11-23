@@ -182,7 +182,10 @@ async function load(force){
     DAYS=ST.parseRota(j.rota.tabs).sort((a,b)=>DAY_ORDER.indexOf(a.day)-DAY_ORDER.indexOf(b.day));
     $("syncLine").textContent=`From "${j.rota.title}" and Breathe, read at ${new Date(j.at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}.`;
     $("statusNote").hidden=true;
-  }catch(e){$("statusNote").hidden=false;$("statusNote").textContent="Couldn't read the staffing: "+e.message;$("syncLine").textContent=""}
+  }catch(e){$("statusNote").hidden=false;
+    const why=/failed to fetch|networkerror|load failed/i.test(e.message)?" The Hub couldn't reach the Google script. In the script, check Deploy > Manage deployments: Who has access must be \"Anyone\", and you must have clicked Authorise access. Opening the Web app URL in a new tab should show {\"ok\":true,…}.":"";
+    $("statusNote").innerHTML=esc("Couldn't read the staffing: "+e.message+"."+why)+' <button type="button" id="retry" style="margin-left:8px">Try again</button>';
+    $("retry").onclick=()=>load(true);$("syncLine").textContent=""}
   busy=false;render();
 }
 

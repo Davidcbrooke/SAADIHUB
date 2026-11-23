@@ -3,7 +3,8 @@
  * Reads the termly staffing sheet and Breathe HR, and gives the Hub only what the Staffing page needs:
  *   - the rota tabs (cell text, and the class column's colours),
  *   - current staff: id, names, work email and mobile (for cover requests; never shown in the Hub), job title, department (no pay, bank, address or other personal details),
- *   - time off in a date range: who, from, to, half days, and "holiday" or "off" (never the reason or sickness type).
+ *   - time off in a date range: who, from, to, half days, "holiday" or "off", and who is covering if the note names them
+ *     (never the note, the reason or sickness type).
  * The Breathe key stays in this script's properties and never reaches the Hub or anyone's browser.
  *
  * Set up (once):
@@ -23,7 +24,7 @@ function doPost(e) {
   try {
     var q = JSON.parse(e.postData.contents || '{}');
     if (!q.token || q.token !== prop_('TOKEN')) return out_({ ok: false, error: 'Wrong token' });
-    var res = { ok: true, at: new Date().toISOString(), version: 5 };
+    var res = { ok: true, at: new Date().toISOString(), version: 6 };
     // cover: write the confirmed person into the rota, or close a shift so late "I can do it" taps are thanked and turned away
     if (q.action === 'write') { res.written = write_(q.sheetId || prop_('SHEET_ID'), q); return out_(res); }
     if (q.action === 'close') { P.setProperty('X:' + q.c, JSON.stringify({ by: q.by || '', at: res.at })); return out_(res); }
@@ -43,7 +44,7 @@ function doPost(e) {
 function doGet(e) {
   var q = (e && e.parameter) || {}, p = { c: q.shift, p: q.who, n: q.name, s: q.what, k: q.sig };
   if (q.shift && q.pick) return pickPage_(q);
-  if (!p.c) return out_({ ok: true, hello: 'SAADI Hub Staffing connector', version: 5 });
+  if (!p.c) return out_({ ok: true, hello: 'SAADI Hub Staffing connector', version: 6 });
   var ok = p.k && p.k === sign_(p.c + '|' + p.p);
   var msg, head;
   if (!ok) { head = 'That link doesn\'t look right'; msg = 'Please reply to the email instead and reception will sort it out.'; }
@@ -149,17 +150,43 @@ function waNumber_(n) {
   return (/^(?!44)[1-9]\d{9,14}$/.test(d)) ? d : '';                     // another country's number, as entered
 }
 
+/* Staff named in a note: full name, known-as + surname, first name + surname initial ("Grace K"),
+   or a first name on its own when only one current member of staff has it. Not the person who is off. */
+function coverIn_(note, people, self) {
+  var t = ' ' + String(note || '').toLowerCase().replace(/[^a-z' ]+/g, ' ').replace(/\s+/g, ' ') + ' ';
+  var firsts = {};
+  people.forEach(function (p) { [p.first, p.known].forEach(function (f) { f = String(f || '').toLowerCase(); if (f) firsts[f] = (firsts[f] || 0) + 1; }); });
+  var hit = [];
+  people.forEach(function (p) {
+    if (String(p.id) === String(self)) return;
+    var last = String(p.last || '').toLowerCase(), forms = [];
+    [p.first, p.known].forEach(function (f) { f = String(f || '').toLowerCase(); if (!f) return;
+      if (last) { forms.push(f + ' ' + last); forms.push(f + ' ' + last.charAt(0)); }
+      if (firsts[f] === 1 && f.length > 2) forms.push(f); });
+    if (forms.some(function (x) { return t.indexOf(' ' + x + ' ') >= 0; })) hit.push(p.id);
+  });
+  return hit.slice(0, 3);
+}
+
 function off_(from, to) {
   var tz = 'Europe/London', today = new Date();
   from = from || Utilities.formatDate(new Date(today.getTime() - 7 * 864e5), tz, 'yyyy-MM-dd');
   to = to || Utilities.formatDate(new Date(today.getTime() + 60 * 864e5), tz, 'yyyy-MM-dd');
-  var q = '?start_date=' + from + '&end_date=' + to, list = [];
+  var q = '?start_date=' + from + '&end_date=' + to, list = [], people = null;
   breathe_('absences' + q).forEach(function (a) {
     if (a.cancelled) return;
     var end = a.end_date || a.start_date;
     if (end < from || a.start_date > to) return;
-    list.push({ emp: a.employee && a.employee.id, start: a.start_date, end: end, halfStart: !!a.half_start, halfEnd: !!a.half_end,
-      kind: /holiday|annual/i.test(a.type || '') ? 'holiday' : 'off' });
+    var item = { emp: a.employee && a.employee.id, start: a.start_date, end: end, halfStart: !!a.half_start, halfEnd: !!a.half_end,
+      kind: /holiday|annual/i.test(a.type || '') ? 'holiday' : 'off' };
+    // Who's covering, from the absence note ("Bailey covering me", "Covered by Alicia Hood", "covered 9-1 by Grace K").
+    // Only the matched staff ids leave this script, never the note itself (notes often give private reasons).
+    if (/cover/i.test(a.notes || '')) {
+      people = people || staff_();
+      var c = coverIn_(a.notes, people, item.emp);
+      if (c.length) { item.cover = c; item.coverPart = /\d{1,2}(?:[:.]\d{2})?\s*(?:am|pm)?\s*(?:-|–|to|till|until)\s*\d/i.test(a.notes); }
+    }
+    list.push(item);
   });
   breathe_('sicknesses' + q).forEach(function (s) {
     var end = s.end_date || to;   // still off if no end date yet

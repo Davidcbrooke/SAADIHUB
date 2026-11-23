@@ -246,7 +246,7 @@ function showSetup(on){$("setupPanel").hidden=!on;$("sheetIdShow").textContent=s
   if(!had)Hub.doc("config/staffing").set({token:CFG.token,sheet:CFG.sheet||DEFAULT_SHEET},{merge:true}).catch(()=>{});   // keep the same token if the page is reopened mid set-up
 }
 $("copyToken").onclick=()=>navigator.clipboard.writeText(token()).then(()=>toast("Token copied"));
-$("copyCode").onclick=async()=>{try{const t=await (await fetch("staffing.gs?v=5")).text();await navigator.clipboard.writeText(t);toast("Code copied: paste it into the script")}catch(e){toast("Couldn't copy: open staffing.gs from the Hub's GitHub")}};
+$("copyCode").onclick=async()=>{try{const t=await (await fetch("staffing.gs?v=6")).text();await navigator.clipboard.writeText(t);toast("Code copied: paste it into the script")}catch(e){toast("Couldn't copy: open staffing.gs from the Hub's GitHub")}};
 $("saveConn").onclick=async()=>{const u=$("urlIn").value.trim();if(!/^https:\/\/script\.google\.com\/macros\/s\//.test(u))return toast("That doesn't look like a Web app URL");
   await Hub.doc("config/staffing").set({url:u,token:token(),sheet:CFG.sheet||DEFAULT_SHEET},{merge:true});toast("Connected: reading the rota…")};
 $("saveSettings").onclick=async()=>{const s=sheetIdOf($("sheetIn").value);if($("sheetIn").value&&!s)return toast("That isn't a Google Sheets link");
@@ -261,7 +261,7 @@ async function load(force){
     const r=await fetch(CFG.url,{method:"POST",body:JSON.stringify({token:CFG.token,want:["rota","staff","off","replies"],from,to,sheetId:sheetIdOf(CFG.sheet)||undefined})});
     const j=await r.json();if(!j.ok)throw new Error(j.error||"The connector refused");
     DATA=j;STAFF=j.staff||[];OFF=j.off||[];REPLIES=j.replies||{};
-    if(!j.version||j.version<5)toast("The Google script needs updating to version 5 for cover offers (see Names & settings).");
+    if(!j.version||j.version<6)toast("The Google script needs updating to version 6 for cover offers (see Names & settings).");
     DAYS=ST.parseRota(j.rota.tabs).sort((a,b)=>DAY_ORDER.indexOf(a.day)-DAY_ORDER.indexOf(b.day));
     $("syncLine").textContent=`From "${j.rota.title}" and Breathe, read at ${new Date(j.at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}.`;
     $("statusNote").hidden=true;
@@ -353,11 +353,12 @@ function eligibleFor(g){return STAFF.filter(s=>(!g.off||s.id!==g.off.id)&&!isRet
 function renderCover(offCount){
   NEEDS=groupNeeds(needsThisWeek());
   const wkEnd=addDays(weekStart,6);
-  const open=NEEDS.filter(g=>!(COVER[g.id]&&["covered","sorted"].includes(COVER[g.id].status)));
+  const inBreathe=NEEDS.filter(g=>g.o&&g.o.cover&&g.o.cover.length&&!(COVER[g.id]&&["covered","sorted"].includes(COVER[g.id].status)));
+  const open=NEEDS.filter(g=>!(COVER[g.id]&&["covered","sorted"].includes(COVER[g.id].status))&&!inBreathe.includes(g));
   const offered=open.filter(g=>COVER[g.id]&&COVER[g.id].status==="offered");
   const done=Object.entries(COVER).filter(([,d])=>["covered","sorted"].includes(d.status)&&d.date>=weekStart&&d.date<=wkEnd).sort((a,b)=>a[1].date.localeCompare(b[1].date));
   const yesCount=open.filter(g=>((REPLIES[g.id]&&REPLIES[g.id].yes)||[]).length).length;
-  $("needSummary").innerHTML=`<b>${open.length-offered.length}</b> need cover · <b>${offered.length}</b> offered${yesCount?` · <b style="color:var(--good)">${yesCount} with a yes to confirm</b>`:""} · <b>${done.length}</b> covered or sorted · ${offCount} staff off this week`;
+  $("needSummary").innerHTML=`<b>${open.length-offered.length}</b> need cover · <b>${offered.length}</b> offered${yesCount?` · <b style="color:var(--good)">${yesCount} with a yes to confirm</b>`:""} · <b>${done.length+inBreathe.length}</b> covered or sorted${inBreathe.length?` (${inBreathe.length} from Breathe notes)`:""} · ${offCount} staff off this week`;
   $("needCount").textContent=open.length;
   const mailerOk=!!(S.mailerUrl&&S.mailerToken);
   const everyone=STAFF.slice().sort((a,b)=>fullName(a).localeCompare(fullName(b)));
@@ -384,10 +385,12 @@ function renderCover(offCount){
         <select data-cover class="sm" title="Covered another way"><option value="">Covered by…</option>${everyone.map(s=>`<option value="${s.id}">${esc(fullName(s))}${isRetained(s.id)?" (retained)":g.pos.every(p=>posOf(s.id).includes(p))?"":" (not all positions)"}</option>`).join("")}</select></div></td></tr>
       ${showFind?`<tr class="nx"><td></td><td colspan="4"><div class="elig">${el.map(s=>`<label class="pp"><input type="checkbox" data-elig="${s.id}" ${s.email?"checked":"disabled"}> ${esc(fullName(s))}${s.email?"":" (no email)"}${CFG.waOn&&s.wa?` <button type="button" class="wa sm" data-wa="${s.id}">WhatsApp</button>`:""}</label>`).join("")||'<span class="muted">Nobody with these positions is free. Check the Positions tab.</span>'}</div></td></tr>`:""}</tbody>`});
   $("needList").innerHTML=dayFilter&&!rows.length?`<p class="small muted" style="margin:0">Nothing needs cover on ${esc(pretty(dayFilter,{weekday:"long",day:"numeric",month:"long"}))}.</p>`:rows.length?`<table class="nt"><thead><tr><th>Day</th><th>Who's off</th><th>Level needed · shifts</th><th>Status</th><th></th></tr></thead>${rows.join("")}</table>`:'<p class="small muted" style="margin:0">Nothing needs cover from today to the end of this week.</p>';
-  $("doneCount").textContent=done.length?`(${done.length})`:"";
+  $("doneCount").textContent=(done.length+inBreathe.length)?`(${done.length+inBreathe.length})`:"";
   $("doneList").innerHTML=done.map(([id,d])=>d.status==="sorted"
     ?`<div class="it" style="border-left-color:var(--muted)"><b>Sorted</b> · ${esc(d.shift||"")}${d.offName?` (${esc(d.offName)} off)`:""}${d.by?` · by ${esc(d.by)}`:""} <button type="button" class="sm" data-unsort="${esc(id)}">Undo</button></div>`
-    :`<div class="it" style="border-left-color:var(--good)"><b>${esc(d.coverName)}</b> covering ${esc(d.shift)}${d.offName?` for ${esc(d.offName)}`:""}${d.by?` · confirmed by ${esc(d.by)}`:""}</div>`).join("")||'<span class="muted">None yet.</span>';
+    :`<div class="it" style="border-left-color:var(--good)"><b>${esc(d.coverName)}</b> covering ${esc(d.shift)}${d.offName?` for ${esc(d.offName)}`:""}${d.by?` · confirmed by ${esc(d.by)}`:""}</div>`).join("")+
+    inBreathe.map(g=>{const who=g.o.cover.map(id=>STAFF.find(s=>String(s.id)===String(id))).filter(Boolean).map(fullName).join(" / ");
+      return `<div class="it" style="border-left-color:var(--good)"><b>${esc(who)}</b> covering ${esc(groupText(g))} for ${esc(fullName(g.off))} <span class="pill good">Breathe note</span>${g.o.coverPart?' <span class="pill warn" title="The note gives times: it may only be part of the shift">check times</span>':""}</div>`}).join("")||'<span class="muted">None yet.</span>';
 }
 async function post(body){const r=await fetch(CFG.url,{method:"POST",body:JSON.stringify(Object.assign({token:CFG.token},body))});const j=await r.json();if(!j.ok)throw new Error(j.error||"The Google script refused");return j}
 async function sendMail(to,subject,heading,paras,foot){

@@ -64,7 +64,7 @@ function doGet(e) {
 /* From a WhatsApp group message: everyone who can do the shift picks their own name, then lands on the normal "I can do it" page. */
 function pickPage_(q) {
   var ok = q.sig && q.sig === sign_(q.shift + '|' + q.pick), base = ScriptApp.getService().getUrl(), body;
-  if (!ok) body = '<h2>That link doesn't look right</h2><p>Please message reception instead.</p>';
+  if (!ok) body = '<h2>That link does not look right</h2><p>Please message reception instead.</p>';
   else if (P.getProperty('X:' + q.shift)) body = '<h2>Thank you!</h2><p>This shift has already been covered.</p>';
   else {
     var people = String(q.pick).split(',').map(function (x) { var i = x.indexOf(':'); return { id: x.slice(0, i), n: x.slice(i + 1) }; });

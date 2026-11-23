@@ -23,7 +23,7 @@ function doPost(e) {
   try {
     var q = JSON.parse(e.postData.contents || '{}');
     if (!q.token || q.token !== prop_('TOKEN')) return out_({ ok: false, error: 'Wrong token' });
-    var res = { ok: true, at: new Date().toISOString(), version: 3 };
+    var res = { ok: true, at: new Date().toISOString(), version: 4 };
     // cover: write the confirmed person into the rota, or close a shift so late "I can do it" taps are thanked and turned away
     if (q.action === 'write') { res.written = write_(q.sheetId || prop_('SHEET_ID'), q); return out_(res); }
     if (q.action === 'close') { P.setProperty('X:' + q.c, JSON.stringify({ by: q.by || '', at: res.at })); return out_(res); }
@@ -39,10 +39,10 @@ function doPost(e) {
   }
 }
 
-/* The "I can do it" link in a cover email: ?c=shift&p=person&n=first name&s=shift text&k=signature */
+/* The "I can do it" link in a cover email: ?shift=id&who=person&name=first name&what=shift text&sig=signature (Google reserves ?c=) */
 function doGet(e) {
-  var p = (e && e.parameter) || {};
-  if (!p.c) return out_({ ok: true, hello: 'SAADI Hub Staffing connector', version: 3 });
+  var q = (e && e.parameter) || {}, p = { c: q.shift, p: q.who, n: q.name, s: q.what, k: q.sig };
+  if (!p.c) return out_({ ok: true, hello: 'SAADI Hub Staffing connector', version: 4 });
   var ok = p.k && p.k === sign_(p.c + '|' + p.p);
   var msg, head;
   if (!ok) { head = 'That link doesn\'t look right'; msg = 'Please reply to the email instead and reception will sort it out.'; }

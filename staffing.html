@@ -214,7 +214,7 @@ function showSetup(on){$("setupPanel").hidden=!on;$("sheetIdShow").textContent=s
   if(!had)Hub.doc("config/staffing").set({token:CFG.token,sheet:CFG.sheet||DEFAULT_SHEET},{merge:true}).catch(()=>{});   // keep the same token if the page is reopened mid set-up
 }
 $("copyToken").onclick=()=>navigator.clipboard.writeText(token()).then(()=>toast("Token copied"));
-$("copyCode").onclick=async()=>{try{const t=await (await fetch("staffing.gs?v=3")).text();await navigator.clipboard.writeText(t);toast("Code copied: paste it into the script")}catch(e){toast("Couldn't copy: open staffing.gs from the Hub's GitHub")}};
+$("copyCode").onclick=async()=>{try{const t=await (await fetch("staffing.gs?v=4")).text();await navigator.clipboard.writeText(t);toast("Code copied: paste it into the script")}catch(e){toast("Couldn't copy: open staffing.gs from the Hub's GitHub")}};
 $("saveConn").onclick=async()=>{const u=$("urlIn").value.trim();if(!/^https:\/\/script\.google\.com\/macros\/s\//.test(u))return toast("That doesn't look like a Web app URL");
   await Hub.doc("config/staffing").set({url:u,token:token(),sheet:CFG.sheet||DEFAULT_SHEET},{merge:true});toast("Connected: reading the rota…")};
 $("saveSettings").onclick=async()=>{const s=sheetIdOf($("sheetIn").value);if($("sheetIn").value&&!s)return toast("That isn't a Google Sheets link");
@@ -229,7 +229,7 @@ async function load(force){
     const r=await fetch(CFG.url,{method:"POST",body:JSON.stringify({token:CFG.token,want:["rota","staff","off","replies"],from,to,sheetId:sheetIdOf(CFG.sheet)||undefined})});
     const j=await r.json();if(!j.ok)throw new Error(j.error||"The connector refused");
     DATA=j;STAFF=j.staff||[];OFF=j.off||[];REPLIES=j.replies||{};
-    if(!j.version||j.version<3)toast("The Google script needs updating to version 3 for cover offers (see Names & settings).");
+    if(!j.version||j.version<4)toast("The Google script needs updating to version 4 for cover offers (see Names & settings).");
     DAYS=ST.parseRota(j.rota.tabs).sort((a,b)=>DAY_ORDER.indexOf(a.day)-DAY_ORDER.indexOf(b.day));
     $("syncLine").textContent=`From "${j.rota.title}" and Breathe, read at ${new Date(j.at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}.`;
     $("statusNote").hidden=true;
@@ -349,7 +349,7 @@ async function offer(n,ids){
   SENDING.add(n.id);render();let sent=[],failed=[];
   for(const id of ids){const s=STAFF.find(x=>String(x.id)===String(id));if(!s||!s.email)continue;
     try{const k=await ST.sign(CFG.token,n.id+"|"+s.id);
-      const link=`${CFG.url}?c=${encodeURIComponent(n.id)}&p=${s.id}&n=${encodeURIComponent(firstOf(s))}&s=${encodeURIComponent(shiftText(n))}&k=${k}`;
+      const link=`${CFG.url}?shift=${encodeURIComponent(n.id)}&who=${s.id}&name=${encodeURIComponent(firstOf(s))}&what=${encodeURIComponent(shiftText(n))}&sig=${k}`;
       const subj=`Cover needed: ${pretty(n.date,{weekday:"short",day:"numeric",month:"short"})} ${n.r.session} ${n.r.cls}`;
       await sendMail(s.email,subj,"Can you cover a shift?",
         para(`Hi ${esc(firstOf(s))},`)+para(`We need a <b>${esc(n.pos)}</b> for <b>${esc(n.r.cls)}</b> (${esc(n.r.role)}) on <b>${esc(shiftText(n).split(", ")[0])}</b> at <b>${esc(n.r.session)}</b>.`)+

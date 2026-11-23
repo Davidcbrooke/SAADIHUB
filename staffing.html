@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f20779">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="favicon.ico" sizes="48x48">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>SAADI Staffing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="hub.css">
+<script src="hub-shell.js?v=2" defer></script>
+<style>
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi .v{font-family:var(--display);font-size:38px;font-weight:700;line-height:1}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.days button{padding:7px 12px}
+.days button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.wk{font-family:var(--display);font-weight:700;font-size:18px;min-width:220px;text-align:center}
+.sess{margin-top:6px}
+.sess>h3{font-family:var(--display);font-size:18px;margin:6px 0 8px;display:flex;gap:10px;align-items:baseline}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.cls{border:1px solid var(--line);border-left:7px solid var(--muted);border-radius:10px;padding:10px 12px;background:var(--surface);display:flex;flex-direction:column;gap:6px}
+.cls.gap{box-shadow:0 0 0 2px var(--bad) inset}
+.cls h4{margin:0;font-size:15px;display:flex;gap:6px;align-items:baseline;justify-content:space-between}
+.cls h4 small{font-weight:500;color:var(--muted);font-size:12px}
+.role{display:flex;gap:6px;align-items:flex-start;font-size:13px}
+.role>span:first-child{color:var(--muted);min-width:104px;flex:none}
+.who{display:flex;gap:4px;flex-wrap:wrap}
+.chip{display:inline-flex;gap:4px;align-items:center;border-radius:99px;padding:2px 9px;font-size:13px;font-weight:600;background:var(--surface-2)}
+.chip.off{background:#fde3e6;color:#9b1027}
+.chip.unk{background:transparent;border:1px dashed var(--line);color:var(--muted);font-weight:500}
+.chip.empty{background:#fde3e6;color:#9b1027;font-weight:700}
+.chip.note{background:transparent;color:var(--muted);font-weight:500;font-style:italic}
+.list{display:flex;flex-direction:column;gap:6px;font-size:14px}
+.list .it{border:1px solid var(--line);border-left:5px solid var(--bad);border-radius:8px;padding:8px 10px;background:var(--surface)}
+.names{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:6px 14px;font-size:14px}
+.names label{display:flex;gap:8px;align-items:center;justify-content:space-between}
+.names select{max-width:190px}
+.names .bad{color:var(--bad);font-weight:700}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:10px 18px;border-radius:99px;font-weight:600;z-index:60}
+details summary{cursor:pointer;font-weight:700;color:var(--accent);font-size:14px}
+.small{font-size:13px}
+code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="index.html">
+      <img src="saadi-logo-white.png" alt="SAADI Gymnastics" width="64" height="61">
+      <div><div class="eyebrow">SAADI Gymnastics</div><h1>Staffing</h1></div>
+    </a>
+    <div class="head-right">
+      <nav class="hubnav needs-auth" aria-label="Hub pages"><a href="index.html">Hub</a><a href="staffing.html" aria-current="page">Staffing</a></nav>
+      <button type="button" class="needs-auth" data-lock>Lock</button>
+    </div>
+  </header>
+
+  <div id="statusNote" class="notice" hidden></div>
+
+  <section class="panel auth" id="authPanel" hidden>
+    <h2>Enter the password</h2>
+    <p class="muted" style="margin:0">Staffing uses the SAADI Hub password.</p>
+    <form id="authForm" class="wrap" style="gap:12px;margin:0" novalidate>
+      <label class="f" for="authPass">Password <input type="password" id="authPass" autocomplete="current-password" required></label>
+      <label class="row" for="authRemember" style="font-size:14px;gap:6px"><input type="checkbox" id="authRemember" checked> Remember on this device</label>
+      <div class="row"><button class="primary" type="submit" id="authGo">Open</button><span id="authMsg" class="muted" aria-live="polite"></span></div>
+    </form>
+  </section>
+
+  <main class="wrap needs-auth" id="main">
+    <section class="panel" id="setupPanel" hidden>
+      <h2>Connect the staffing sheet and Breathe</h2>
+      <p class="small muted" style="margin:0">The page reads the rota sheet and Breathe through a small Google script that keeps the Breathe key private. It only passes names, roles and time-off dates to the Hub: never pay, bank, address or the reason someone is off.</p>
+      <ol class="small" style="margin:6px 0 0 18px;padding:0;line-height:1.6">
+        <li>Open <a href="https://script.google.com/home/projects/create" target="_blank" rel="noopener">script.google.com</a> signed in as the account that can open the staffing sheet. Name the project <b>SAADI Hub Staffing</b>.</li>
+        <li>Delete what's there and paste in the connector code: <button type="button" id="copyCode">Copy the code</button></li>
+        <li>Cog (Project settings) &gt; <b>Script properties</b> &gt; add three:
+          <div><code>BREATHE_API_KEY</code> = your Breathe key</div>
+          <div><code>SHEET_ID</code> = <code id="sheetIdShow">…</code></div>
+          <div><code>TOKEN</code> = <code id="tokenShow">…</code> <button type="button" id="copyToken" style="padding:2px 8px;font-size:12px">Copy</button></div></li>
+        <li><b>Deploy &gt; New deployment</b> &gt; type <b>Web app</b>, Execute as <b>Me</b>, Who has access <b>Anyone</b> &gt; Deploy, allow access, and copy the <b>Web app URL</b>.</li>
+        <li>Paste it here: <input type="url" id="urlIn" placeholder="https://script.google.com/macros/s/…/exec" style="width:min(520px,100%)"> <button type="button" class="primary" id="saveConn">Connect</button></li>
+      </ol>
+    </section>
+
+    <div class="bar" id="topBar" hidden>
+      <div class="bar days" id="days"></div>
+      <span style="flex:1"></span>
+      <button type="button" id="prevWk" aria-label="Previous week">&larr;</button><span class="wk" id="wkLabel"></span><button type="button" id="nextWk" aria-label="Next week">&rarr;</button>
+      <button type="button" id="thisWk">This week</button>
+      <button type="button" id="reload" title="Read the sheet and Breathe again">Refresh</button>
+    </div>
+    <p class="small muted" style="margin:0" id="syncLine"></p>
+
+    <div class="kpis" id="kpis" hidden></div>
+
+    <section class="panel" id="clashPanel" hidden>
+      <h2>On the rota but off this week <span class="pill bad" id="clashCount">0</span></h2>
+      <p class="small muted" style="margin:0">Booked as holiday or off in Breathe on a day they're on the rota. Find cover, then update the sheet.</p>
+      <div class="list" id="clashList"></div>
+    </section>
+
+    <section class="panel" id="dayPanel" hidden>
+      <h2 id="dayTitle"></h2>
+      <div id="dayBody"></div>
+    </section>
+
+    <section class="panel" id="personPanel" hidden>
+      <h2>One person's week</h2>
+      <div class="bar"><select id="personSel"><option value="">Choose someone…</option></select></div>
+      <div class="list" id="personList" style="margin-top:8px"></div>
+    </section>
+
+    <details class="panel" id="namesPanel" hidden><summary>Names on the rota and who they are in Breathe <span class="pill warn" id="unkCount" hidden></span></summary>
+      <p class="small muted">The rota uses first names and nicknames. Most are matched to Breathe automatically; choose the person for any that aren't (or "Not a person"). Saved for everyone.</p>
+      <div class="names" id="namesList"></div>
+      <div class="row" style="margin-top:10px"><button type="button" class="primary" id="saveNames">Save names</button></div>
+    </details>
+
+    <details class="panel" id="settingsPanel" hidden><summary>Settings</summary>
+      <div class="wrap small" style="gap:10px;margin-top:10px">
+        <label class="f">Staffing sheet link (change it each term) <input type="url" id="sheetIn" style="width:100%"></label>
+        <label class="f">Connector URL <input type="url" id="urlIn2" style="width:100%"></label>
+        <div class="row"><button type="button" id="saveSettings" class="primary">Save</button><button type="button" id="showSetup">Show the set-up steps</button></div>
+      </div>
+    </details>
+  </main>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="hub-core.js"></script>
+<script src="staffing-core.js?v=1"></script>
+<script>
+"use strict";
+const $=Hub.$, esc=Hub.esc;
+const DEFAULT_SHEET="1nP49fJsFAJWqSLZgUmeswqF1INp--4NBELo2gj-Id_s";
+const DAY_ORDER=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+let CFG={}, DATA=null, DAYS=[], STAFF=[], OFF=[], weekStart=null, day=null, busy=false;
+function toast(m){const t=document.createElement("div");t.className="toast";t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),3200)}
+const iso=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const addDays=(s,n)=>{const d=new Date(s+"T12:00:00");d.setDate(d.getDate()+n);return iso(d)};
+const mondayOf=s=>{const d=new Date(s+"T12:00:00");const k=(d.getDay()+6)%7;d.setDate(d.getDate()-k);return iso(d)};
+const pretty=(s,o)=>new Date(s+"T12:00:00").toLocaleDateString("en-GB",o||{weekday:"short",day:"numeric",month:"short"});
+const sheetIdOf=v=>{const m=String(v||"").match(/\/d\/([A-Za-z0-9_-]{20,})/);return m?m[1]:(/^[A-Za-z0-9_-]{20,}$/.test(v||"")?v:"")};
+const names=()=>CFG.names||{};
+const who=t=>ST.matchName(t,STAFF,names());
+const fullName=s=>s?((s.known||s.first)+" "+s.last).trim():"";
+const offKind=o=>o.kind==="holiday"?"Holiday":"Off";
+
+/* ---------- set-up ---------- */
+function token(){if(!CFG.token){const a=new Uint8Array(24);crypto.getRandomValues(a);CFG.token=[...a].map(x=>x.toString(16).padStart(2,"0")).join("")}return CFG.token}
+function showSetup(on){$("setupPanel").hidden=!on;$("sheetIdShow").textContent=sheetIdOf(CFG.sheet)||DEFAULT_SHEET;
+  const had=CFG.token;$("tokenShow").textContent=token();
+  if(!had)Hub.doc("config/staffing").set({token:CFG.token,sheet:CFG.sheet||DEFAULT_SHEET},{merge:true}).catch(()=>{});   // keep the same token if the page is reopened mid set-up
+}
+$("copyToken").onclick=()=>navigator.clipboard.writeText(token()).then(()=>toast("Token copied"));
+$("copyCode").onclick=async()=>{try{const t=await (await fetch("staffing.gs?v=1")).text();await navigator.clipboard.writeText(t);toast("Code copied: paste it into the script")}catch(e){toast("Couldn't copy: open staffing.gs from the Hub's GitHub")}};
+$("saveConn").onclick=async()=>{const u=$("urlIn").value.trim();if(!/^https:\/\/script\.google\.com\/macros\/s\//.test(u))return toast("That doesn't look like a Web app URL");
+  await Hub.doc("config/staffing").set({url:u,token:token(),sheet:CFG.sheet||DEFAULT_SHEET},{merge:true});toast("Connected: reading the rota…")};
+$("saveSettings").onclick=async()=>{const s=sheetIdOf($("sheetIn").value);if($("sheetIn").value&&!s)return toast("That isn't a Google Sheets link");
+  await Hub.doc("config/staffing").set({sheet:s||DEFAULT_SHEET,url:$("urlIn2").value.trim()||CFG.url||""},{merge:true});toast("Saved. If you changed the sheet, update SHEET_ID in the script too, or it keeps reading the old one.")};
+$("showSetup").onclick=()=>showSetup(true);
+
+/* ---------- loading ---------- */
+async function load(force){
+  if(!CFG.url||busy)return;busy=true;$("syncLine").textContent="Reading the rota and Breathe…";
+  try{
+    const from=addDays(mondayOf(Hub.todayIso()),-14),to=addDays(from,120);
+    const r=await fetch(CFG.url,{method:"POST",body:JSON.stringify({token:CFG.token,want:["rota","staff","off"],from,to,sheetId:sheetIdOf(CFG.sheet)||undefined})});
+    const j=await r.json();if(!j.ok)throw new Error(j.error||"The connector refused");
+    DATA=j;STAFF=j.staff||[];OFF=j.off||[];
+    DAYS=ST.parseRota(j.rota.tabs).sort((a,b)=>DAY_ORDER.indexOf(a.day)-DAY_ORDER.indexOf(b.day));
+    $("syncLine").textContent=`From "${j.rota.title}" and Breathe, read at ${new Date(j.at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}.`;
+    $("statusNote").hidden=true;
+  }catch(e){$("statusNote").hidden=false;$("statusNote").textContent="Couldn't read the staffing: "+e.message;$("syncLine").textContent=""}
+  busy=false;render();
+}
+
+/* ---------- the rota for a date ---------- */
+const tabFor=d=>DAYS.find(t=>t.day===d);
+const dateFor=(d,ws)=>addDays(ws,DAY_ORDER.indexOf(d));
+function weekCol(tab,date){return tab.weeks.findIndex(w=>w.date===date)}
+const NOT_RUN=/no longer offered|cancelled|closed|bank holiday|half term/i;
+function chipsFor(cell,date){
+  const raw=String(cell||"").trim();
+  if(!raw||/^[-–]$/.test(raw))return {html:"",people:[],empty:true};
+  const people=ST.namesIn(raw);
+  if(!people.length)return {html:`<span class="chip note">${esc(raw)}</span>`,people:[],empty:false,note:raw};
+  const html=people.map(n=>{const p=who(n);
+    if(p&&p.ignore)return `<span class="chip note">${esc(n)}</span>`;
+    if(!p)return `<span class="chip unk" title="Not matched to anyone in Breathe">${esc(n)}?</span>`;
+    const o=ST.offOn(p.id,date,OFF);
+    return `<span class="chip${o?" off":""}" title="${esc(fullName(p))}${o?" · "+offKind(o)+" in Breathe":""}">${esc(n)}${o?" · "+offKind(o):""}</span>`}).join("");
+  const extra=raw.replace(/\s+/g," ").length>people.join(" ").length+12?`<span class="chip note">${esc(raw)}</span>`:"";
+  return {html:html+extra,people,empty:false};
+}
+function dayView(d,date){
+  const tab=tabFor(d);if(!tab)return {html:'<p class="muted">No tab for '+esc(d)+" in the sheet.</p>",gaps:0,clashes:[],rota:0};
+  const c=weekCol(tab,date);
+  if(c<0)return {html:`<p class="muted">The sheet has no ${esc(d)} column for ${esc(pretty(date))}.</p>`,gaps:0,clashes:[],rota:0};
+  const w=tab.weeks[c];
+  if(NOT_RUN.test(w.label+" "+w.note)&&tab.rows.every(r=>!ST.namesIn(r.cells[c]).length))return {html:`<p class="muted">${esc(w.label||w.note)}: no classes.</p>`,gaps:0,clashes:[],rota:0};
+  const sessions=[];let gaps=0;const clashes=[];const onRota=new Set();
+  tab.rows.forEach(r=>{let s=sessions.find(x=>x.name===r.session);if(!s){s={name:r.session,classes:[]};sessions.push(s)}
+    let k=s.classes.find(x=>x.name===r.cls);if(!k){k={name:r.cls,colour:r.colour,termly:r.termly,roles:[],gap:false,notRun:false};s.classes.push(k)}
+    const ch=chipsFor(r.cells[c],date);
+    if(ch.note&&NOT_RUN.test(ch.note))k.notRun=true;
+    ch.people.forEach(n=>{const p=who(n);if(p&&!p.ignore){onRota.add(p.id);const o=ST.offOn(p.id,date,OFF);if(o)clashes.push({date,day:d,cls:r.cls,session:r.session,role:r.role,name:n,p,o})}});
+    if(ch.empty&&ST.isLeadRole(r.role))k.gap=true;
+    k.roles.push({role:r.role,ch});
+  });
+  const html=sessions.map(s=>{const cls=s.classes.filter(k=>!k.notRun);if(!cls.length)return "";
+    cls.forEach(k=>{if(k.gap)gaps++});
+    return `<div class="sess"><h3>${esc(s.name)}</h3><div class="grid">${cls.map(k=>`<div class="cls${k.gap?" gap":""}" style="border-left-color:${k.colour||"var(--muted)"}">
+      <h4><span>${esc(k.name)}</span>${k.termly?`<small>${esc(k.termly)}</small>`:""}</h4>
+      ${k.roles.map(r=>`<div class="role"><span>${esc(r.role)}</span><span class="who">${r.ch.html||(ST.isLeadRole(r.role)?'<span class="chip empty">Nobody</span>':'<span class="muted">–</span>')}</span></div>`).join("")}
+    </div>`).join("")}</div></div>`}).join("");
+  return {html,gaps,clashes,rota:onRota.size};
+}
+
+/* ---------- render ---------- */
+function render(){
+  const ready=!!(CFG.url&&DATA);
+  ["topBar","kpis","clashPanel","dayPanel","personPanel","namesPanel","settingsPanel"].forEach(id=>$(id).hidden=!ready&&id!=="settingsPanel");
+  if(!CFG.url){showSetup(true);return}
+  $("sheetIn").value="https://docs.google.com/spreadsheets/d/"+(sheetIdOf(CFG.sheet)||DEFAULT_SHEET)+"/edit";$("urlIn2").value=CFG.url||"";
+  if(!DATA)return;
+  if(!weekStart)weekStart=mondayOf(Hub.todayIso());
+  if(!day){const t=new Date().getDay();day=DAY_ORDER[(t+6)%7]}
+  $("days").innerHTML=DAY_ORDER.map(d=>`<button type="button" data-day="${d}" aria-pressed="${d===day}">${d.slice(0,3)} ${new Date(dateFor(d,weekStart)+"T12:00:00").getDate()}</button>`).join("");
+  const any=DAYS.flatMap(t=>t.weeks.filter(w=>w.date>=weekStart&&w.date<=addDays(weekStart,6)));
+  $("wkLabel").textContent=`Week of ${pretty(weekStart,{day:"numeric",month:"long"})}${any[0]&&any[0].label?" · "+any[0].label:""}`;
+  // the whole week, for clashes and the numbers
+  let gaps=0,rota=new Set(),clashes=[];
+  DAY_ORDER.forEach(d=>{const v=dayView(d,dateFor(d,weekStart));gaps+=v.gaps;clashes.push(...v.clashes)});
+  DAY_ORDER.forEach(d=>{const t=tabFor(d);if(!t)return;const c=weekCol(t,dateFor(d,weekStart));if(c<0)return;t.rows.forEach(r=>ST.namesIn(r.cells[c]).forEach(n=>{const p=who(n);if(p&&!p.ignore)rota.add(p.id)}))});
+  const tokens=ST.allTokens(DAYS),unk=tokens.filter(t=>!who(t));
+  const offWeek=new Set(OFF.filter(o=>o.start<=addDays(weekStart,6)&&(o.end||o.start)>=weekStart).map(o=>o.emp));
+  $("kpis").innerHTML=[[rota.size,"people on the rota this week",""],[clashes.length,"on the rota but off in Breathe",clashes.length?"bad":"good"],[gaps,"classes with no lead",gaps?"bad":"good"],[offWeek.size,"staff off this week (Breathe)",""]]
+    .map(([v,s,c])=>`<div class="kpi ${c}"><span class="v">${v}</span><span class="s">${esc(s)}</span></div>`).join("");
+  $("clashCount").textContent=clashes.length;
+  $("clashList").innerHTML=clashes.sort((a,b)=>a.date.localeCompare(b.date)).map(x=>`<div class="it"><b>${esc(x.name)}</b> (${esc(fullName(x.p))}) · ${esc(offKind(x.o))} · ${esc(pretty(x.date))} · ${esc(x.session)} ${esc(x.cls)} · ${esc(x.role)}</div>`).join("")||'<p class="small muted" style="margin:0">Nobody on the rota is off this week.</p>';
+  const v=dayView(day,dateFor(day,weekStart));
+  $("dayTitle").textContent=`${day} ${pretty(dateFor(day,weekStart),{day:"numeric",month:"long"})}`;
+  $("dayBody").innerHTML=v.html;
+  // people
+  const sel=$("personSel"),cur=sel.value;
+  const ppl=[...rota].map(id=>STAFF.find(s=>s.id===id)).filter(Boolean).sort((a,b)=>fullName(a).localeCompare(fullName(b)));
+  sel.innerHTML='<option value="">Choose someone…</option>'+ppl.map(p=>`<option value="${p.id}">${esc(fullName(p))}</option>`).join("");sel.value=cur;
+  renderPerson();
+  // names
+  $("unkCount").hidden=!unk.length;$("unkCount").textContent=unk.length+" not matched";
+  const opts=STAFF.slice().sort((a,b)=>fullName(a).localeCompare(fullName(b))).map(s=>`<option value="${s.id}">${esc(fullName(s))}${s.job?" · "+esc(s.job):""}</option>`).join("");
+  $("namesList").innerHTML=tokens.map(t=>{const set=names()[t],m=who(t);const val=set!==undefined?set:(m&&!m.ignore?m.id:"");
+    return `<label><span class="${m?"":"bad"}">${esc(t)}</span><select data-tok="${esc(t)}"><option value="">${m&&set===undefined?"Auto: "+esc(fullName(m)):"Not matched"}</option><option value="ignore"${set==="ignore"?" selected":""}>Not a person</option>${opts.replace(`value="${val}"`,`value="${val}" selected`)}</select></label>`}).join("");
+}
+function renderPerson(){
+  const id=$("personSel").value;if(!id){$("personList").innerHTML="";return}
+  const rows=[];
+  DAY_ORDER.forEach(d=>{const t=tabFor(d),date=dateFor(d,weekStart);if(!t)return;const c=weekCol(t,date);if(c<0)return;
+    t.rows.forEach(r=>{if(ST.namesIn(r.cells[c]).some(n=>{const p=who(n);return p&&String(p.id)===id}))rows.push({d,date,r})})});
+  const off=OFF.filter(o=>String(o.emp)===id&&o.start<=addDays(weekStart,6)&&(o.end||o.start)>=weekStart);
+  $("personList").innerHTML=(off.length?`<div class="it">${off.map(o=>`${esc(offKind(o))} ${esc(pretty(o.start))}${o.end&&o.end!==o.start?" to "+esc(pretty(o.end)):""}`).join(", ")}</div>`:"")+
+    (rows.map(x=>{const o=ST.offOn(+id,x.date,OFF)||ST.offOn(id,x.date,OFF);return `<div class="it" style="border-left-color:${o?"var(--bad)":x.r.colour||"var(--line)"}">${esc(pretty(x.date))} · ${esc(x.r.session)} · <b>${esc(x.r.cls)}</b> · ${esc(x.r.role)}${o?" · <b>"+esc(offKind(o))+"</b>":""}</div>`}).join("")||'<p class="small muted" style="margin:0">Not on the rota this week.</p>');
+}
+
+/* ---------- events ---------- */
+document.addEventListener("click",e=>{const b=e.target.closest("button[data-day]");if(b){day=b.dataset.day;render()}});
+$("prevWk").onclick=()=>{weekStart=addDays(weekStart,-7);render()};
+$("nextWk").onclick=()=>{weekStart=addDays(weekStart,7);render()};
+$("thisWk").onclick=()=>{weekStart=mondayOf(Hub.todayIso());render()};
+$("reload").onclick=()=>load(true);
+$("personSel").onchange=renderPerson;
+$("saveNames").onclick=async()=>{const m={};document.querySelectorAll("#namesList select").forEach(s=>{if(s.value)m[s.dataset.tok]=s.value});
+  await Hub.doc("config/staffing").set(Object.assign({},CFG,{names:m}));toast("Names saved")};
+
+Hub.gate(()=>{
+  Hub.doc("config/staffing").onSnapshot(d=>{const was=CFG.url;CFG=d.exists?d.data():{};if(!CFG.sheet)CFG.sheet=DEFAULT_SHEET;if(CFG.url&&(!DATA||CFG.url!==was))load();else render()},e=>{$("statusNote").hidden=false;$("statusNote").textContent="Couldn't load the settings ("+(e.code||"error")+")."});
+});
+</script>
+</body>
+</html>

@@ -63,6 +63,7 @@ table.t tr.kids td{background:var(--bg);padding:6px 8px 12px 28px}
 .rmbtn{margin-top:6px;font-size:12px;padding:3px 10px}
 .opt button.sentbtn{background:var(--good-bg);color:var(--good);border-color:var(--good);opacity:1}
 input[type=text]{width:100%}
+.replied{font-weight:700;color:var(--ink);margin-top:2px}
 </style>
 </head>
 <body>
@@ -241,6 +242,10 @@ $("reread").onclick=()=>{if(!confirm("Read every emailed class change and leavin
 $("setSave").onclick=async()=>{try{await Hub.doc("config/renewals").set({sheetId:$("sheetId").value.trim(),closeDate:$("closeDate").value},{merge:true});$("setMsg").textContent="Saved ✓";respAt=null;loadResponses()}catch(e){$("setMsg").textContent="Couldn't save"}};
 const yrsTxt=ys=>ys&&ys.length?EQ.yearsText(ys):"their age";
 const SCOL={renewed:"var(--good)",changing:"var(--warn)",leaving:"var(--bad)",none:"var(--none)"},SLAB={renewed:"Renewed",changing:"Class change requested",leaving:"Leaving",none:"No response yet"};
+/* When a family replied, and how (form timestamps and filed emails are both "MM/DD/YYYY HH:MM:SS"). */
+const replyMs=a=>{if(a instanceof Date)return a.getTime();const m=String(a||"").match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/);return m?new Date(+m[3],m[1]-1,+m[2],+m[4],+m[5],+(m[6]||0)).getTime():(Date.parse(a)||0)};
+const repliedHtml=x=>{const t=replyMs(x.at);if(!t)return "";const d=new Date(t);
+  return `<div class="small replied">Replied ${esc(d.toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"}))}, ${esc(d.toLocaleTimeString("en-GB",{hour:"numeric",minute:"2-digit",hour12:true}).replace(" ",""))} · ${/email/i.test(x.tab||"")?"email":"Google form"}</div>`};
 function renderStatus(){
   ST=EQ.renewalStatus(R,resp,stat,cfg.closeDate||"");
   const c=ST.counts,tot=Object.values(c).reduce((a,b)=>a+b,0)||1;
@@ -274,7 +279,7 @@ function renderStatus(){
         return o.free>0?` <button type="button" class="primary" data-offer="${i}:${j}">Send offer</button>`:` <button type="button" data-offer="${i}:${j}" data-full="1">Send link anyway</button>`})()}</div>`}).join("")+(ck.otherAge?`<div class="small" style="color:var(--warn)">No ${esc(yrsTxt(ck.years))} class on the requested day${ck.options.length>1?"s":""}: these are for a different age group, so check before offering.</div>`:"")+(ck.otherTime?`<div class="small" style="color:var(--warn)">No class for ${esc(yrsTxt(ck.years))} at the requested time${ck.options.length>1?"s":""}: these are ${esc(yrsTxt(ck.years))} classes on the requested day${ck.options.length>1?"s":""} at other times.</div>`:"")+(ck.yearsKnown?"":'<div class="small" style="color:var(--warn)">Couldn\'t tell this child\'s school year: check the class suits them.</div>')
       :ck.noRequest?"":`<span class="muted small">No ${esc(yrsTxt(ck.years))} class next term on the requested days.</span>`);
     const rmBtn=isRm?`<div><span class="pill none">Removed ${esc(fmtD(removed[rk]))}</span> <button type="button" class="rmbtn" data-restore="${esc(rk)}">Put back on list</button></div>`:`<div><button type="button" class="rmbtn" data-remove="${esc(rk)}">Remove from list</button></div>`;
-    return `<tr${isRm?' style="opacity:.55"':""}><td><b>${esc(ck.name)}</b>${ck.renewed?' <span class="pill good">Already booked</span>':""}${of?` <span class="pill warn">Offered ${new Date(of).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</span>`:""}<div class="small muted">${now}</div><div class="small muted">${esc(ch.email)}</div>${whenMs(ch.at)?`<div class="small muted">Asked ${new Date(whenMs(ch.at)).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}${/email/i.test(ch.tab||"")?" by email":""}</div>`:""}${rmBtn}</td>
+    return `<tr${isRm?' style="opacity:.55"':""}><td><b>${esc(ck.name)}</b>${ck.renewed?' <span class="pill good">Already booked</span>':""}${of?` <span class="pill warn">Offered ${new Date(of).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</span>`:""}<div class="small muted">${now}</div><div class="small muted">${esc(ch.email)}</div>${repliedHtml(ch)}${rmBtn}</td>
       <td class="small">${esc(ch.reqText||"")}${ch.borrowed?`<div class="muted">Using the family's later request: ${esc(ch.borrowed)}</div>`:""}</td><td class="small">${esc(ch.notes||"")}</td><td>${opts}</td></tr>`}).join("")||'<tr><td colspan="4" class="muted">No class change requests yet.</td></tr>';
   $("chBody").querySelectorAll("button[data-remove],button[data-restore]").forEach(b=>b.onclick=async()=>{
     const k=b.dataset.remove||b.dataset.restore,put=!!b.dataset.restore;b.disabled=true;
@@ -298,7 +303,7 @@ function renderStatus(){
   // leavers
   const avg=a=>{const v=a.map(Number).filter(isFinite);return v.length?(v.reduce((x,y)=>x+y,0)/v.length).toFixed(1):"–"};
   $("lvNote").textContent=resp.leavers.length?`${resp.leavers.length} famil${resp.leavers.length===1?"y":"ies"} · average experience ${avg(resp.leavers.map(l=>l.rating))}/5 · would recommend ${avg(resp.leavers.map(l=>l.recommend))}/10`:"";
-  $("lvBody").innerHTML=resp.leavers.map(l=>`<tr><td><b>${esc(l.child||"")}</b><div class="small muted">${esc(l.email)}${l.kid&&l.kid.cur?" · "+esc(l.kid.cur.day+" "+timeOf(l.kid.cur)+" "+title(l.kid.cur)):""}</div></td><td class="small">${esc(l.reason)}</td><td class="num">${esc(l.rating)}</td><td class="num">${esc(l.recommend)}</td><td class="small">${esc(l.suggestion)}</td></tr>`).join("")||'<tr><td colspan="5" class="muted">No one has told us they\'re leaving.</td></tr>';
+  $("lvBody").innerHTML=resp.leavers.slice().sort((a,b)=>replyMs(b.at)-replyMs(a.at)).map(l=>`<tr><td><b>${esc(l.child||"")}</b><div class="small muted">${esc(l.email)}${l.kid&&l.kid.cur?" · "+esc(l.kid.cur.day+" "+timeOf(l.kid.cur)+" "+title(l.kid.cur)):""}</div>${repliedHtml(l)}</td><td class="small">${esc(l.reason)}</td><td class="num">${esc(l.rating)}</td><td class="num">${esc(l.recommend)}</td><td class="small">${esc(l.suggestion)}</td></tr>`).join("")||'<tr><td colspan="5" class="muted">No one has told us they\'re leaving.</td></tr>';
 }
 
 /* ---------- headline ---------- */

@@ -636,7 +636,7 @@ function renderWages(){
   const rows=STAFF.map(s=>{const saved=w.staff[s.id],lv=saved!==undefined?saved:suggestLevel(s.id),q=qboFor(s);return {s,lv,isSug:saved===undefined,q,dob:dobOf(s,q)}})
     .filter(r=>!sal[r.s.id]&&(showRm||!hid[r.s.id])&&(showRm&&hid[r.s.id]||!$("wgCoachOnly").checked||hasLv(r.lv))&&(!f||fullName(r.s).toLowerCase().includes(f)))
     .sort((a,b)=>(hasLv(b.lv)?+b.lv:-1)-(hasLv(a.lv)?+a.lv:-1)||fullName(a.s).localeCompare(fullName(b.s)));
-  $("wgStaff").innerHTML=`<thead><tr><th>Name</th><th>Age</th><th>Level</th><th>Level rate</th><th>Top-up</th><th>Their rate now</th><th>${nx?"From "+esc(pretty(nx.from,{day:"numeric",month:"short"})):"Next April"}</th><th>Paid now (payroll)</th><th>Notes</th><th></th></tr></thead><tbody>`+
+  $("wgStaff").innerHTML=`<thead><tr><th>Name</th><th>Age</th><th>Level</th><th>Level rate</th><th>Top-up</th><th>New pay scale</th><th>${nx?"From "+esc(pretty(nx.from,{day:"numeric",month:"short"})):"Next April"}</th><th>Paid now (payroll)</th><th>Notes</th><th></th></tr></thead><tbody>`+
     rows.map(({s,lv,isSug,q,dob})=>{const age=ageOn(dob,today),has=hasLv(lv);
       const tu=+TOP()[s.id]||0,base=has?rateFor(lv,bandOf(age),today):null,now=has?Math.round((base+tu)*100)/100:null,
         later=has&&nx?Math.round((rateFor(lv,bandOf(ageOn(dob,nx.from)),nx.from)+tu)*100)/100:null;const notes=[];

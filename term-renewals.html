@@ -600,6 +600,8 @@ function callList(all){
     if(!all&&$("callHideDealt").checked&&dealt(f))return false;
     return true}).sort((a,b)=>(a.parentName||"").localeCompare(b.parentName||""));
 }
+// JustGo holds most families under the child's own name (the parent's name isn't recorded), so say whose parent it is.
+const parentOf=f=>{const ls=[...new Set(f.kids.map(k=>(k.last||"").trim()))];return "Parent of "+(ls.length===1?f.kids.map(k=>k.first.trim()).join(" & ")+" "+ls[0]:f.kids.map(k=>(k.first+" "+k.last).trim()).join(" & "))};
 const freeIn=n=>Math.max(0,(n.cap||0)-(n.booked||0));
 const clsLab=n=>`${n.day} ${timeOf(n)} ${title(n)}`;
 function optionsFor(k){const ys=k.years||[];return R.cls.filter(n=>n.kind==="n"&&n.area===k.cur.area&&(!ys.length||!n.years||!n.years.length||n.years.some(y=>ys.includes(y))))
@@ -612,7 +614,7 @@ function renderCalls(){
     const kids=f.kids.map(k=>`<div><b>${esc(k.first)} ${esc(k.last)}</b>: ${esc(clsLab(k.cur))}${k.next?`<div class="small muted">Next term: ${esc(clsLab(k.next))} · ${freeIn(k.next)?freeIn(k.next)+" free":"full"}</div>`:'<div class="small" style="color:var(--warn)">No matching class next term</div>'}</div>`).join("");
     const rem=[["first","First"],["final","Final"]].map(([k,l])=>sentOf(f,k)?`<span class="pill none">${l} reminder ✓</span>`:"").join(" ");
     const pick=picking.has(f.key)?`<div class="pick">${f.kids.map((k,j)=>`<select data-pk="${i}:${j}"><option value="">${esc(k.first)}: choose a class…</option>${optionsFor(k).map(n=>`<option value="${n.g}">${esc(clsLab(n))} · ${freeIn(n)?freeIn(n)+" free":"full"}</option>`).join("")}</select>`).join("")}<button type="button" class="primary" data-sendother="${i}">Send</button></div>`:"";
-    return `<div class="call${isDealt?" dealt":""}"><div><div style="font-weight:700">${esc(f.parentName||"Parent")}</div>${tel}<div class="small muted">${esc(f.email||"no email")}</div><div style="margin-top:4px">${rem}</div></div>
+    return `<div class="call${isDealt?" dealt":""}"><div><div style="font-weight:700">${esc(f.parentName||parentOf(f))}</div>${tel}<div class="small muted">${esc(f.email||"no email")}</div><div style="margin-top:4px">${rem}</div></div>
       <div class="small">${kids}</div>
       <div><div class="acts">
         <button type="button" class="primary" data-their="${i}" ${okMail&&f.kids.some(k=>k.next)?"":"disabled"}>Send link: their class</button>

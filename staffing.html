@@ -170,7 +170,7 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
     </section>
 
     <div class="bar" id="topBar" hidden>
-      <div class="bar tabs" id="tabs"><button type="button" data-tab="cover">Cover</button><button type="button" data-tab="rota">Rota</button><button type="button" data-tab="sheet">Rota sheet</button><button type="button" data-tab="hubrota">Hub rota <span class="pill none" style="font-size:10px">preview</span></button><button type="button" data-tab="positions">Positions</button><button type="button" data-tab="wages">Wages 🔒</button><button type="button" data-tab="names">Names &amp; settings <span class="pill warn" id="namesBadge" hidden></span></button></div>
+      <div class="bar tabs" id="tabs"><button type="button" data-tab="cover">Cover</button><button type="button" data-tab="rota">Rota</button><button type="button" data-tab="sheet">Rota sheet</button><button type="button" data-tab="hubrota">Hub rota <span class="pill none" style="font-size:10px">preview</span></button><button type="button" data-tab="wages">Wages 🔒</button><button type="button" data-tab="names">Names &amp; settings <span class="pill warn" id="namesBadge" hidden></span></button></div>
       <span style="flex:1"></span>
       <button type="button" id="prevWk" aria-label="Previous week">&larr;</button><span class="wk" id="wkLabel"></span><button type="button" id="nextWk" aria-label="Next week">&rarr;</button>
       <button type="button" id="thisWk">This week</button>
@@ -188,13 +188,12 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
       <div class="list" id="needList"></div>
     </section>
 
-    <section class="panel" id="positionsPanel" data-pane="positions" hidden>
-      <h2>Positions</h2>
-      <p class="small muted" style="margin:0">Who can do which kind of shift. Cover is only offered to people with the right position. Tick <b>Retained</b> for anyone away or at uni who is still on the team: they keep their positions but aren't offered cover until you untick it. Ticks start from what each person has done on this term's rota and their Breathe job title (<span class="sug">suggested</span>); change any and press Save.</p>
+    <details class="panel" id="positionsPanel" data-pane="names" hidden><summary><b>Roles for cover</b> <span class="muted small">(Desk, Pre-School &amp; Drop In, Squad Coach, Retained)</span></summary>
+      <p class="small muted" style="margin:6px 0 0">Coaching roles come from each person's <b>pay band</b> in the Wages tab (the master): Band A = Young Leader, B and C = Assistant, D and up = Lead Coach and Assistant. Those boxes are filled in for you and greyed out. Tick the other roles here, and coaching roles only for people without a pay band (e.g. salaried staff). Tick <b>Retained</b> for anyone away or at uni who is still on the team: they aren't offered cover until you untick it.</p>
       <div class="row small" style="gap:8px;margin:8px 0"><input type="search" id="posFilter" placeholder="Find a name…" style="width:200px"><label class="row" style="gap:6px"><input type="checkbox" id="posAll"> Show everyone in Breathe (not just people on the rota)</label></div>
       <div style="overflow:auto"><table class="pos" id="posTable"></table></div>
-      <div class="row" style="margin-top:10px"><button type="button" class="primary" id="savePos">Save positions</button><span class="small muted" id="posNote"></span></div>
-    </section>
+      <div class="row" style="margin-top:10px"><button type="button" class="primary" id="savePos">Save roles</button><span class="small muted" id="posNote"></span></div>
+    </details>
 
     <section class="panel" id="wagesLockPanel" data-pane="wages" hidden>
       <h2 id="wlTitle">Wages</h2>
@@ -403,7 +402,11 @@ function dayView(d,date){
 }
 
 /* ---------- cover ---------- */
-const posOf=id=>POS()[id]||SUG[id]||[];
+// Coaching roles come from the pay band (Wages tab is the master); other roles (Desk, Pre-School & Drop In, Squad Coach) are ticked.
+// People without a pay band (e.g. salaried) keep their ticked coaching roles.
+const bandPos=v=>v==null?null:v===0?["Young Leader"]:v<=2?["Assistant"]:["Lead Coach","Assistant"];
+const posOf=id=>{const base=POS()[id]||SUG[id]||[],b=bandPos(lvOf(id));if(b===null)return base;
+  const coach=["Lead Coach","Assistant","Young Leader"];return ST.POSITIONS.filter(p=>b.includes(p)||(!coach.includes(p)&&base.includes(p)))};
 const firstOf=s=>s?(s.known||s.first):"";
 const shiftText=n=>`${pretty(n.date,{weekday:"long",day:"numeric",month:"long"})}, ${n.r.session} ${n.r.cls} (${n.r.role})`;
 /* Shifts this week that need someone: the person on the rota is off in Breathe, or a lead role is empty. */
@@ -608,8 +611,10 @@ function renderPositions(){
   const onRota=new Set();DAYS.forEach(t=>t.rows.forEach(r=>r.cells.forEach(c=>ST.namesIn(c).forEach(n=>{const p=who(n);if(p&&!p.ignore)onRota.add(String(p.id))}))));
   const f=$("posFilter").value.trim().toLowerCase(),saved=POS();
   const ppl=STAFF.filter(s=>($("posAll").checked||onRota.has(String(s.id))||saved[s.id])&&(!f||fullName(s).toLowerCase().includes(f))).sort((a,b)=>fullName(a).localeCompare(fullName(b)));
-  $("posTable").innerHTML=`<thead><tr><th>Name</th><th title="Away or at uni but still on the team: not offered cover">Retained</th>${ST.POSITIONS.map(p=>`<th>${esc(p)}</th>`).join("")}</tr></thead><tbody>`+
-    ppl.map(s=>{const mine=posOf(s.id),isSug=!saved[s.id],ret=isRetained(s.id);return `<tr${ret?' class="ret"':""}><td>${esc(fullName(s))} <span class="muted">${esc(s.job||"")}</span>${ret?' <span class="pill none">Retained</span>':""}</td><td><input type="checkbox" data-ret="${s.id}" ${ret?"checked":""} aria-label="${esc(fullName(s))}: retained (away or at uni)"></td>${ST.POSITIONS.map(p=>`<td class="${isSug&&mine.includes(p)?"s":""}"><input type="checkbox" data-pid="${s.id}" data-pos="${esc(p)}" ${mine.includes(p)?"checked":""} aria-label="${esc(fullName(s)+": "+p)}"></td>`).join("")}</tr>`}).join("")+"</tbody>";
+  const coach=["Lead Coach","Assistant","Young Leader"];
+  $("posTable").innerHTML=`<thead><tr><th>Name</th><th>Pay band</th><th title="Away or at uni but still on the team: not offered cover">Retained</th>${ST.POSITIONS.map(p=>`<th>${esc(p)}</th>`).join("")}</tr></thead><tbody>`+
+    ppl.map(s=>{const mine=posOf(s.id),isSug=!saved[s.id],ret=isRetained(s.id);return `<tr${ret?' class="ret"':""}><td>${esc(fullName(s))} <span class="muted">${esc(s.job||"")}</span>${ret?' <span class="pill none">Retained</span>':""}</td><td>${lvOf(s.id)==null?'<span class="muted">–</span>':`<b>${BAND(lvOf(s.id))}</b>`}</td><td><input type="checkbox" data-ret="${s.id}" ${ret?"checked":""} aria-label="${esc(fullName(s))}: retained (away or at uni)"></td>${ST.POSITIONS.map(p=>{const fixed=lvOf(s.id)!=null&&coach.includes(p);
+      return `<td class="${!fixed&&isSug&&mine.includes(p)?"s":""}"><input type="checkbox" data-pid="${s.id}" data-pos="${esc(p)}" ${mine.includes(p)?"checked":""} ${fixed?'disabled title="From the pay band in the Wages tab"':""} aria-label="${esc(fullName(s)+": "+p)}"></td>`}).join("")}</tr>`}).join("")+"</tbody>";
   $("posNote").textContent=`${ppl.length} people shown · ${ppl.filter(s=>isRetained(s.id)).length} retained.`;
 }
 
@@ -963,7 +968,7 @@ function render(){
   SUG=ST.suggestPositions(DAYS,STAFF,who);
   $("namesBadge").hidden=!unk.length;$("namesBadge").textContent=unk.length;
   renderCover(offWeek.size);
-  if(pane==="positions")renderPositions();
+  if(pane==="names")renderPositions();
   if(pane==="wages")renderWages();
   if(pane==="hubrota")renderHubRota();
   if(pane==="sheet"){const id=sheetIdOf(CFG.sheet)||DEFAULT_SHEET,u="https://docs.google.com/spreadsheets/d/"+id+"/edit";$("shOpen").href=u;$("shTitle").textContent=DATA&&DATA.rota?DATA.rota.title:"Rota sheet";
@@ -1061,9 +1066,9 @@ document.addEventListener("focusout",async e=>{const t=e.target.closest&&e.targe
   if(noteRedraw&&!typing()){noteRedraw=false;render()}});
 $("posFilter").oninput=renderPositions;$("posAll").onchange=renderPositions;
 $("savePos").onclick=async()=>{const m=Object.assign({},POS());const rows={};
-  document.querySelectorAll("#posTable input[data-pid]").forEach(i=>{(rows[i.dataset.pid]=rows[i.dataset.pid]||[]);if(i.checked)rows[i.dataset.pid].push(i.dataset.pos)});
+  document.querySelectorAll("#posTable input[data-pid]").forEach(i=>{(rows[i.dataset.pid]=rows[i.dataset.pid]||[]);if(i.checked&&!i.disabled)rows[i.dataset.pid].push(i.dataset.pos)});
   const ret=Object.assign({},RET());document.querySelectorAll("#posTable input[data-ret]").forEach(i=>{if(i.checked)ret[i.dataset.ret]=true;else delete ret[i.dataset.ret]});
-  Object.assign(m,rows);await Hub.doc("config/staffing").set(Object.assign({},CFG,{positions:m,retained:ret}));toast("Positions saved")};
+  Object.assign(m,rows);await Hub.doc("config/staffing").set(Object.assign({},CFG,{positions:m,retained:ret}));toast("Roles saved")};
 $("prevWk").onclick=()=>{weekStart=addDays(weekStart,-7);dayFilter="";render()};
 $("nextWk").onclick=()=>{weekStart=addDays(weekStart,7);dayFilter="";render()};
 $("thisWk").onclick=()=>{weekStart=mondayOf(Hub.todayIso());render()};

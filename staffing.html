@@ -223,6 +223,11 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
       <p class="small" id="wgUnder" style="margin:8px 0 0;font-weight:700;color:var(--bad)" hidden></p>
       <div class="row" style="margin-top:10px"><button type="button" class="primary" id="wgSaveStaff">Save levels and pay</button><span class="small muted" id="wgNote"></span></div>
 
+      <h3 style="margin:22px 0 6px" id="wgCostTitle">Cost of the new pay scale</h3>
+      <p class="small muted" style="margin:0">For a year from the date shown: each person's new pay scale (level + top-up, at their age each month) minus what payroll pays them now, times their weekly hours and the weeks worked. Nobody's pay goes down, so a lower rate counts as £0. Uses <b>saved</b> levels, pay and hours (press Save levels and pay first). Wages only: no employer NI or pension. People aged 22 and over aren't counted, as their pay isn't kept here.</p>
+      <div class="row small" style="gap:8px;margin:8px 0"><label class="row" style="gap:6px">Weeks worked a year <input type="number" id="wgWeeks" min="1" max="52" step="1" style="width:64px"></label><span class="muted">39 = term time</span></div>
+      <div id="wgCost"></div>
+
       <h3 style="margin:22px 0 6px">Holiday entitlement</h3>
       <p class="small muted" style="margin:0">The same people. <b>Standard</b> is the legal minimum of 5.6 weeks a year: 5.6 × their usual hours per week. <b>From overtime</b> adds 12.07% of any hours worked beyond their pattern this leave year (the government's holiday rate for irregular hours, 5.6 ÷ 46.4 weeks). All figures are in hours. People who started part-way through the leave year get a share of the standard amount by start date.</p>
       <div class="row small" style="gap:10px;margin:8px 0;flex-wrap:wrap"><label class="row" style="gap:6px">Leave year starts <select id="hoStart"></select></label><span class="muted" id="hoYear"></span></div>
@@ -666,6 +671,7 @@ function renderWages(){
   $("wgUnder").hidden=!under;$("wgUnder").textContent=`⚠ ${under} ${under===1?"person is":"people are"} paid below the legal minimum wage for their age. Put their pay up in payroll now.`;
   $("wgNote").textContent=`${rows.length} shown${nSal?` · ${nSal} salaried staff not shown`:""}${noDob?` · ${noDob} without a date of birth`:""}${unpaid16?` · ${unpaid16} aged 16+ on Level 0`:""}`;
   renderHoliday(rows);
+  renderCost();
 }
 /* Holiday: 5.6 weeks x usual weekly hours (pro rata by start date), plus 12.07% of overtime hours. */
 const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -779,6 +785,25 @@ function previewImport(text){const box=$("wgImpPrev");IMP=null;
 $("wgImpFile").onchange=e=>{const f=e.target.files[0];if(!f)return;if(!/\.csv$/i.test(f.name)&&f.type!=="text/csv"){$("wgImpPrev").innerHTML='<p style="color:var(--bad)">Choose the CSV download (Download &gt; CSV), not Excel or PDF.</p>';return}
   const r=new FileReader();r.onload=()=>previewImport(r.result);r.readAsText(f)};
 $("wgImpPaste").addEventListener("paste",()=>setTimeout(()=>previewImport($("wgImpPaste").value),0));
+/* ---------- cost of moving everyone to the new pay scale (a year from next April) ---------- */
+const COST_WEEKS=39;
+function renderCost(){const w=W(),nx=nextNmw(),start=nx?nx.from:(()=>{const t=Hub.todayIso(),y=+t.slice(0,4);return (t<`${y}-04-01`?y:y+1)+"-04-01"})();
+  const weeks=+w.costWeeks||COST_WEEKS;if(document.activeElement!==$("wgWeeks"))$("wgWeeks").value=weeks;
+  $("wgCostTitle").textContent=`Cost of the new pay scale from ${pretty(start,{day:"numeric",month:"long",year:"numeric"})}`;
+  const months=[...Array(12)].map((_,i)=>{const d=new Date(+start.slice(0,4),+start.slice(5,7)-1+i,1,12);return iso(d)});
+  const sal=w.salaried||{},hid=w.hidden||{},hrs=(w.holiday||{}).people||{},items=[],noLv=[],noHrs=[];let total=0,same=0;
+  STAFF.forEach(s=>{if(sal[s.id]||hid[s.id])return;const pd=(w.paid||{})[s.id];if(pd==null||pd==="")return;
+    const lv=w.staff[s.id];if(!hasLv(lv)){noLv.push(fullName(s));return}
+    const h=+(hrs[s.id]||{}).hours||0;if(!h){noHrs.push(fullName(s));return}
+    const dob=dobOf(s,qboFor(s));if(!dob)return;const tu=+(w.topup||{})[s.id]||0;
+    let c=0;months.forEach(m=>{c+=Math.max(0,rateFor(lv,bandOf(ageOn(dob,m)),m)+tu-pd)*h*weeks/12});c=Math.round(c);
+    if(c>0){items.push([fullName(s),c]);total+=c}else same++});
+  items.sort((a,b)=>b[1]-a[1]);const gbp=v=>"£"+Math.round(v).toLocaleString("en-GB");
+  $("wgCost").innerHTML=`<div class="row" style="gap:18px;align-items:baseline;flex-wrap:wrap"><div style="font-size:28px;font-weight:800">${gbp(total)}</div><div class="small">more a year · ${gbp(total/weeks)} a week in term · ${items.length} ${items.length===1?"person costs":"people cost"} more, ${same} no extra</div></div>`+
+    (items.length?`<details class="small" style="margin-top:6px"><summary>Who costs more</summary><table class="pos wg" style="min-width:0;margin-top:6px"><tbody>${items.map(([n,c])=>`<tr><td>${esc(n)}</td><td class="m">${gbp(c)}</td></tr>`).join("")}</tbody></table></details>`:"")+
+    (noLv.length||noHrs.length?`<p class="small" style="margin:8px 0 0;color:#b36b00"><b>Not counted yet</b> (so the real cost is higher):${noLv.length?` <b>no saved level</b>: ${esc(noLv.join(", "))}.`:""}${noHrs.length?` <b>no weekly hours</b> (add them in Holiday entitlement): ${esc(noHrs.join(", "))}.`:""}</p>`:"")}
+$("wgWeeks").onchange=async()=>{const v=Math.min(52,Math.max(1,Math.round(+$("wgWeeks").value||COST_WEEKS)));
+  try{await Hub.wagesDoc("wages/main").set({costWeeks:v},{merge:true});WG=Object.assign({},WG||{},{costWeeks:v});renderCost()}catch(e){toast("Couldn't save: "+(e.code||e.message))}};
 $("wgFilter").oninput=renderWages;$("wgCoachOnly").onchange=renderWages;$("wgShowRm").onchange=renderWages;
 // Remove / Put back: saved straight away (Wages and Holiday lists only; nothing changes in Breathe or payroll)
 $("wgStaff").addEventListener("click",async e=>{const r=e.target.closest("button[data-wrm],button[data-wback]");if(!r)return;

@@ -173,14 +173,6 @@ input[type=text]{width:100%}
         <div class="tbl-wrap"><table class="t"><thead><tr><th>Child</th><th>Main reason</th><th>Experience (1–5)</th><th>Recommend (0–10)</th><th>What we could do differently</th></tr></thead><tbody id="lvBody"></tbody></table></div>
       </section>
 
-      <section class="panel">
-        <div class="toolbar">
-          <h2>By class</h2>
-          <div class="row"><div class="seg" id="fArea"></div><select id="fDay"><option value="">Every day</option></select><span class="muted small">Click a class to see who has and hasn't booked</span></div>
-        </div>
-        <div class="tbl-wrap"><table class="t"><thead><tr><th data-sort="day">Day</th><th data-sort="time">Time</th><th data-sort="name">Class this term</th><th data-sort="rate">Renewed</th><th data-sort="left">Still to book</th><th>Next term's class</th></tr></thead><tbody id="tBody"></tbody></table></div>
-        <p class="hint">Trial and pay-as-you-go places aren't counted, as they don't renew termly. "No matching class found" means next term has no class on the same day and time yet (for example, Novice isn't set up for Spring yet).</p>
-      </section>
 
       <div class="grid2">
         <section class="panel" id="remPanel">
@@ -216,6 +208,15 @@ input[type=text]{width:100%}
           <label class="row" style="gap:6px"><input type="checkbox" id="callHideChanging" checked> Hide families who've asked for a class change (they're in Class change requests)</label></div></div>
         <div class="calls" id="calls"></div>
         <p class="hint">Ring each family, then press what happened. <b>Send link: their class</b> emails the booking link for next term's matching class straight away. <b>Send link: different class</b> lets you pick another class for their school year, then emails that link. <b>Leaving</b> takes them off the list and out of the figures. <b>No answer</b> keeps them on the list so someone can try again. Every call is saved with who rang and when, so nobody calls twice. Phone numbers come from JustGo with the morning sync.</p>
+      </section>
+
+      <section class="panel">
+        <div class="toolbar">
+          <h2>By class</h2>
+          <div class="row"><div class="seg" id="fArea"></div><select id="fDay"><option value="">Every day</option></select><span class="muted small">Click a class to see who has and hasn't booked</span></div>
+        </div>
+        <div class="tbl-wrap"><table class="t"><thead><tr><th data-sort="day">Day</th><th data-sort="time">Time</th><th data-sort="name">Class this term</th><th data-sort="rate">Renewed</th><th data-sort="left">Still to book</th><th>Next term's class</th></tr></thead><tbody id="tBody"></tbody></table></div>
+        <p class="hint">Trial and pay-as-you-go places aren't counted, as they don't renew termly. "No matching class found" means next term has no class on the same day and time yet (for example, Novice isn't set up for Spring yet).</p>
       </section>
     </div>
   </main>

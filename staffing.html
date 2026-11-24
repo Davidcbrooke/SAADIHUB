@@ -285,10 +285,13 @@ const fullName=s=>s?((s.known||s.first)+" "+s.last).trim():"";
 const offKind=o=>o.kind==="holiday"?"Holiday":"Off";
 
 /* ---------- set-up ---------- */
+// The saved settings must have arrived before the page decides it isn't set up: otherwise an early click made a new token
+// and saved it over the real one, which broke the connection ("Wrong token").
+let cfgLoaded=false;
 function token(){if(!CFG.token){const a=new Uint8Array(24);crypto.getRandomValues(a);CFG.token=[...a].map(x=>x.toString(16).padStart(2,"0")).join("")}return CFG.token}
 function showSetup(on){$("setupPanel").hidden=!on;$("sheetIdShow").textContent=sheetIdOf(CFG.sheet)||DEFAULT_SHEET;
   const had=CFG.token;$("tokenShow").textContent=token();
-  if(!had)Hub.doc("config/staffing").set({token:CFG.token,sheet:CFG.sheet||DEFAULT_SHEET},{merge:true}).catch(()=>{});   // keep the same token if the page is reopened mid set-up
+  if(!had&&cfgLoaded&&!CFG.url)Hub.doc("config/staffing").set({token:CFG.token,sheet:CFG.sheet||DEFAULT_SHEET},{merge:true}).catch(()=>{});   // keep the same token if the page is reopened mid set-up
 }
 $("copyToken").onclick=()=>navigator.clipboard.writeText(token()).then(()=>toast("Token copied"));
 $("copyCode").onclick=async()=>{try{const t=await (await fetch("staffing.gs?v=6")).text();await navigator.clipboard.writeText(t);toast("Code copied: paste it into the script")}catch(e){toast("Couldn't copy: open staffing.gs from the Hub's GitHub")}};
@@ -687,6 +690,7 @@ $("wgSaveStaff").onclick=async()=>{const m=Object.assign({},W().staff),pd=Object
 
 /* ---------- render ---------- */
 function render(){
+  if(!cfgLoaded)return;
   const ready=!!(CFG.url&&DATA);
   $("topBar").hidden=!ready;
   document.querySelectorAll("[data-pane]").forEach(el=>el.hidden=!ready||el.dataset.pane!==pane);
@@ -812,7 +816,7 @@ Hub.gate(()=>{
   if(Hub.wagesSaved){const sv=Hub.wagesSaved();if(sv)Hub.openWages(sv,true).then(err=>{if(!err)wagesOpened()})}
   Hub.doc("config/enquiryDesk").onSnapshot(d=>{S=EQ.settings(d.exists?d.data():{});if(DATA)render()},()=>{});
   Hub.col("cover").onSnapshot(s=>{COVER={};s.docs.forEach(d=>COVER[d.id]=d.data());if(DATA)render()},()=>{});
-  Hub.doc("config/staffing").onSnapshot(d=>{const was=CFG.url;CFG=d.exists?d.data():{};if(!CFG.sheet)CFG.sheet=DEFAULT_SHEET;if(CFG.url&&(!DATA||CFG.url!==was))load();else render()},e=>{$("statusNote").hidden=false;$("statusNote").textContent="Couldn't load the settings ("+(e.code||"error")+")."});
+  Hub.doc("config/staffing").onSnapshot(d=>{cfgLoaded=true;const was=CFG.url;CFG=d.exists?d.data():{};if(!CFG.sheet)CFG.sheet=DEFAULT_SHEET;if(CFG.url&&(!DATA||CFG.url!==was))load();else render()},e=>{$("statusNote").hidden=false;$("statusNote").textContent="Couldn't load the settings ("+(e.code||"error")+")."});
 });
 
 </script>

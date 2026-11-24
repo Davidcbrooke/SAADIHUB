@@ -410,8 +410,19 @@ const itemText=i=>`${i.r.session} ${i.r.cls} (${i.r.role})`;
 const groupText=g=>`${pretty(g.date,{weekday:"long",day:"numeric",month:"long"})}: ${g.items.map(itemText).join(", ")}`;
 const RET=()=>CFG.retained||{};
 const isRetained=id=>!!RET()[id];
-function eligibleFor(g){return STAFF.filter(s=>(!g.off||s.id!==g.off.id)&&!isRetained(s.id)&&g.pos.every(p=>posOf(s.id).includes(p))&&!ST.offOn(s.id,g.date,OFF)&&!g.sessions.some(se=>busyAt(s.id,g.day,g.date,se)))
-  .sort((a,b)=>fullName(a).localeCompare(fullName(b)))}
+/* Coaching cover follows the levels saved in the Wages tab (only the level number is copied to these settings, never pay):
+   first everyone at the same level as the person who's off, then (with the button) one level down too.
+   Desk/Reception and other non-coaching shifts, empty slots, and anyone without a saved level still go by Positions. */
+const LV=()=>CFG.levels||{};
+const LVN=n=>(CFG.levelNames||{})[n]||("Level "+n);
+const COACH_POS=["Lead Coach","Assistant","Young Leader"];
+const lvOf=id=>{const v=LV()[id];return v===undefined||v===null||v===""||v==="none"?null:+v};
+const levelNeed=g=>g.off&&g.pos&&g.pos.some(p=>COACH_POS.includes(p))?lvOf(g.off.id):null;
+let DOWN=new Set();
+function eligibleFor(g){const L=levelNeed(g);
+  const fits=L==null?(s=>g.pos.every(p=>posOf(s.id).includes(p))):(s=>{const v=lvOf(s.id);return v!==null&&(v===L||(DOWN.has(g.id)&&L>0&&v===L-1))});
+  return STAFF.filter(s=>(!g.off||s.id!==g.off.id)&&!isRetained(s.id)&&fits(s)&&!ST.offOn(s.id,g.date,OFF)&&!g.sessions.some(se=>busyAt(s.id,g.day,g.date,se)))
+    .sort((a,b)=>(lvOf(b.id)||0)-(lvOf(a.id)||0)||fullName(a).localeCompare(fullName(b)))}
 function renderCover(offCount){
   NEEDS=groupNeeds(needsThisWeek());
   const wkEnd=addDays(weekStart,6);
@@ -460,18 +471,20 @@ function renderCover(offCount){
     const yes=rep.map(y=>STAFF.find(s=>String(s.id)===String(y.p))).filter(Boolean);
     const shifts=g.items.map(i=>`<span class="sh"><i class="swatch" style="background:${i.r.colour||"var(--muted)"}"></i>${esc(shortSession(i.r.session))} ${esc(String(i.r.cls).replace(/\s*Group$/i,""))}</span>`).join("");
     const status=yes.length?`<span class="pill good">${yes.length} said yes</span>`:d.status==="offered"?`<span class="pill warn">Offered to ${(d.offeredTo||[]).length}</span>`:`<span class="pill bad">Needs cover</span>`;
-    const send=el.length?`<button type="button" class="primary sm" data-offer ${mailerOk?"":"disabled title=\"Set up sending from reception@ on the Enquiry Desk first\""}>${SENDING.has(g.id)?"Sending…":`${d.status==="offered"?"Send again to":"Send to"} ${withEmail.length} qualified`}</button>`:`<span class="small muted">Nobody qualifies</span>`;
+    const L=levelNeed(g),dn=DOWN.has(g.id);
+    const send=el.length?`<button type="button" class="primary sm" data-offer ${mailerOk?"":"disabled title=\"Set up sending from reception@ on the Enquiry Desk first\""}>${SENDING.has(g.id)?"Sending…":`${d.status==="offered"?"Send again to":"Send to"} ${withEmail.length} ${L==null?"qualified":"at Level "+L+(dn&&L>0?"/"+(L-1):"")}`}</button>`:`<span class="small muted">${L==null?"Nobody qualifies":"Nobody at Level "+L+(dn&&L>0?" or "+(L-1):"")+" is free"}</span>`;
+    const need=L==null?`<b>${esc(g.pos.join(" + "))}</b>`:`<b>Level ${L}: ${esc(LVN(L))}</b>${L>0?` <button type="button" class="link sm" data-down title="${dn?"Only offer it at the same level":"Also offer it one level down"}">${dn?"− only Level "+L:"+ also Level "+(L-1)}</button>`:""}`;
     return `<tbody data-need="${esc(g.id)}"><tr class="nr${d.status==="offered"?" offered":""}">
       <td class="nd">${esc(pretty(g.date,{weekday:"short",day:"numeric"}))}</td>
       <td><b>${g.off?esc(fullName(g.off)):"Nobody on rota"}</b>${g.off?`<div class="small muted">${g.o.kind==="holiday"?"Holiday":"Off"}${g.off.job?" · "+esc(g.off.job):""}</div>`:""}</td>
-      <td><b>${esc(g.pos.join(" + "))}</b><div class="shs">${shifts}</div></td>
+      <td>${need}<div class="shs">${shifts}</div></td>
       <td>${status}</td>
       <td class="nac"><div class="na">${yes.map(s=>`<button type="button" class="ok sm" data-confirm="${s.id}">Confirm ${esc(firstOf(s))}</button>`).join("")}${send}
         <button type="button" class="sm" data-sorted title="Dealt with another way: take it off the list (the rota sheet isn't changed)">Sorted</button>
         <button type="button" class="link sm" data-find title="See or untick who it goes to">${showFind?"▴ names":"▾ names"}</button>
         ${CFG.waOn&&el.length?`<button type="button" class="wa sm" data-wagroup>WhatsApp group</button>`:""}
         <select data-cover class="sm" title="Covered another way"><option value="">Covered by…</option>${everyone.map(s=>`<option value="${s.id}">${esc(fullName(s))}${isRetained(s.id)?" (retained)":g.pos.every(p=>posOf(s.id).includes(p))?"":" (not all positions)"}</option>`).join("")}</select></div></td></tr>
-      ${showFind?`<tr class="nx"><td></td><td colspan="4"><div class="elig">${el.map(s=>`<label class="pp"><input type="checkbox" data-elig="${s.id}" ${s.email?"checked":"disabled"}> ${esc(fullName(s))}${s.email?"":" (no email)"}${CFG.waOn&&s.wa?` <button type="button" class="wa sm" data-wa="${s.id}">WhatsApp</button>`:""}</label>`).join("")||'<span class="muted">Nobody with these positions is free. Check the Positions tab.</span>'}</div></td></tr>`:""}</tbody>`});
+      ${showFind?`<tr class="nx"><td></td><td colspan="4"><div class="elig">${el.map(s=>`<label class="pp"><input type="checkbox" data-elig="${s.id}" ${s.email?"checked":"disabled"}> ${esc(fullName(s))}${L!=null&&lvOf(s.id)!==L?` <span class="pill none">Level ${lvOf(s.id)}</span>`:""}${s.email?"":" (no email)"}${CFG.waOn&&s.wa?` <button type="button" class="wa sm" data-wa="${s.id}">WhatsApp</button>`:""}</label>`).join("")||`<span class="muted">${L==null?"Nobody with these positions is free. Check the Positions tab.":"Nobody at this level is free. Try + also Level "+(L-1)+", or set levels in the Wages tab."}</span>`}</div></td></tr>`:""}</tbody>`});
   $("needList").innerHTML=dayFilter&&!rows.length?`<p class="small muted" style="margin:0">Nobody is off on ${esc(pretty(dayFilter,{weekday:"long",day:"numeric",month:"long"}))}.</p>`:rows.length?`<table class="nt"><thead><tr><th>Day</th><th>Who's off</th><th>Level needed · shifts</th><th>Status</th><th></th></tr></thead>${rows.join("")}</table>`:'<p class="small muted" style="margin:0">Nothing needs cover from today to the end of this week.</p>';
 }
 async function post(body){const r=await fetch(CFG.url,{method:"POST",body:JSON.stringify(Object.assign({token:CFG.token},body))});const j=await r.json();if(!j.ok)throw new Error(j.error||"The Google script refused");return j}
@@ -610,7 +623,13 @@ async function loadQbo(){if(qboBusy||QBO)return;qboBusy=true;
 function moveToSeven(x){if(!x||!Array.isArray(x.levels)||x.levels.some(l=>l.n===7))return null;
   const levels=x.levels.map(l=>l.n===6?Object.assign({},l,{n:7}):l).concat([{n:6,name:"Senior Coach + L3 qualification (consultant contracted)",plus:0}]).sort((a,b)=>a.n-b.n);
   const staff={};Object.entries(x.staff||{}).forEach(([k,v])=>{staff[k]=v===6?7:v});return {levels,staff}}
-function wagesOpened(){if(wgUnsub)wgUnsub();wgUnsub=Hub.wagesDoc("wages/main").onSnapshot(d=>{WG=d.exists?d.data():null;
+// The cover page needs each person's level but not their pay: copy only the level numbers and level names to the staffing settings.
+function syncLevelCopy(){if(!WG||!cfgLoaded)return;const lv={},names={};
+  Object.entries(WG.staff||{}).forEach(([id,v])=>{if(v!==null&&v!==undefined&&v!==""&&v!=="none")lv[id]=+v});
+  W().levels.forEach(L=>{names[L.n]=L.name});
+  if(JSON.stringify(lv)===JSON.stringify(CFG.levels||{})&&JSON.stringify(names)===JSON.stringify(CFG.levelNames||{}))return;
+  Hub.doc("config/staffing").set({levels:lv,levelNames:names,levelsAt:new Date().toISOString()},{merge:true}).catch(()=>{})}
+function wagesOpened(){if(wgUnsub)wgUnsub();wgUnsub=Hub.wagesDoc("wages/main").onSnapshot(d=>{WG=d.exists?d.data():null;setTimeout(syncLevelCopy,0);
   const mv=moveToSeven(WG);if(mv){WG=Object.assign({},WG,mv);Hub.wagesDoc("wages/main").set(mv,{merge:true}).catch(()=>{})}if(pane==="wages")renderWages()},()=>{});render()}
 async function showWagesLock(){
   if(wlSetUp===null)wlSetUp=await Hub.wagesIsSetUp();
@@ -926,6 +945,7 @@ document.addEventListener("click",e=>{const w=e.target.closest("button[data-wd]"
 document.addEventListener("click",e=>{const t=e.target.closest("button[data-tab]");if(t){pane=t.dataset.tab;render();return}
   const card=e.target.closest("[data-need]");if(!card)return;const n=NEEDS.find(x=>x.id===card.dataset.need);if(!n)return;
   if(e.target.closest("button[data-find]")){FIND.has(n.id)?FIND.delete(n.id):FIND.add(n.id);render();return}
+  if(e.target.closest("button[data-down]")){DOWN.has(n.id)?DOWN.delete(n.id):DOWN.add(n.id);FIND.add(n.id);render();return}
   const w=e.target.closest("button[data-wa]");if(w){waOne(n,w.dataset.wa);return}
   if(e.target.closest("button[data-wagroup]")){waGroup(n);return}
   if(e.target.closest("button[data-offer]")){const box=card.querySelectorAll("input[data-elig]");offer(n,box.length?[...card.querySelectorAll("input[data-elig]:checked")].map(i=>i.dataset.elig):eligibleFor(n).filter(s=>s.email).map(s=>s.id));return}

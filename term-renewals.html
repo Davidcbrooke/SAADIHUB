@@ -89,6 +89,9 @@ input[type=text]{width:100%}
 .call .acts button{font-size:13px}
 .call .hist{font-size:12px;color:var(--muted);margin-top:6px}
 .call .pick{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px;width:100%}
+.call .cnotes{grid-column:1/-1}
+.call textarea.cnote{display:block;width:100%;font:inherit;font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:8px;resize:vertical}
+.call .cnby{font-size:11px;color:var(--muted);margin-top:2px}
 @media (max-width:820px){.call{grid-template-columns:1fr}}
 
 /* foldable sections */
@@ -264,6 +267,7 @@ if("serviceWorker" in navigator&&location.protocol==="https:"){window.addEventLi
 (function(){
 "use strict";
 const {$,esc}=Hub;
+let NOTES={},noteRedraw=false;
 let S=EQ.settings({}),R=null,logs=[],stat={},tpl={},calls=[],reqs={},mode=(()=>{try{return localStorage.getItem("saadiRemMode")||"first"}catch(e){return"first"}})(),picking=new Set(),AKEY=null,resp={changes:[],leavers:[]},respAt=null,ST=null,cfg={},area="",sortKey="rate",sortDir=1,open=new Set(),sel=new Set(),previewKey=null,showRemoved=false;
 const pct=x=>isFinite(x)?Math.round(x*100)+"%":"–";
 const tone=x=>!isFinite(x)?"none":x>=.8?"good":x>=.5?"warn":"bad";
@@ -290,7 +294,9 @@ function load(){
     R=ren?EQ.renewals(ren):null;render();if(R&&!respAt)loadResponses();
   },e=>{$("statusNote").hidden=false;$("statusNote").textContent="Couldn't load the renewals ("+(e.code||"error")+")."});
   Hub.col("renewalEmails").onSnapshot(q=>{prune("renewalEmails",q);logs=q.docs.map(d=>d.data());if(R)render()},()=>{});
-  Hub.col("renewalCalls").onSnapshot(q=>{prune("renewalCalls",q);calls=q.docs.map(d=>d.data());if(R){renderCalls();renderSteps()}},()=>{});
+  Hub.col("renewalCalls").onSnapshot(q=>{prune("renewalCalls",q);calls=q.docs.map(d=>d.data());if(R){if(typingNote())noteRedraw=true;else renderCalls();renderSteps()}},()=>{});
+  // a note per family on the call list (deleted after 6 months like the other call records)
+  Hub.col("renewalNotes").onSnapshot(q=>{prune("renewalNotes",q);NOTES={};q.docs.forEach(d=>{const x=d.data();if(x.key)NOTES[x.key]=x});if(R){if(typingNote())noteRedraw=true;else renderCalls()}},()=>{});
   // step 5 requests go to Claude through the same private section the Email assistant uses
   Hub.doc("config/emailAssist").get().then(d=>{AKEY=d.exists&&d.data().key;if(!AKEY)return;Hub.fs.collection(`data/${AKEY}/changeRequests`).where("kind","in",["renewalsWaitingLists","renewalsOpenPublic"]).onSnapshot(q=>{reqs={};q.docs.forEach(x=>{const r={id:x.id,...x.data()},k=r.kind+"|"+r.term;if(!reqs[k]||(reqs[k].at||0)<(r.at||0))reqs[k]=r});if(R)renderSteps()},()=>{})}).catch(()=>{});
   // What families have told us (not continuing / want a different class), set by reception from their replies.
@@ -606,6 +612,7 @@ const freeIn=n=>Math.max(0,(n.cap||0)-(n.booked||0));
 const clsLab=n=>`${n.day} ${timeOf(n)} ${title(n)}`;
 function optionsFor(k){const ys=k.years||[];return R.cls.filter(n=>n.kind==="n"&&n.area===k.cur.area&&(!ys.length||!n.years||!n.years.length||n.years.some(y=>ys.includes(y))))
   .sort((a,b)=>EQ.DAYS.indexOf(a.day)-EQ.DAYS.indexOf(b.day)||EQ.mins(a.start)-EQ.mins(b.start))}
+const typingNote=()=>{const a=document.activeElement;return !!(a&&a.matches&&a.matches("textarea[data-cnote]"))};
 function renderCalls(){
   if(!R)return;const list=callList(),all=callList(true);
   $("callNote").textContent=`${all.filter(dealt).length} of ${all.length} sorted · ${all.filter(f=>!f.phone).length} without a phone number`;
@@ -622,8 +629,13 @@ function renderCalls(){
         <button type="button" data-leave="${i}" style="color:var(--bad)">Leaving</button>
         <button type="button" data-noans="${i}">No answer</button>
         ${removed(f)?`<button type="button" data-restore="${i}">Put back on list</button>`:`<button type="button" data-remove="${i}" style="color:var(--muted,#666)">Remove from list</button>`}</div>${pick}
-        <div class="hist">${h.slice(0,3).map(c=>`${esc(OUT[c.outcome]||c.outcome)}${c.clsName?" ("+esc(c.clsName)+")":""} · ${esc(c.by||"")} · ${esc(when(c.at))}`).join("<br>")||"Not called yet"}</div></div></div>`}).join("")||'<p class="muted">Nobody left to call.</p>';
+        <div class="hist">${h.slice(0,3).map(c=>`${esc(OUT[c.outcome]||c.outcome)}${c.clsName?" ("+esc(c.clsName)+")":""} · ${esc(c.by||"")} · ${esc(when(c.at))}`).join("<br>")||"Not called yet"}</div></div>
+      <div class="cnotes">${(()=>{const n=NOTES[f.key]||{};return `<textarea class="cnote" rows="2" data-cnote="${i}" placeholder="Notes from the call, e.g. mum will book tonight; wants Saturdays; call back after 5pm">${esc(n.note||"")}</textarea>${n.note&&n.by?`<div class="cnby">${esc(n.by)} · ${esc(when(n.at))}</div>`:""}`})()}</div></div>`}).join("")||'<p class="muted">Nobody left to call.</p>';
   const fam=i=>list[+i];
+  $("calls").querySelectorAll("textarea[data-cnote]").forEach(t=>t.onblur=async()=>{const f=fam(t.dataset.cnote);if(!f)return;
+    const v=t.value.trim(),was=((NOTES[f.key]||{}).note||"").trim();
+    if(v!==was){try{await Hub.doc("renewalNotes/"+f.key.replace(/[^a-z0-9]/gi,"_").slice(0,140)).set({key:f.key,email:f.email||"",note:v,by:who(),at:Date.now()});toast(v?"Note saved":"Note cleared")}catch(e){toast("Couldn't save the note: "+(e.code||e.message))}}
+    if(noteRedraw&&!typingNote()){noteRedraw=false;renderCalls()}});
   const logCall=(f,outcome,extra)=>Hub.col("renewalCalls").add(Object.assign({key:f.key,email:f.email||"",parentName:f.parentName||"",outcome,by:who(),at:Date.now()},extra||{}));
   const sendOffer=async(f,k,n)=>{const e=EQ.offerEmail({child:k.first,parentName:f.parentName||"",cls:n,full:!freeIn(n)},S,termFor(f).name);
     const r=await fetch(S.mailerUrl,{method:"POST",body:JSON.stringify({token:S.mailerToken,to:f.email,subject:e.subject,html:e.html,text:e.text,fromName:S.fromName})});const j=await r.json();if(!j.ok)throw new Error(j.error||"not sent");

@@ -211,7 +211,8 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
       <p class="small muted" style="margin:0">Everyone in Breathe, with their date of birth from QuickBooks. Levels start from each person's positions (<span class="sug">suggested</span>) until you save. Rates use each person's age on the day.</p>
       <div class="row small" style="gap:8px;margin:8px 0"><input type="search" id="wgFilter" placeholder="Find a name…" style="width:200px"><label class="row" style="gap:6px"><input type="checkbox" id="wgCoachOnly" checked> Only people with a level</label><span class="muted" id="wgQbo"></span></div>
       <div style="overflow:auto"><table class="pos wg" id="wgStaff"></table></div>
-      <div class="row" style="margin-top:10px"><button type="button" class="primary" id="wgSaveStaff">Save levels</button><span class="small muted" id="wgNote"></span></div>
+      <p class="small" id="wgUnder" style="margin:8px 0 0;font-weight:700;color:var(--bad)" hidden></p>
+      <div class="row" style="margin-top:10px"><button type="button" class="primary" id="wgSaveStaff">Save levels and pay</button><span class="small muted" id="wgNote"></span></div>
 
       <h3 style="margin:22px 0 6px">Holiday entitlement</h3>
       <p class="small muted" style="margin:0">The same people. <b>Standard</b> is the legal minimum of 5.6 weeks a year: 5.6 × their usual hours per week. <b>From overtime</b> adds 12.07% of any hours worked beyond their pattern this leave year (the government's holiday rate for irregular hours, 5.6 ÷ 46.4 weeks). All figures are in hours. People who started part-way through the leave year get a share of the standard amount by start date.</p>
@@ -565,6 +566,8 @@ const bandOf=age=>age==null?"r21":age<16?"u16":age<18?"r16":age<21?"r18":"r21";
 const levelOf=n=>W().levels.find(x=>x.n===+n);
 const rateFor=(n,band,date)=>{const L=levelOf(n);if(!L||L.plus==null)return 0;const m=nmwOn(date);return Math.round(((band==="u16"?m.r16:m[band])+(+L.plus||0))*100)/100};
 const money=v=>"£"+(+v).toFixed(2);
+const legalMin=(age,date)=>{if(age==null||age<16)return 0;const m=nmwOn(date);return age<18?m.r16:age<21?m.r18:m.r21};
+const PAID=()=>W().paid||{};
 const nk=s=>String(s||"").toLowerCase().replace(/[^a-z]/g,"");
 const hasLv=lv=>lv!==null&&lv!==undefined&&lv!==""&&lv!=="none";
 const birthday=(dob,n)=>String(+dob.slice(0,4)+n)+dob.slice(4);
@@ -594,20 +597,32 @@ function renderWages(){
     w.nmw.concat([{from:"",r16:"",r18:"",r21:""}]).map((r,i)=>`<tr><td><input type="date" data-nf="${i}" value="${esc(r.from)}"></td>${["r16","r18","r21"].map(k=>`<td>£<input type="number" step="0.01" min="0" data-nr="${i}:${k}" value="${r[k]===""?"":(+r[k]).toFixed(2)}"></td>`).join("")}</tr>`).join("")+"</tbody>";
   if(!QBO&&!qboErr&&!qboBusy)loadQbo();
   $("wgQbo").textContent=qboErr?"Couldn't read QuickBooks: "+qboErr:QBO?`${QBO.length} current employees in QuickBooks`:"Reading dates of birth from QuickBooks…";
-  const f=$("wgFilter").value.trim().toLowerCase();let unpaid16=0,noDob=0;
+  const f=$("wgFilter").value.trim().toLowerCase();let unpaid16=0,noDob=0,under=0;
   const rows=STAFF.map(s=>{const saved=w.staff[s.id],lv=saved!==undefined?saved:suggestLevel(s.id),q=qboFor(s);return {s,lv,isSug:saved===undefined,q,dob:(q&&q.dob)||""}})
     .filter(r=>(!$("wgCoachOnly").checked||hasLv(r.lv))&&(!f||fullName(r.s).toLowerCase().includes(f)))
     .sort((a,b)=>(hasLv(b.lv)?+b.lv:-1)-(hasLv(a.lv)?+a.lv:-1)||fullName(a.s).localeCompare(fullName(b.s)));
-  $("wgStaff").innerHTML=`<thead><tr><th>Name</th><th>Age</th><th>Level</th><th>Now</th><th>${nx?"From "+esc(pretty(nx.from,{day:"numeric",month:"short"})):"Next April"}</th><th>Notes</th></tr></thead><tbody>`+
+  $("wgStaff").innerHTML=`<thead><tr><th>Name</th><th>Age</th><th>Level</th><th>Scale now</th><th>${nx?"From "+esc(pretty(nx.from,{day:"numeric",month:"short"})):"Next April"}</th><th>Paid now (payroll)</th><th>Notes</th></tr></thead><tbody>`+
     rows.map(({s,lv,isSug,q,dob})=>{const age=ageOn(dob,today),has=hasLv(lv);
       const now=has?rateFor(lv,bandOf(age),today):null,later=has&&nx?rateFor(lv,bandOf(ageOn(dob,nx.from)),nx.from):null;const notes=[];
       if(QBO&&!q)notes.push("Not found in QuickBooks");else if(q&&!dob){notes.push("No date of birth in QuickBooks: paid as 21+");noDob++}
       if(dob&&has)[16,18,21].forEach(t=>{const d=birthday(dob,t);if(d>today&&d<=addDays(today,365)){const r=rateFor(lv,bandOf(t),d);if(r!==rateFor(lv,bandOf(t-1),d))notes.push(`Turns ${t} on ${pretty(d,{day:"numeric",month:"short",year:"numeric"})}: ${money(r)}`)}});
       const flag=has&&+lv===0&&age!=null&&age>=16;if(flag)unpaid16++;
+      // what payroll actually pays, against the legal minimum for their age today, after a birthday, and from next April
+      // pay is only kept for under-22s (where the age bands matter); 22 and over stay blank
+      const adult=age!=null&&age>=22,paid=adult?undefined:PAID()[s.id],pd=paid!==undefined&&paid!==""&&paid!==null?+paid:null,warn=[];let red=false;
+      if(pd!=null&&dob){const lm=legalMin(age,today);
+        if(lm&&pd<lm){red=true;under++;warn.push(`Paid ${money(pd)}: below the legal minimum of ${money(lm)} for age ${age}`)}
+        else{[16,18,21].forEach(t=>{const d=birthday(dob,t);if(d>today&&d<=addDays(today,365)){const m=legalMin(t,d);if(pd<m)warn.push(`Turns ${t} on ${pretty(d,{day:"numeric",month:"short"})}: must rise to at least ${money(m)}`)}});
+          if(nx){const m=legalMin(ageOn(dob,nx.from),nx.from);if(m&&pd<m)warn.push(`From ${pretty(nx.from,{day:"numeric",month:"short",year:"numeric"})}: must rise to at least ${money(m)}`)}}
+        if(!red&&has&&+lv>0&&pd<now)warn.push(`${money(now-pd)} below their level's rate`)}
+      else if(pd!=null&&!dob&&pd<legalMin(21,today))warn.push("No date of birth: can't check the legal minimum");
       return `<tr class="${has?"lv"+(+lv):""}"><td>${esc(fullName(s))} <span class="muted">${esc(s.job||"")}</span></td><td class="m">${age==null?"–":age}</td>
         <td><select data-wlv="${esc(s.id)}"${isSug?' class="sug"':""}><option value="none"${has?"":" selected"}>Not on the scale</option>${w.levels.map(L=>`<option value="${L.n}"${has&&+lv===L.n?" selected":""}>${L.n}: ${esc(L.name)}</option>`).join("")}</select></td>
         <td class="m">${has?money(now):"–"}</td><td class="m">${has&&later!=null?money(later):"–"}</td>
-        ${flag?`<td class="flag">Aged ${age} on £0: only OK as a genuine volunteer (no contract, no promise of pay, expenses only)</td>`:`<td class="note">${esc(notes.join(" · "))}</td>`}</tr>`}).join("")+"</tbody>";
+        <td${red?' style="background:#fde8e8"':""}>${adult?'<span class="muted small">22+</span>':`£<input type="number" step="0.01" min="0" data-wpd="${esc(s.id)}" value="${pd!=null?pd.toFixed(2):""}">`}</td>
+        ${flag?`<td class="flag">Aged ${age} on £0: only OK as a genuine volunteer (no contract, no promise of pay, expenses only)</td>`:
+          `<td class="note">${warn.length?`<span style="color:${red?"var(--bad)":"#b36b00"};font-weight:700">⚠ ${esc(warn.join(" · "))}</span>${notes.length?"<br>":""}`:""}${esc(notes.join(" · "))}</td>`}</tr>`}).join("")+"</tbody>";
+  $("wgUnder").hidden=!under;$("wgUnder").textContent=`⚠ ${under} ${under===1?"person is":"people are"} paid below the legal minimum wage for their age. Put their pay up in payroll now.`;
   $("wgNote").textContent=`${rows.length} shown${noDob?` · ${noDob} without a date of birth`:""}${unpaid16?` · ${unpaid16} aged 16+ on Level 0`:""}`;
   renderHoliday(rows);
 }
@@ -663,8 +678,12 @@ $("wgSaveScale").onclick=async()=>{const w=W();
     if(/^\d{4}-\d{2}-\d{2}$/.test(i.value)&&v("r21")>0)nmw.push({from:i.value,r16:v("r16"),r18:v("r18"),r21:v("r21")})});
   if(!nmw.length)return toast("Keep at least one year of minimum wage rates");
   try{await Hub.wagesDoc("wages/main").set({levels,nmw,agreed:$("wgAgreed").checked,scaleBy:me(),scaleAt:new Date().toISOString()},{merge:true});toast("Pay scale saved")}catch(e){toast("Couldn't save: "+(e.code||e.message))}};
-$("wgSaveStaff").onclick=async()=>{const m=Object.assign({},W().staff);document.querySelectorAll("#wgStaff select[data-wlv]").forEach(x=>{m[x.dataset.wlv]=x.value==="none"?"none":+x.value});
-  try{await Hub.wagesDoc("wages/main").set({staff:m,staffBy:me(),staffAt:new Date().toISOString()},{merge:true});toast("Levels saved")}catch(e){toast("Couldn't save: "+(e.code||e.message))}};
+$("wgSaveStaff").onclick=async()=>{const m=Object.assign({},W().staff),pd=Object.assign({},PAID());
+  document.querySelectorAll("#wgStaff select[data-wlv]").forEach(x=>{m[x.dataset.wlv]=x.value==="none"?"none":+x.value});
+  document.querySelectorAll("#wgStaff input[data-wpd]").forEach(x=>{if(x.value==="")delete pd[x.dataset.wpd];else pd[x.dataset.wpd]=Math.round(+x.value*100)/100});
+  // drop pay for anyone now 22 or over
+  STAFF.forEach(s=>{const q=qboFor(s),a=q&&q.dob?ageOn(q.dob,Hub.todayIso()):null;if(a!=null&&a>=22)delete pd[s.id]});
+  try{await Hub.wagesDoc("wages/main").set({staff:m,paid:pd,staffBy:me(),staffAt:new Date().toISOString()},{merge:true});toast("Levels and pay saved")}catch(e){toast("Couldn't save: "+(e.code||e.message))}};
 
 /* ---------- render ---------- */
 function render(){

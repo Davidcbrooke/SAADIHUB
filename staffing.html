@@ -202,14 +202,14 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
     <section class="panel" id="wagesPanel" data-pane="wages" hidden>
       <div class="row" style="gap:10px"><h2 style="margin:0">Wages: hourly (non-salaried) staff <span class="pill warn" id="wgDraft" hidden>Draft: amounts not agreed yet</span></h2><span style="flex:1"></span><button type="button" id="wgLock">🔒 Lock</button></div>
       <p class="small" style="margin:6px 0 0"><b>For hourly-paid staff only.</b> Salaried staff aren't on this pay scale and are left off the lists below.</p>
-      <p class="small muted" style="margin:6px 0 0">Each level is a set amount <b>on top of the starting rate for the person's age</b>. SAADI sets the starting rates for 14 to 17 (there's no legal minimum under 16, and 16–17 never go below it); 18–20 and 21+ follow the minimum wage, so they go up by themselves each April. 14 and 15 year olds can only be Trainee or Assistant coaches.</p>
+      <p class="small muted" style="margin:6px 0 0">Each pay band is a set amount <b>on top of the starting rate for the person's age</b>. SAADI sets the starting rates for 14 to 17 (there's no legal minimum under 16, and 16–17 never go below it); 18–20 and 21+ follow the minimum wage, so they go up by themselves each April. 14 and 15 year olds can only be Trainee or Assistant coaches (Bands B and C).</p>
       <h3 style="margin:14px 0 6px">Pay scale</h3>
       <div style="overflow:auto"><table class="pos wg" id="wgScale"></table></div>
       <details style="margin-top:8px"><summary class="small">Minimum wage rates used (gov.uk)</summary><div style="overflow:auto"><table class="pos wg" id="wgNmw"></table></div>
         <p class="small muted">Add next year's rates when the government announces them (usually in the autumn Budget, starting 1 April).</p></details>
       <div class="row" style="margin-top:10px;gap:12px"><label class="row" style="gap:6px"><input type="checkbox" id="wgAgreed"> These are our agreed rates</label><button type="button" class="primary" id="wgSaveScale">Save pay scale</button></div>
       <h3 style="margin:18px 0 6px">Staff</h3>
-      <p class="small muted" style="margin:0">Hourly-paid staff in Breathe (salaried staff from the payroll import are left off), with their date of birth from payroll or QuickBooks. Levels start from each person's positions (<span class="sug">suggested</span>) until you save. Rates use each person's age on the day.</p>
+      <p class="small muted" style="margin:0">Hourly-paid staff in Breathe (salaried staff from the payroll import are left off), with their date of birth from payroll or QuickBooks. Pay bands start from each person's positions (<span class="sug">suggested</span>) until you save. Rates use each person's age on the day.</p>
       <details class="small" id="wgImpBox" style="margin:8px 0;padding:8px 10px;border:1px solid var(--line);border-radius:10px"><summary><b>Import payroll report</b> <span class="muted">(updates pay, dates of birth and weekly hours from QuickBooks Advanced Payroll)</span></summary>
         <ol style="margin:8px 0 6px 18px;padding:0;line-height:1.7">
           <li>Sign in to QuickBooks, then <a id="wgRepLink" target="_blank" rel="noopener">open the payroll report ↗</a> (current staff, with the right columns already picked).</li>
@@ -218,13 +218,13 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
         </ol>
         <div id="wgImpPrev"></div>
       </details>
-      <div class="row small" style="gap:8px;margin:8px 0"><input type="search" id="wgFilter" placeholder="Find a name…" style="width:200px"><label class="row" style="gap:6px"><input type="checkbox" id="wgCoachOnly" checked> Only people with a level</label><label class="row" style="gap:6px"><input type="checkbox" id="wgShowRm"> Show removed <span id="wgRmCount"></span></label><span class="muted" id="wgQbo"></span></div>
+      <div class="row small" style="gap:8px;margin:8px 0"><input type="search" id="wgFilter" placeholder="Find a name…" style="width:200px"><label class="row" style="gap:6px"><input type="checkbox" id="wgCoachOnly" checked> Only people with a pay band</label><label class="row" style="gap:6px"><input type="checkbox" id="wgShowRm"> Show removed <span id="wgRmCount"></span></label><span class="muted" id="wgQbo"></span></div>
       <div style="overflow:auto"><table class="pos wg" id="wgStaff"></table></div>
       <p class="small" id="wgUnder" style="margin:8px 0 0;font-weight:700;color:var(--bad)" hidden></p>
-      <div class="row" style="margin-top:10px"><button type="button" class="primary" id="wgSaveStaff">Save levels and pay</button><span class="small muted" id="wgNote"></span></div>
+      <div class="row" style="margin-top:10px"><button type="button" class="primary" id="wgSaveStaff">Save pay bands and pay</button><span class="small muted" id="wgNote"></span></div>
 
       <h3 style="margin:22px 0 6px" id="wgCostTitle">Cost of the new pay scale</h3>
-      <p class="small muted" style="margin:0">For a year from the date shown: each person's new pay scale (level + top-up, at their age each month) minus what payroll pays them now, times their weekly hours and the weeks worked. Nobody's pay goes down, so a lower rate counts as £0. Uses <b>saved</b> levels, pay and hours (press Save levels and pay first). Wages only: no employer NI or pension. People aged 22 and over aren't counted, as their pay isn't kept here.</p>
+      <p class="small muted" style="margin:0">For a year from the date shown: each person's new pay scale (pay band + top-up, at their age each month) minus what payroll pays them now, times their weekly hours and the weeks worked. Nobody's pay goes down, so a lower rate counts as £0. Uses <b>saved</b> pay bands, pay and hours (press Save pay bands and pay first). Wages only: no employer NI or pension. People aged 22 and over aren't counted, as their pay isn't kept here.</p>
       <div class="row small" style="gap:8px;margin:8px 0"><label class="row" style="gap:6px">Weeks worked a year <input type="number" id="wgWeeks" min="1" max="52" step="1" style="width:64px"></label><span class="muted">39 = term time</span></div>
       <div id="wgCost"></div>
 
@@ -414,7 +414,9 @@ const isRetained=id=>!!RET()[id];
    first everyone at the same level as the person who's off, then (with the button) one level down too.
    Desk/Reception and other non-coaching shifts, empty slots, and anyone without a saved level still go by Positions. */
 const LV=()=>CFG.levels||{};
-const LVN=n=>(CFG.levelNames||{})[n]||("Level "+n);
+// Pay bands are shown as letters (A = 0 ... H = 7) so they can't be mixed up with British Gymnastics levels; saved data keeps the numbers.
+const BAND=n=>String.fromCharCode(65+(+n||0));
+const LVN=n=>(CFG.levelNames||{})[n]||("Band "+BAND(n));
 const COACH_POS=["Lead Coach","Assistant","Young Leader"];
 const lvOf=id=>{const v=LV()[id];return v===undefined||v===null||v===""||v==="none"?null:+v};
 const levelNeed=g=>g.off&&g.pos&&g.pos.some(p=>COACH_POS.includes(p))?lvOf(g.off.id):null;
@@ -472,8 +474,8 @@ function renderCover(offCount){
     const shifts=g.items.map(i=>`<span class="sh"><i class="swatch" style="background:${i.r.colour||"var(--muted)"}"></i>${esc(shortSession(i.r.session))} ${esc(String(i.r.cls).replace(/\s*Group$/i,""))}</span>`).join("");
     const status=yes.length?`<span class="pill good">${yes.length} said yes</span>`:d.status==="offered"?`<span class="pill warn">Offered to ${(d.offeredTo||[]).length}</span>`:`<span class="pill bad">Needs cover</span>`;
     const L=levelNeed(g),dn=DOWN.has(g.id);
-    const send=el.length?`<button type="button" class="primary sm" data-offer ${mailerOk?"":"disabled title=\"Set up sending from reception@ on the Enquiry Desk first\""}>${SENDING.has(g.id)?"Sending…":`${d.status==="offered"?"Send again to":"Send to"} ${withEmail.length} ${L==null?"qualified":"at Level "+L+(dn&&L>0?"/"+(L-1):"")}`}</button>`:`<span class="small muted">${L==null?"Nobody qualifies":"Nobody at Level "+L+(dn&&L>0?" or "+(L-1):"")+" is free"}</span>`;
-    const need=L==null?`<b>${esc(g.pos.join(" + "))}</b>`:`<b>Level ${L}: ${esc(LVN(L))}</b>${L>0?` <button type="button" class="link sm" data-down title="${dn?"Only offer it at the same level":"Also offer it one level down"}">${dn?"− only Level "+L:"+ also Level "+(L-1)}</button>`:""}`;
+    const send=el.length?`<button type="button" class="primary sm" data-offer ${mailerOk?"":"disabled title=\"Set up sending from reception@ on the Enquiry Desk first\""}>${SENDING.has(g.id)?"Sending…":`${d.status==="offered"?"Send again to":"Send to"} ${withEmail.length} ${L==null?"qualified":"in Band "+BAND(L)+(dn&&L>0?"/"+BAND(L-1):"")}`}</button>`:`<span class="small muted">${L==null?"Nobody qualifies":"Nobody in Band "+BAND(L)+(dn&&L>0?" or "+BAND(L-1):"")+" is free"}</span>`;
+    const need=L==null?`<b>${esc(g.pos.join(" + "))}</b>`:`<b>Band ${BAND(L)}: ${esc(LVN(L))}</b>${L>0?` <button type="button" class="link sm" data-down title="${dn?"Only offer it in the same pay band":"Also offer it one pay band down"}">${dn?"− only Band "+BAND(L):"+ also Band "+BAND(L-1)}</button>`:""}`;
     return `<tbody data-need="${esc(g.id)}"><tr class="nr${d.status==="offered"?" offered":""}">
       <td class="nd">${esc(pretty(g.date,{weekday:"short",day:"numeric"}))}</td>
       <td><b>${g.off?esc(fullName(g.off)):"Nobody on rota"}</b>${g.off?`<div class="small muted">${g.o.kind==="holiday"?"Holiday":"Off"}${g.off.job?" · "+esc(g.off.job):""}</div>`:""}</td>
@@ -484,8 +486,8 @@ function renderCover(offCount){
         <button type="button" class="link sm" data-find title="See or untick who it goes to">${showFind?"▴ names":"▾ names"}</button>
         ${CFG.waOn&&el.length?`<button type="button" class="wa sm" data-wagroup>WhatsApp group</button>`:""}
         <select data-cover class="sm" title="Covered another way"><option value="">Covered by…</option>${everyone.map(s=>`<option value="${s.id}">${esc(fullName(s))}${isRetained(s.id)?" (retained)":g.pos.every(p=>posOf(s.id).includes(p))?"":" (not all positions)"}</option>`).join("")}</select></div></td></tr>
-      ${showFind?`<tr class="nx"><td></td><td colspan="4"><div class="elig">${el.map(s=>`<label class="pp"><input type="checkbox" data-elig="${s.id}" ${s.email?"checked":"disabled"}> ${esc(fullName(s))}${L!=null&&lvOf(s.id)!==L?` <span class="pill none">Level ${lvOf(s.id)}</span>`:""}${s.email?"":" (no email)"}${CFG.waOn&&s.wa?` <button type="button" class="wa sm" data-wa="${s.id}">WhatsApp</button>`:""}</label>`).join("")||`<span class="muted">${L==null?"Nobody with these positions is free. Check the Positions tab.":"Nobody at this level is free. Try + also Level "+(L-1)+", or set levels in the Wages tab."}</span>`}</div></td></tr>`:""}</tbody>`});
-  $("needList").innerHTML=dayFilter&&!rows.length?`<p class="small muted" style="margin:0">Nobody is off on ${esc(pretty(dayFilter,{weekday:"long",day:"numeric",month:"long"}))}.</p>`:rows.length?`<table class="nt"><thead><tr><th>Day</th><th>Who's off</th><th>Level needed · shifts</th><th>Status</th><th></th></tr></thead>${rows.join("")}</table>`:'<p class="small muted" style="margin:0">Nothing needs cover from today to the end of this week.</p>';
+      ${showFind?`<tr class="nx"><td></td><td colspan="4"><div class="elig">${el.map(s=>`<label class="pp"><input type="checkbox" data-elig="${s.id}" ${s.email?"checked":"disabled"}> ${esc(fullName(s))}${L!=null&&lvOf(s.id)!==L?` <span class="pill none">Band ${BAND(lvOf(s.id))}</span>`:""}${s.email?"":" (no email)"}${CFG.waOn&&s.wa?` <button type="button" class="wa sm" data-wa="${s.id}">WhatsApp</button>`:""}</label>`).join("")||`<span class="muted">${L==null?"Nobody with these positions is free. Check the Positions tab.":"Nobody in this pay band is free. Try + also Band "+BAND(L-1)+", or set pay bands in the Wages tab."}</span>`}</div></td></tr>`:""}</tbody>`});
+  $("needList").innerHTML=dayFilter&&!rows.length?`<p class="small muted" style="margin:0">Nobody is off on ${esc(pretty(dayFilter,{weekday:"long",day:"numeric",month:"long"}))}.</p>`:rows.length?`<table class="nt"><thead><tr><th>Day</th><th>Who's off</th><th>Needed · shifts</th><th>Status</th><th></th></tr></thead>${rows.join("")}</table>`:'<p class="small muted" style="margin:0">Nothing needs cover from today to the end of this week.</p>';
 }
 async function post(body){const r=await fetch(CFG.url,{method:"POST",body:JSON.stringify(Object.assign({token:CFG.token},body))});const j=await r.json();if(!j.ok)throw new Error(j.error||"The Google script refused");return j}
 async function sendMail(to,subject,heading,paras,foot){
@@ -642,11 +644,11 @@ function renderWages(){
   const w=W(),today=Hub.todayIso(),nx=nextNmw();
   $("wgDraft").hidden=!!w.agreed;$("wgAgreed").checked=!!w.agreed;
   const fromTxt=nx?esc(pretty(nx.from,{day:"numeric",month:"short",year:"numeric"})):"";
-  $("wgScale").innerHTML=`<thead><tr><th>Level</th><th>Role</th><th>On top of the starting rate</th>${BANDS.map(b=>`<th>${b[1]}</th>`).join("")}</tr></thead><tbody>`+
+  $("wgScale").innerHTML=`<thead><tr><th>Pay band</th><th>Role</th><th>On top of the starting rate</th>${BANDS.map(b=>`<th>${b[1]}</th>`).join("")}</tr></thead><tbody>`+
     `<tr style="background:var(--surface-2)"><td><b>Starting rate</b></td><td class="muted small">by age</td><td></td>${BANDS.map(([b])=>YOUNG(b)||b==="b16"||b==="b17"
       ?`<td>£<input type="number" step="0.05" min="0" data-base="${b}" value="${(+w.bases[b]).toFixed(2)}"><div class="nx" data-bnx="${b}"></div></td>`
       :`<td class="m"><b>${money(baseFor(b,today))}</b>${nx?`<div class="nx">${money(baseFor(b,nx.from))} from ${fromTxt}</div>`:""}<div class="nx">minimum wage</div></td>`).join("")}</tr>`+
-    w.levels.map(L=>`<tr class="lv${L.n}"><td><b>Level ${L.n}</b></td><td><input type="text" data-lname="${L.n}" value="${esc(L.name)}"></td>
+    w.levels.map(L=>`<tr class="lv${L.n}"><td><b>Band ${BAND(L.n)}</b></td><td><input type="text" data-lname="${L.n}" value="${esc(L.name)}"></td>
       <td>${L.plus==null?'<span class="muted">Unpaid</span>':`+£<input type="number" step="0.05" min="0" data-lplus="${L.n}" value="${(+L.plus).toFixed(2)}">`}</td>
       ${BANDS.map(([b])=>`<td class="m" data-sc="${L.n}:${b}"></td>`).join("")}</tr>`).join("")+"</tbody>";
   liveScale();
@@ -660,12 +662,12 @@ function renderWages(){
   const rows=STAFF.map(s=>{const saved=w.staff[s.id],lv=saved!==undefined?saved:suggestLevel(s.id),q=qboFor(s);return {s,lv,isSug:saved===undefined,q,dob:dobOf(s,q)}})
     .filter(r=>!sal[r.s.id]&&(showRm||!hid[r.s.id])&&(showRm&&hid[r.s.id]||!$("wgCoachOnly").checked||hasLv(r.lv))&&(!f||fullName(r.s).toLowerCase().includes(f)))
     .sort((a,b)=>(hasLv(b.lv)?+b.lv:-1)-(hasLv(a.lv)?+a.lv:-1)||fullName(a.s).localeCompare(fullName(b.s)));
-  $("wgStaff").innerHTML=`<thead><tr><th>Name</th><th>Age</th><th>Level</th><th>Level rate</th><th>Top-up</th><th>New pay scale</th><th>${nx?"From "+esc(pretty(nx.from,{day:"numeric",month:"short"})):"Next April"}</th><th>Paid now (payroll)</th><th>Notes</th><th></th></tr></thead><tbody>`+
+  $("wgStaff").innerHTML=`<thead><tr><th>Name</th><th>Age</th><th>Pay band</th><th>Band rate</th><th>Top-up</th><th>New pay scale</th><th>${nx?"From "+esc(pretty(nx.from,{day:"numeric",month:"short"})):"Next April"}</th><th>Paid now (payroll)</th><th>Notes</th><th></th></tr></thead><tbody>`+
     rows.map(({s,lv,isSug,q,dob})=>{const age=ageOn(dob,today),has=hasLv(lv);
       const tu=+TOP()[s.id]||0,base=has?rateFor(lv,bandOf(age),today):null,now=has?Math.round((base+tu)*100)/100:null,
         later=has&&nx?Math.round((rateFor(lv,bandOf(ageOn(dob,nx.from)),nx.from)+tu)*100)/100:null;const notes=[];
       if(!dob&&QBO&&!q)notes.push("Not found in QuickBooks");else if(!dob&&q){notes.push("No date of birth in QuickBooks: paid as 21+");noDob++}
-      if(has&&age!=null&&age<=15&&+lv>YOUNG_MAX)notes.push("14 and 15 year olds can only be Trainee or Assistant coaches");
+      if(has&&age!=null&&age<=15&&+lv>YOUNG_MAX)notes.push("14 and 15 year olds can only be Band B or C (Trainee or Assistant)");
       if(dob&&has)[15,16,17,18,21].forEach(t=>{const d=birthday(dob,t);if(d>today&&d<=addDays(today,365)){const r=rateFor(lv,bandOf(t),d);if(r!==rateFor(lv,bandOf(t-1),d))notes.push(`Turns ${t} on ${pretty(d,{day:"numeric",month:"short",year:"numeric"})}: ${money(r)}`)}});
       const flag=has&&+lv===0&&age!=null&&age>=16;if(flag)unpaid16++;
       // what payroll actually pays, against the legal minimum for their age today, after a birthday, and from next April
@@ -675,11 +677,11 @@ function renderWages(){
         if(lm&&pd<lm){red=true;under++;warn.push(`Paid ${money(pd)}: below the legal minimum of ${money(lm)} for age ${age}`)}
         else{[16,18,21].forEach(t=>{const d=birthday(dob,t);if(d>today&&d<=addDays(today,365)){const m=legalMin(t,d);if(pd<m)warn.push(`Turns ${t} on ${pretty(d,{day:"numeric",month:"short"})}: must rise to at least ${money(m)}`)}});
           if(nx){const m=legalMin(ageOn(dob,nx.from),nx.from);if(m&&pd<m)warn.push(`From ${pretty(nx.from,{day:"numeric",month:"short",year:"numeric"})}: must rise to at least ${money(m)}`)}}
-        if(!red&&has&&now>0&&pd<now)warn.push(`${money(now-pd)} below their rate${tu?" (level + top-up)":""}`)}
+        if(!red&&has&&now>0&&pd<now)warn.push(`${money(now-pd)} below their rate${tu?" (band + top-up)":""}`)}
       else if(pd!=null&&!dob&&pd<legalMin(21,today))warn.push("No date of birth: can't check the legal minimum");
       const isRm=!!hid[s.id];
       return `<tr class="${has?"lv"+(+lv):""}"${isRm?' style="opacity:.55"':""}><td>${esc(fullName(s))} <span class="muted">${esc(s.job||"")}</span>${isRm?' <span class="pill none">Removed</span>':""}</td><td class="m">${age==null?"–":age}</td>
-        <td><select data-wlv="${esc(s.id)}"${isSug?' class="sug"':""}><option value="none"${has?"":" selected"}>Not on the scale</option>${w.levels.map(L=>`<option value="${L.n}"${has&&+lv===L.n?" selected":""}>${L.n}: ${esc(L.name)}</option>`).join("")}</select></td>
+        <td><select data-wlv="${esc(s.id)}"${isSug?' class="sug"':""}><option value="none"${has?"":" selected"}>Not on the scale</option>${w.levels.map(L=>`<option value="${L.n}"${has&&+lv===L.n?" selected":""}>${BAND(L.n)}: ${esc(L.name)}</option>`).join("")}</select></td>
         <td class="m">${has?money(base):"–"}</td>
         <td>+£<input type="number" step="0.05" min="0" data-wtu="${esc(s.id)}" value="${tu?tu.toFixed(2):""}" placeholder="0.00"></td>
         <td class="m"><b>${has?money(now):"–"}</b></td><td class="m">${has&&later!=null?money(later):"–"}</td>
@@ -688,7 +690,7 @@ function renderWages(){
           `<td class="note">${warn.length?`<span style="color:${red?"var(--bad)":"#b36b00"};font-weight:700">⚠ ${esc(warn.join(" · "))}</span>${notes.length?"<br>":""}`:""}${esc(notes.join(" · "))}</td>`}
         <td>${isRm?`<button type="button" data-wback="${esc(s.id)}" style="white-space:nowrap">Put back</button>`:`<button type="button" data-wrm="${esc(s.id)}" title="Take off the Wages and Holiday lists" style="white-space:nowrap">Remove</button>`}</td></tr>`}).join("")+"</tbody>";
   $("wgUnder").hidden=!under;$("wgUnder").textContent=`⚠ ${under} ${under===1?"person is":"people are"} paid below the legal minimum wage for their age. Put their pay up in payroll now.`;
-  $("wgNote").textContent=`${rows.length} shown${nSal?` · ${nSal} salaried staff not shown`:""}${noDob?` · ${noDob} without a date of birth`:""}${unpaid16?` · ${unpaid16} aged 16+ on Level 0`:""}`;
+  $("wgNote").textContent=`${rows.length} shown${nSal?` · ${nSal} salaried staff not shown`:""}${noDob?` · ${noDob} without a date of birth`:""}${unpaid16?` · ${unpaid16} aged 16+ on Band A (unpaid)`:""}`;
   renderHoliday(rows);
   renderCost();
 }
@@ -820,7 +822,7 @@ function renderCost(){const w=W(),nx=nextNmw(),start=nx?nx.from:(()=>{const t=Hu
   items.sort((a,b)=>b[1]-a[1]);const gbp=v=>"£"+Math.round(v).toLocaleString("en-GB");
   $("wgCost").innerHTML=`<div class="row" style="gap:18px;align-items:baseline;flex-wrap:wrap"><div style="font-size:28px;font-weight:800">${gbp(total)}</div><div class="small">more a year · ${gbp(total/weeks)} a week in term · ${items.length} ${items.length===1?"person costs":"people cost"} more, ${same} no extra</div></div>`+
     (items.length?`<details class="small" style="margin-top:6px"><summary>Who costs more</summary><table class="pos wg" style="min-width:0;margin-top:6px"><tbody>${items.map(([n,c])=>`<tr><td>${esc(n)}</td><td class="m">${gbp(c)}</td></tr>`).join("")}</tbody></table></details>`:"")+
-    (noLv.length||noHrs.length?`<p class="small" style="margin:8px 0 0;color:#b36b00"><b>Not counted yet</b> (so the real cost is higher):${noLv.length?` <b>no saved level</b>: ${esc(noLv.join(", "))}.`:""}${noHrs.length?` <b>no weekly hours</b> (add them in Holiday entitlement): ${esc(noHrs.join(", "))}.`:""}</p>`:"")}
+    (noLv.length||noHrs.length?`<p class="small" style="margin:8px 0 0;color:#b36b00"><b>Not counted yet</b> (so the real cost is higher):${noLv.length?` <b>no saved pay band</b>: ${esc(noLv.join(", "))}.`:""}${noHrs.length?` <b>no weekly hours</b> (add them in Holiday entitlement): ${esc(noHrs.join(", "))}.`:""}</p>`:"")}
 $("wgWeeks").onchange=async()=>{const v=Math.min(52,Math.max(1,Math.round(+$("wgWeeks").value||COST_WEEKS)));
   try{await Hub.wagesDoc("wages/main").set({costWeeks:v},{merge:true});WG=Object.assign({},WG||{},{costWeeks:v});renderCost()}catch(e){toast("Couldn't save: "+(e.code||e.message))}};
 $("wgFilter").oninput=renderWages;$("wgCoachOnly").onchange=renderWages;$("wgShowRm").onchange=renderWages;
@@ -842,7 +844,7 @@ $("wgSaveStaff").onclick=async()=>{const m=Object.assign({},W().staff),pd=Object
   const tp=Object.assign({},TOP());document.querySelectorAll("#wgStaff input[data-wtu]").forEach(x=>{const v=Math.round(+x.value*100)/100;if(!x.value||!(v>0))delete tp[x.dataset.wtu];else tp[x.dataset.wtu]=v});
   // drop pay for anyone now 22 or over
   STAFF.forEach(s=>{const d=dobOf(s,qboFor(s)),a=d?ageOn(d,Hub.todayIso()):null;if(a!=null&&a>=22)delete pd[s.id]});
-  try{await Hub.wagesDoc("wages/main").set({staff:m,paid:pd,topup:tp,staffBy:me(),staffAt:new Date().toISOString()},{merge:true});toast("Levels and pay saved")}catch(e){toast("Couldn't save: "+(e.code||e.message))}};
+  try{await Hub.wagesDoc("wages/main").set({staff:m,paid:pd,topup:tp,staffBy:me(),staffAt:new Date().toISOString()},{merge:true});toast("Pay bands and pay saved")}catch(e){toast("Couldn't save: "+(e.code||e.message))}};
 
 /* ---------- render ---------- */
 function render(){

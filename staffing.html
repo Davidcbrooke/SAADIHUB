@@ -252,9 +252,9 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
     </section>
 
     <section class="panel" id="sheetPanel" data-pane="sheet" hidden>
-      <div class="row" style="gap:10px;flex-wrap:wrap"><h2 style="margin:0" id="shTitle">Rota sheet</h2><span style="flex:1"></span><a id="shOpen" target="_blank" rel="noopener" style="padding:8px 16px;border-radius:999px;text-decoration:none;background:#d4066a;color:#fff;font-weight:700">Open in a new tab ↗</a></div>
+      <div class="row" style="gap:10px;flex-wrap:wrap"><h2 style="margin:0" id="shTitle">Rota sheet</h2><span style="flex:1"></span><div class="row" style="gap:4px;align-items:center" title="Make the sheet smaller or bigger"><button type="button" id="shZoomOut" aria-label="Smaller">−</button><span id="shZoomVal" style="min-width:44px;text-align:center;font-weight:700">80%</span><button type="button" id="shZoomIn" aria-label="Bigger">+</button></div><a id="shOpen" target="_blank" rel="noopener" style="padding:8px 16px;border-radius:999px;text-decoration:none;background:#d4066a;color:#fff;font-weight:700">Open in a new tab ↗</a></div>
       <p class="small muted" style="margin:6px 0 8px">The live Google Sheet. Changes here go straight into the sheet. You need to be signed in to Google with access to it. If it doesn't show below, use <b>Open in a new tab</b>.</p>
-      <iframe id="shFrame" title="Rota sheet" style="width:100%;height:78vh;border:1px solid var(--line);border-radius:10px;background:#fff" loading="lazy"></iframe>
+      <div id="shWrap" style="width:100%;height:78vh;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff"><iframe id="shFrame" title="Rota sheet" style="border:0;transform-origin:0 0" loading="lazy"></iframe></div>
     </section>
 
     <section class="panel" id="hubRotaPanel" data-pane="hubrota" hidden>
@@ -929,6 +929,13 @@ function renderHubRota(){
     return `<tr><td>${esc(s?fullName(s):id)}</td><td><b>${hm(tot[id]||0)}</b></td><td>${cnt[id]}</td><td class="small" style="color:#b36b00">${unk[id]?`${unk[id]} shift${unk[id]===1?"":"s"} with no length set`:""}</td></tr>`}).join("")}</tbody></table>`:'<p class="muted">Nobody on the rota this week.</p>';
 }
 $("hrImport").onclick=importRota;
+// Zoom for the Rota sheet tab: Google won't let another site change the sheet's own zoom, so the whole view is scaled (remembered per computer)
+let shZoom=(()=>{try{const v=+localStorage.getItem("saadiSheetZoom");return v>=0.5&&v<=1.5?v:0.8}catch(e){return 0.8}})();
+function applyShZoom(){const f=$("shFrame");f.style.width=(100/shZoom)+"%";f.style.height=(100/shZoom)+"%";f.style.transform=`scale(${shZoom})`;$("shZoomVal").textContent=Math.round(shZoom*100)+"%";
+  try{localStorage.setItem("saadiSheetZoom",String(shZoom))}catch(e){}}
+$("shZoomOut").onclick=()=>{shZoom=Math.max(0.5,Math.round((shZoom-0.1)*10)/10);applyShZoom()};
+$("shZoomIn").onclick=()=>{shZoom=Math.min(1.5,Math.round((shZoom+0.1)*10)/10);applyShZoom()};
+applyShZoom();
 document.addEventListener("click",e=>{const b=e.target.closest("button[data-hrday]");if(b){hrDay=b.dataset.hrday;renderHubRota()}});
 document.addEventListener("change",async e=>{const i=e.target.closest("input[data-mins]");if(!i||!HR_KEY)return;const v=i.value===""?null:Math.max(0,Math.round(+i.value));
   try{await Hub.doc("rota/"+HR_KEY).set({mins:{[i.dataset.mins]:v}},{merge:true});toast("Length saved")}catch(x){toast("Couldn't save: "+(x.code||x.message))}});
@@ -963,7 +970,7 @@ function render(){
   if(pane==="hubrota")renderHubRota();
   if(pane==="sheet"){const id=sheetIdOf(CFG.sheet)||DEFAULT_SHEET,u="https://docs.google.com/spreadsheets/d/"+id+"/edit";$("shOpen").href=u;$("shTitle").textContent=DATA&&DATA.rota?DATA.rota.title:"Rota sheet";
     // load once (and again only if the sheet changes), so switching tabs doesn't reload it
-    if($("shFrame").dataset.id!==id){$("shFrame").dataset.id=id;$("shFrame").src=u+"?rm=minimal"}}
+    if($("shFrame").dataset.id!==id){$("shFrame").dataset.id=id;$("shFrame").src=u}}
   const v=dayView(day,dateFor(day,weekStart));
   $("dayTitle").textContent=`${day} ${pretty(dateFor(day,weekStart),{day:"numeric",month:"long"})}`;
   $("dayBody").innerHTML=v.html;

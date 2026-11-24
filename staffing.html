@@ -211,7 +211,7 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
     <section class="panel" id="wagesPanel" data-pane="wages" hidden>
       <div class="row" style="gap:10px"><h2 style="margin:0">Wages: hourly (non-salaried) staff <span class="pill warn" id="wgDraft" hidden>Draft: amounts not agreed yet</span></h2><span style="flex:1"></span><button type="button" id="wgLock">🔒 Lock</button></div>
       <p class="small" style="margin:6px 0 0"><b>For hourly-paid staff only.</b> Salaried staff aren't on this pay scale and are left off the lists below.</p>
-      <p class="small muted" style="margin:6px 0 0">Each pay band is a set amount <b>on top of the starting rate for the person's age</b>. SAADI sets the starting rates for 14 to 17 (there's no legal minimum under 16, and 16–17 never go below it); 18–20 and 21+ follow the minimum wage, so they go up by themselves each April. 14 and 15 year olds can only be Trainee or Assistant coaches (Bands B and C).</p>
+      <p class="small muted" style="margin:6px 0 0">Each pay band is a set amount <b>on top of the starting rate for the person's age</b>. SAADI sets the starting rates for 14 to 17 (there's no legal minimum under 16, and 16–17 never go below it); 18–20 and 21+ follow the minimum wage, so they go up by themselves each April.</p>
       <h3 style="margin:14px 0 6px">Pay scale</h3>
       <div style="overflow:auto"><table class="pos wg" id="wgScale"></table></div>
       <details style="margin-top:8px"><summary class="small">Minimum wage rates used (gov.uk)</summary><div style="overflow:auto"><table class="pos wg" id="wgNmw"></table></div>
@@ -621,7 +621,7 @@ const LEVELS_DEFAULT=[{n:0,name:"Demonstrator / Young Leader",plus:null},{n:1,na
   {n:3,name:"Lead Coach",plus:0},{n:4,name:"Lead Coach + L1 qualification",plus:0},{n:5,name:"Lead Coach + L2 qualification",plus:0},
   {n:6,name:"Senior Coach + L3 qualification (consultant contracted)",plus:0},{n:7,name:"Senior Coach",plus:0}];
 const BANDS=[["b14","14"],["b15","15"],["b16","16"],["b17","17"],["r18","18–20"],["r21","21 and over"]];
-// SAADI's own starting rates for 14-17 (editable); 18+ follow the minimum wage. 14-15s go no higher than Level 2.
+// SAADI's own starting rates for 14-17 (editable); 18+ follow the minimum wage.
 const BASES_DEFAULT={b14:5.5,b15:6.5,b16:8.5,b17:9.5};
 const YOUNG=b=>b==="b14"||b==="b15",YOUNG_MAX=2;
 let WG=null,QBO=null,qboBusy=false,qboErr="",wgUnsub=null,wlSetUp=null;
@@ -698,7 +698,6 @@ function renderWages(){
       const tu=+TOP()[s.id]||0,base=has?rateFor(lv,bandOf(age),today):null,now=has?Math.round((base+tu)*100)/100:null,
         later=has&&nx?Math.round((rateFor(lv,bandOf(ageOn(dob,nx.from)),nx.from)+tu)*100)/100:null;const notes=[];
       if(!dob&&QBO&&!q)notes.push("Not found in QuickBooks");else if(!dob&&q){notes.push("No date of birth in QuickBooks: paid as 21+");noDob++}
-      if(has&&age!=null&&age<=15&&+lv>YOUNG_MAX)notes.push("14 and 15 year olds can only be Band B or C (Trainee or Assistant)");
       if(dob&&has)[15,16,17,18,21].forEach(t=>{const d=birthday(dob,t);if(d>today&&d<=addDays(today,365)){const r=rateFor(lv,bandOf(t),d);if(r!==rateFor(lv,bandOf(t-1),d))notes.push(`Turns ${t} on ${pretty(d,{day:"numeric",month:"short",year:"numeric"})}: ${money(r)}`)}});
       const flag=has&&+lv===0&&age!=null&&age>=16;if(flag)unpaid16++;
       // what payroll actually pays, against the legal minimum for their age today, after a birthday, and from next April
@@ -777,7 +776,6 @@ function liveScale(){const today=Hub.todayIso(),nx=nextNmw(),bases=Object.assign
     d.textContent=bases[b]<legal?`Below the legal ${money(legal)}: ${money(legal)} is used`:YOUNG(b)?"no legal minimum":`legal minimum ${money(legal)}`});
   W().levels.forEach(L=>{const pi=document.querySelector(`#wgScale input[data-lplus="${L.n}"]`),plus=L.plus==null?null:Math.max(0,+(pi?pi.value:L.plus)||0);
     BANDS.forEach(([b])=>{const c=document.querySelector(`#wgScale td[data-sc="${L.n}:${b}"]`);if(!c)return;
-      if(YOUNG(b)&&L.n>YOUNG_MAX){c.innerHTML='<span class="muted">–</span>';return}
       if(plus==null){c.textContent="£0.00";return}
       const at=d=>money(Math.round((baseFor(b,d,bases)+plus)*100)/100);
       c.innerHTML=at(today)+(nx&&!YOUNG(b)&&b!=="b16"&&b!=="b17"||nx&&baseFor(b,nx.from,bases)!==baseFor(b,today,bases)?`<div class="nx">${at(nx.from)} from ${esc(pretty(nx.from,{day:"numeric",month:"short",year:"numeric"}))}</div>`:"")})})}

@@ -68,6 +68,14 @@ table.pos th:first-child,table.pos td:first-child{text-align:left;white-space:no
 table.pos thead th{position:sticky;top:0;background:var(--surface);font-size:12px}
 table.pos td.s{background:#fff6e0}
 table.pos tr.ret td{color:var(--muted)}
+table.wg td,table.wg th{text-align:left}
+table.wg td.m{font-variant-numeric:tabular-nums;white-space:nowrap}
+table.wg .nx{font-size:11px;color:var(--muted)}
+table.wg input[type=number]{width:72px}
+table.wg input[type=text]{width:190px}
+table.wg td.flag{color:var(--bad);font-size:12px}
+table.wg td.note{font-size:12px;color:var(--muted)}
+table.wg tr.lv0 td:first-child{border-left:4px solid #e91e8c}table.wg tr.lv1 td:first-child{border-left:4px solid #f5c400}table.wg tr.lv2 td:first-child{border-left:4px solid #f28c00}table.wg tr.lv3 td:first-child{border-left:4px solid #1e63c6}table.wg tr.lv4 td:first-child{border-left:4px solid #0f9c9c}table.wg tr.lv5 td:first-child{border-left:4px solid #2e9d4a}table.wg tr.lv6 td:first-child{border-left:4px solid #7a3fb5}
 .sug{background:#fff6e0;padding:0 4px;border-radius:4px}
 .wkdays{display:flex;gap:10px;margin:10px 0 4px;flex-wrap:wrap}
 .wd{position:relative;width:52px;height:52px;border-radius:14px;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--display);font-size:20px;font-weight:700;line-height:1}
@@ -153,7 +161,7 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
     </section>
 
     <div class="bar" id="topBar" hidden>
-      <div class="bar tabs" id="tabs"><button type="button" data-tab="cover">Cover</button><button type="button" data-tab="rota">Rota</button><button type="button" data-tab="positions">Positions</button><button type="button" data-tab="names">Names &amp; settings <span class="pill warn" id="namesBadge" hidden></span></button></div>
+      <div class="bar tabs" id="tabs"><button type="button" data-tab="cover">Cover</button><button type="button" data-tab="rota">Rota</button><button type="button" data-tab="positions">Positions</button><button type="button" data-tab="wages">Wages 🔒</button><button type="button" data-tab="names">Names &amp; settings <span class="pill warn" id="namesBadge" hidden></span></button></div>
       <span style="flex:1"></span>
       <button type="button" id="prevWk" aria-label="Previous week">&larr;</button><span class="wk" id="wkLabel"></span><button type="button" id="nextWk" aria-label="Next week">&rarr;</button>
       <button type="button" id="thisWk">This week</button>
@@ -177,6 +185,39 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
       <div class="row small" style="gap:8px;margin:8px 0"><input type="search" id="posFilter" placeholder="Find a name…" style="width:200px"><label class="row" style="gap:6px"><input type="checkbox" id="posAll"> Show everyone in Breathe (not just people on the rota)</label></div>
       <div style="overflow:auto"><table class="pos" id="posTable"></table></div>
       <div class="row" style="margin-top:10px"><button type="button" class="primary" id="savePos">Save positions</button><span class="small muted" id="posNote"></span></div>
+    </section>
+
+    <section class="panel" id="wagesLockPanel" data-pane="wages" hidden>
+      <h2 id="wlTitle">Wages</h2>
+      <p class="small muted" id="wlIntro" style="margin:0">Wages have their own password, separate from the Hub.</p>
+      <form id="wlForm" class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap">
+        <input type="password" id="wlPass" placeholder="Wages password" autocomplete="off" style="width:220px">
+        <input type="password" id="wlPass2" placeholder="Type it again" autocomplete="off" style="width:220px" hidden>
+        <label class="row small" style="gap:6px"><input type="checkbox" id="wlRemember"> Remember on this computer</label>
+        <button type="submit" class="primary" id="wlGo">Open</button>
+      </form>
+      <p class="small" id="wlMsg" style="color:var(--bad);margin:6px 0 0"></p>
+    </section>
+
+    <section class="panel" id="wagesPanel" data-pane="wages" hidden>
+      <div class="row" style="gap:10px"><h2 style="margin:0">Wages <span class="pill warn" id="wgDraft" hidden>Draft: amounts not agreed yet</span></h2><span style="flex:1"></span><button type="button" id="wgLock">🔒 Lock</button></div>
+      <p class="small muted" style="margin:6px 0 0">Each level is paid a set amount <b>above the legal minimum wage for the person's age</b>, so every rate goes up by itself when the minimum wage rises each April. Under-16s have no legal minimum, so they're paid the 16–17 rate.</p>
+      <h3 style="margin:14px 0 6px">Pay scale</h3>
+      <div style="overflow:auto"><table class="pos wg" id="wgScale"></table></div>
+      <details style="margin-top:8px"><summary class="small">Minimum wage rates used (gov.uk)</summary><div style="overflow:auto"><table class="pos wg" id="wgNmw"></table></div>
+        <p class="small muted">Add next year's rates when the government announces them (usually in the autumn Budget, starting 1 April).</p></details>
+      <div class="row" style="margin-top:10px;gap:12px"><label class="row" style="gap:6px"><input type="checkbox" id="wgAgreed"> These are our agreed rates</label><button type="button" class="primary" id="wgSaveScale">Save pay scale</button></div>
+      <h3 style="margin:18px 0 6px">Staff</h3>
+      <p class="small muted" style="margin:0">Everyone in Breathe, with their date of birth from QuickBooks. Levels start from each person's positions (<span class="sug">suggested</span>) until you save. Rates use each person's age on the day.</p>
+      <div class="row small" style="gap:8px;margin:8px 0"><input type="search" id="wgFilter" placeholder="Find a name…" style="width:200px"><label class="row" style="gap:6px"><input type="checkbox" id="wgCoachOnly" checked> Only people with a level</label><span class="muted" id="wgQbo"></span></div>
+      <div style="overflow:auto"><table class="pos wg" id="wgStaff"></table></div>
+      <div class="row" style="margin-top:10px"><button type="button" class="primary" id="wgSaveStaff">Save levels</button><span class="small muted" id="wgNote"></span></div>
+
+      <h3 style="margin:22px 0 6px">Holiday entitlement</h3>
+      <p class="small muted" style="margin:0">The same people. <b>Standard</b> is the legal minimum of 5.6 weeks a year: 5.6 × their usual hours per week. <b>From overtime</b> adds 12.07% of any hours worked beyond their pattern this leave year (the government's holiday rate for irregular hours, 5.6 ÷ 46.4 weeks). All figures are in hours. People who started part-way through the leave year get a share of the standard amount by start date.</p>
+      <div class="row small" style="gap:10px;margin:8px 0;flex-wrap:wrap"><label class="row" style="gap:6px">Leave year starts <select id="hoStart"></select></label><span class="muted" id="hoYear"></span></div>
+      <div style="overflow:auto"><table class="pos wg" id="hoTable"></table></div>
+      <div class="row" style="margin-top:10px"><button type="button" class="primary" id="hoSave">Save holiday</button><span class="small muted" id="hoNote"></span></div>
     </section>
 
     <section class="panel" id="anomPanel" data-pane="names" hidden>
@@ -508,6 +549,123 @@ function renderPositions(){
   $("posNote").textContent=`${ppl.length} people shown · ${ppl.filter(s=>isRetained(s.id)).length} retained.`;
 }
 
+/* ---------- wages (own password) ---------- */
+// UK National Minimum Wage per hour by age band (gov.uk). Under-16s have no legal minimum: they're paid the 16-17 rate.
+const NMW_DEFAULT=[{from:"2026-04-01",r16:8.00,r18:10.85,r21:12.71},{from:"2027-04-01",r16:8.31,r18:11.27,r21:13.21}];
+// "plus" = pounds an hour above the minimum wage for the person's age; null = unpaid. Suggested amounts until Dave agrees them.
+const LEVELS_DEFAULT=[{n:0,name:"Demonstrator / Young Leader",plus:null},{n:1,name:"Trainee Coach",plus:0},{n:2,name:"Assistant Coach",plus:0.5},
+  {n:3,name:"Lead Coach",plus:1.25},{n:4,name:"Lead Coach + L1 qualification",plus:2},{n:5,name:"Lead Coach + L2 qualification",plus:3},{n:6,name:"Senior Coach",plus:4.5}];
+const BANDS=[["u16","Under 16"],["r16","16–17"],["r18","18–20"],["r21","21 and over"]];
+let WG=null,QBO=null,qboBusy=false,qboErr="",wgUnsub=null,wlSetUp=null;
+const W=()=>Object.assign({nmw:NMW_DEFAULT,levels:LEVELS_DEFAULT,staff:{},agreed:false},WG||{});
+const nmwOn=date=>{const l=W().nmw.slice().sort((a,b)=>a.from<b.from?-1:1);let c=l[0];l.forEach(x=>{if(x.from<=date)c=x});return c};
+const nextNmw=()=>W().nmw.filter(x=>x.from>Hub.todayIso()).sort((a,b)=>a.from<b.from?-1:1)[0]||null;
+const ageOn=(dob,date)=>{if(!dob)return null;const b=new Date(dob+"T12:00:00"),d=new Date(date+"T12:00:00");let a=d.getFullYear()-b.getFullYear();if(d.getMonth()<b.getMonth()||(d.getMonth()===b.getMonth()&&d.getDate()<b.getDate()))a--;return a};
+const bandOf=age=>age==null?"r21":age<16?"u16":age<18?"r16":age<21?"r18":"r21";
+const levelOf=n=>W().levels.find(x=>x.n===+n);
+const rateFor=(n,band,date)=>{const L=levelOf(n);if(!L||L.plus==null)return 0;const m=nmwOn(date);return Math.round(((band==="u16"?m.r16:m[band])+(+L.plus||0))*100)/100};
+const money=v=>"£"+(+v).toFixed(2);
+const nk=s=>String(s||"").toLowerCase().replace(/[^a-z]/g,"");
+const hasLv=lv=>lv!==null&&lv!==undefined&&lv!==""&&lv!=="none";
+const birthday=(dob,n)=>String(+dob.slice(0,4)+n)+dob.slice(4);
+function qboFor(s){if(!QBO)return null;const em=nk(s.email);
+  return (em&&QBO.find(q=>nk(q.email)===em))||QBO.find(q=>nk(q.first)===nk(s.first)&&nk(q.last)===nk(s.last))||QBO.find(q=>nk(q.first)===nk(s.known)&&nk(q.last)===nk(s.last))
+    ||(()=>{const m=QBO.filter(q=>nk(q.last)===nk(s.last)&&nk(q.first)[0]===nk(s.first)[0]);return m.length===1?m[0]:null})()}
+function suggestLevel(id){const p=posOf(id);return p.includes("Lead Coach")?3:p.includes("Assistant")?2:p.includes("Young Leader")?0:null}
+async function loadQbo(){if(qboBusy||QBO)return;qboBusy=true;
+  try{const j=await post({want:["qboStaff"]});QBO=(j.qboStaff||[]).filter(q=>q.active!==false);qboErr=""}catch(e){qboErr=e.message}
+  qboBusy=false;renderWages()}
+function wagesOpened(){if(wgUnsub)wgUnsub();wgUnsub=Hub.wagesDoc("wages/main").onSnapshot(d=>{WG=d.exists?d.data():null;if(pane==="wages")renderWages()},()=>{});render()}
+async function showWagesLock(){
+  if(wlSetUp===null)wlSetUp=await Hub.wagesIsSetUp();
+  $("wlTitle").textContent=wlSetUp?"Wages":"Set the Wages password";
+  $("wlIntro").textContent=wlSetUp?"Wages have their own password, separate from the Hub. Type it to open.":"Wages have their own password, separate from the Hub. Choose it now: anyone opening Wages will need it. It can't be recovered, so keep a note of it somewhere safe.";
+  $("wlPass2").hidden=wlSetUp;$("wlGo").textContent=wlSetUp?"Open":"Set password"}
+function renderWages(){
+  const open=!!Hub.wagesKey;$("wagesLockPanel").hidden=open;$("wagesPanel").hidden=!open;
+  if(!open){showWagesLock();return}
+  const w=W(),today=Hub.todayIso(),nx=nextNmw();
+  $("wgDraft").hidden=!!w.agreed;$("wgAgreed").checked=!!w.agreed;
+  $("wgScale").innerHTML=`<thead><tr><th>Level</th><th>Role</th><th>Above minimum wage</th>${BANDS.map(b=>`<th>${b[1]}</th>`).join("")}</tr></thead><tbody>`+
+    w.levels.map(L=>`<tr class="lv${L.n}"><td><b>Level ${L.n}</b></td><td><input type="text" data-lname="${L.n}" value="${esc(L.name)}"></td>
+      <td>${L.plus==null?'<span class="muted">Unpaid</span>':`+£<input type="number" step="0.05" min="0" data-lplus="${L.n}" value="${(+L.plus).toFixed(2)}">`}</td>
+      ${BANDS.map(([b])=>`<td class="m">${L.plus==null?"£0.00":money(rateFor(L.n,b,today))}${nx&&L.plus!=null?`<div class="nx">${money(rateFor(L.n,b,nx.from))} from ${esc(pretty(nx.from,{day:"numeric",month:"short",year:"numeric"}))}</div>`:""}</td>`).join("")}</tr>`).join("")+"</tbody>";
+  $("wgNmw").innerHTML=`<thead><tr><th>From</th><th>16–17</th><th>18–20</th><th>21 and over</th></tr></thead><tbody>`+
+    w.nmw.concat([{from:"",r16:"",r18:"",r21:""}]).map((r,i)=>`<tr><td><input type="date" data-nf="${i}" value="${esc(r.from)}"></td>${["r16","r18","r21"].map(k=>`<td>£<input type="number" step="0.01" min="0" data-nr="${i}:${k}" value="${r[k]===""?"":(+r[k]).toFixed(2)}"></td>`).join("")}</tr>`).join("")+"</tbody>";
+  if(!QBO&&!qboErr&&!qboBusy)loadQbo();
+  $("wgQbo").textContent=qboErr?"Couldn't read QuickBooks: "+qboErr:QBO?`${QBO.length} current employees in QuickBooks`:"Reading dates of birth from QuickBooks…";
+  const f=$("wgFilter").value.trim().toLowerCase();let unpaid16=0,noDob=0;
+  const rows=STAFF.map(s=>{const saved=w.staff[s.id],lv=saved!==undefined?saved:suggestLevel(s.id),q=qboFor(s);return {s,lv,isSug:saved===undefined,q,dob:(q&&q.dob)||""}})
+    .filter(r=>(!$("wgCoachOnly").checked||hasLv(r.lv))&&(!f||fullName(r.s).toLowerCase().includes(f)))
+    .sort((a,b)=>(hasLv(b.lv)?+b.lv:-1)-(hasLv(a.lv)?+a.lv:-1)||fullName(a.s).localeCompare(fullName(b.s)));
+  $("wgStaff").innerHTML=`<thead><tr><th>Name</th><th>Age</th><th>Level</th><th>Now</th><th>${nx?"From "+esc(pretty(nx.from,{day:"numeric",month:"short"})):"Next April"}</th><th>Notes</th></tr></thead><tbody>`+
+    rows.map(({s,lv,isSug,q,dob})=>{const age=ageOn(dob,today),has=hasLv(lv);
+      const now=has?rateFor(lv,bandOf(age),today):null,later=has&&nx?rateFor(lv,bandOf(ageOn(dob,nx.from)),nx.from):null;const notes=[];
+      if(QBO&&!q)notes.push("Not found in QuickBooks");else if(q&&!dob){notes.push("No date of birth in QuickBooks: paid as 21+");noDob++}
+      if(dob&&has)[16,18,21].forEach(t=>{const d=birthday(dob,t);if(d>today&&d<=addDays(today,365)){const r=rateFor(lv,bandOf(t),d);if(r!==rateFor(lv,bandOf(t-1),d))notes.push(`Turns ${t} on ${pretty(d,{day:"numeric",month:"short",year:"numeric"})}: ${money(r)}`)}});
+      const flag=has&&+lv===0&&age!=null&&age>=16;if(flag)unpaid16++;
+      return `<tr class="${has?"lv"+(+lv):""}"><td>${esc(fullName(s))} <span class="muted">${esc(s.job||"")}</span></td><td class="m">${age==null?"–":age}</td>
+        <td><select data-wlv="${esc(s.id)}"${isSug?' class="sug"':""}><option value="none"${has?"":" selected"}>Not on the scale</option>${w.levels.map(L=>`<option value="${L.n}"${has&&+lv===L.n?" selected":""}>${L.n}: ${esc(L.name)}</option>`).join("")}</select></td>
+        <td class="m">${has?money(now):"–"}</td><td class="m">${has&&later!=null?money(later):"–"}</td>
+        ${flag?`<td class="flag">Aged ${age} on £0: only OK as a genuine volunteer (no contract, no promise of pay, expenses only)</td>`:`<td class="note">${esc(notes.join(" · "))}</td>`}</tr>`}).join("")+"</tbody>";
+  $("wgNote").textContent=`${rows.length} shown${noDob?` · ${noDob} without a date of birth`:""}${unpaid16?` · ${unpaid16} aged 16+ on Level 0`:""}`;
+  renderHoliday(rows);
+}
+/* Holiday: 5.6 weeks x usual weekly hours (pro rata by start date), plus 12.07% of overtime hours. */
+const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const HO=()=>Object.assign({startMonth:1,people:{}},W().holiday||{});
+function leaveYear(){const m=HO().startMonth,t=Hub.todayIso();let y=+t.slice(0,4);const s=()=>`${y}-${String(m).padStart(2,"0")}-01`;if(s()>t)y--;const from=s();y++;const to=addDays(s(),-1);return {from,to}}
+const r1=v=>Math.round(v*10)/10;
+function renderHoliday(rows){
+  const h=HO(),ly=leaveYear(),days=(new Date(ly.to+"T12:00:00")-new Date(ly.from+"T12:00:00"))/864e5+1;
+  $("hoStart").innerHTML=MONTHS.map((n,i)=>`<option value="${i+1}"${h.startMonth===i+1?" selected":""}>1 ${n}</option>`).join("");
+  $("hoYear").textContent=`This leave year: ${pretty(ly.from,{day:"numeric",month:"short",year:"numeric"})} to ${pretty(ly.to,{day:"numeric",month:"short",year:"numeric"})}`;
+  let tot=0;
+  $("hoTable").innerHTML=`<thead><tr><th>Name</th><th>Hours per week</th><th>Started (if this leave year)</th><th>Standard</th><th>Overtime hours worked</th><th>From overtime</th><th>Total holiday</th><th>Taken</th><th>Left</th></tr></thead><tbody>`+
+    rows.map(({s,lv})=>{const p=h.people[s.id]||{},hrs=+p.hours||0,ot=+p.overtime||0,taken=+p.taken||0;
+      const share=p.start&&p.start>ly.from&&p.start<=ly.to?((new Date(ly.to+"T12:00:00")-new Date(p.start+"T12:00:00"))/864e5+1)/days:1;
+      const std=r1(5.6*hrs*share),extra=r1(ot*0.1207),all=r1(std+extra);tot+=all;
+      return `<tr class="${hasLv(lv)?"lv"+(+lv):""}"><td>${esc(fullName(s))}</td>
+        <td><input type="number" step="0.25" min="0" data-hh="${esc(s.id)}" value="${hrs||""}"></td>
+        <td><input type="date" data-hs="${esc(s.id)}" value="${esc(p.start||"")}"></td>
+        <td class="m">${hrs?std+" h":"–"}${share<1&&hrs?`<div class="nx">${Math.round(share*100)}% of the year</div>`:""}</td>
+        <td><input type="number" step="0.25" min="0" data-ho="${esc(s.id)}" value="${ot||""}"></td>
+        <td class="m">${ot?extra+" h":"–"}</td><td class="m"><b>${all?all+" h":"–"}</b>${hrs&&all?`<div class="nx">${r1(all/hrs)} weeks</div>`:""}</td>
+        <td><input type="number" step="0.25" min="0" data-ht="${esc(s.id)}" value="${taken||""}"></td>
+        <td class="m"${all&&taken>all?' style="color:var(--bad)"':""}>${all?r1(all-taken)+" h":"–"}</td></tr>`}).join("")+"</tbody>";
+  $("hoNote").textContent=`${rows.length} people · ${r1(tot)} hours of holiday in total this leave year`;
+}
+$("hoSave").onclick=async()=>{const people=Object.assign({},HO().people);
+  const set=(id,k,v)=>{(people[id]=Object.assign({},people[id]||{}))[k]=v};
+  document.querySelectorAll("#hoTable input[data-hh]").forEach(i=>set(i.dataset.hh,"hours",+i.value||0));
+  document.querySelectorAll("#hoTable input[data-ho]").forEach(i=>set(i.dataset.ho,"overtime",+i.value||0));
+  document.querySelectorAll("#hoTable input[data-ht]").forEach(i=>set(i.dataset.ht,"taken",+i.value||0));
+  document.querySelectorAll("#hoTable input[data-hs]").forEach(i=>set(i.dataset.hs,"start",i.value||""));
+  try{await Hub.wagesDoc("wages/main").set({holiday:{startMonth:+$("hoStart").value||1,people},holidayBy:me(),holidayAt:new Date().toISOString()},{merge:true});toast("Holiday saved")}catch(e){toast("Couldn't save: "+(e.code||e.message))}};
+$("hoStart").onchange=async()=>{try{await Hub.wagesDoc("wages/main").set({holiday:Object.assign({},HO(),{startMonth:+$("hoStart").value})},{merge:true})}catch(e){toast("Couldn't save")}};
+$("wlForm").addEventListener("submit",async e=>{e.preventDefault();const pw=$("wlPass").value,msg=$("wlMsg");
+  if(!pw.trim()){msg.textContent="Type the password first.";return}
+  $("wlGo").disabled=true;msg.textContent="";let err;
+  try{
+    if(wlSetUp)err=await Hub.openWagesWithPassword(pw,$("wlRemember").checked);
+    else if(pw!==$("wlPass2").value)err="The two passwords don't match.";
+    else if(pw.trim().length<8)err="Use at least 8 characters.";
+    else{err=await Hub.setUpWages(pw,me());if(!err)wlSetUp=true}
+  }catch(x){err="Something went wrong ("+(x.code||"error")+"). Try again."}
+  $("wlGo").disabled=false;msg.textContent=err||"";
+  if(!err){$("wlPass").value="";$("wlPass2").value="";wagesOpened()}});
+$("wgLock").onclick=()=>{Hub.lockWages();if(wgUnsub)wgUnsub();wgUnsub=null;WG=null;render()};
+$("wgFilter").oninput=renderWages;$("wgCoachOnly").onchange=renderWages;
+$("wgSaveScale").onclick=async()=>{const w=W();
+  const levels=w.levels.map(L=>{const nm=document.querySelector(`[data-lname="${L.n}"]`),pl=document.querySelector(`[data-lplus="${L.n}"]`);
+    return {n:L.n,name:(nm&&nm.value.trim())||L.name,plus:L.plus==null?null:Math.max(0,Math.round((+(pl&&pl.value)||0)*100)/100)}});
+  const nmw=[];document.querySelectorAll("#wgNmw input[data-nf]").forEach(i=>{const k=i.dataset.nf,v=x=>+(document.querySelector(`[data-nr="${k}:${x}"]`).value||0);
+    if(/^\d{4}-\d{2}-\d{2}$/.test(i.value)&&v("r21")>0)nmw.push({from:i.value,r16:v("r16"),r18:v("r18"),r21:v("r21")})});
+  if(!nmw.length)return toast("Keep at least one year of minimum wage rates");
+  try{await Hub.wagesDoc("wages/main").set({levels,nmw,agreed:$("wgAgreed").checked,scaleBy:me(),scaleAt:new Date().toISOString()},{merge:true});toast("Pay scale saved")}catch(e){toast("Couldn't save: "+(e.code||e.message))}};
+$("wgSaveStaff").onclick=async()=>{const m=Object.assign({},W().staff);document.querySelectorAll("#wgStaff select[data-wlv]").forEach(x=>{m[x.dataset.wlv]=x.value==="none"?"none":+x.value});
+  try{await Hub.wagesDoc("wages/main").set({staff:m,staffBy:me(),staffAt:new Date().toISOString()},{merge:true});toast("Levels saved")}catch(e){toast("Couldn't save: "+(e.code||e.message))}};
+
 /* ---------- render ---------- */
 function render(){
   const ready=!!(CFG.url&&DATA);
@@ -533,6 +691,7 @@ function render(){
   $("namesBadge").hidden=!unk.length;$("namesBadge").textContent=unk.length;
   renderCover(offWeek.size);
   if(pane==="positions")renderPositions();
+  if(pane==="wages")renderWages();
   const v=dayView(day,dateFor(day,weekStart));
   $("dayTitle").textContent=`${day} ${pretty(dateFor(day,weekStart),{day:"numeric",month:"long"})}`;
   $("dayBody").innerHTML=v.html;
@@ -630,6 +789,7 @@ $("saveNames").onclick=async()=>{const m={};document.querySelectorAll("#namesLis
   await Hub.doc("config/staffing").set(Object.assign({},CFG,{names:m}));toast("Names saved")};
 
 Hub.gate(()=>{
+  {const sv=Hub.wagesSaved();if(sv)Hub.openWages(sv,true).then(err=>{if(!err)wagesOpened()})}
   Hub.doc("config/enquiryDesk").onSnapshot(d=>{S=EQ.settings(d.exists?d.data():{});if(DATA)render()},()=>{});
   Hub.col("cover").onSnapshot(s=>{COVER={};s.docs.forEach(d=>COVER[d.id]=d.data());if(DATA)render()},()=>{});
   Hub.doc("config/staffing").onSnapshot(d=>{const was=CFG.url;CFG=d.exists?d.data():{};if(!CFG.sheet)CFG.sheet=DEFAULT_SHEET;if(CFG.url&&(!DATA||CFG.url!==was))load();else render()},e=>{$("statusNote").hidden=false;$("statusNote").textContent="Couldn't load the settings ("+(e.code||"error")+")."});

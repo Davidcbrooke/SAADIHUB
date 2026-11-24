@@ -6,6 +6,8 @@ const KEY_STORE="saadiCapacityKey";
 const SALT="saadi-class-capacity|";
 const PLAN_STORE="saadiPlanKey";
 const PLAN_SALT="saadi-business-plan|";
+const WAGES_STORE="saadiWagesKey";
+const WAGES_SALT="saadi-wages|";
 const Hub={fs:null,keyId:null,keyDoc:null,dataKey:null,isOwner:false,planKey:null};
 
 Hub.$=id=>document.getElementById(id);
@@ -116,6 +118,35 @@ Hub.planGate=async function(onReady){
     Hub.$("planGo").disabled=false;msg.textContent=err;
     if(!err){Hub.$("planPass").value="";Hub.$("planPass2").value="";panel.hidden=true;onReady()}
   });
+};
+
+/* ---------- Wages (Staffing page): its own password ----------
+   Same method as the Business Plan: the pay scale and levels live under their own random data key, reachable only
+   through the wages password's key document. The password is never stored in these files: only a salted hash is used as an id. */
+Hub.wagesKey=null;
+Hub.openWages=async function(id,rem){
+  let k;
+  try{k=await Hub.fs.doc("keys/"+id).get()}catch(e){return "Couldn't reach the database. Try again."}
+  if(!k.exists||k.data().kind!=="wages")return "That isn't the Wages password.";
+  Hub.wagesKey=k.data().dataKey;
+  try{rem?localStorage.setItem(WAGES_STORE,id):localStorage.removeItem(WAGES_STORE)}catch(e){}
+  return "";
+};
+Hub.openWagesWithPassword=async(pw,rem)=>Hub.openWages(await hashPw(pw,WAGES_SALT),rem);
+Hub.wagesSaved=()=>{try{return localStorage.getItem(WAGES_STORE)}catch(e){return null}};
+Hub.lockWages=()=>{Hub.wagesKey=null;try{localStorage.removeItem(WAGES_STORE)}catch(e){}};
+Hub.wagesDoc=p=>Hub.fs.doc(`data/${Hub.wagesKey}/${p}`);
+Hub.wagesIsSetUp=async()=>{try{const m=await Hub.doc("config/wagesLock").get();return m.exists}catch(e){return true}};
+Hub.setUpWages=async function(pw,who){
+  const id=await hashPw(pw,WAGES_SALT);
+  const ex=await Hub.fs.doc("keys/"+id).get();
+  if(ex.exists)return "That password is already in use. Choose another.";
+  const rnd=crypto.getRandomValues(new Uint8Array(24));const dataKey=[...rnd].map(x=>x.toString(16).padStart(2,"0")).join("");
+  await Hub.fs.doc("keys/"+id).set({role:"staff",kind:"wages",dataKey,createdAt:new Date().toISOString()});
+  await Hub.doc("config/wagesLock").set({setAt:new Date().toISOString(),setBy:who||""});
+  Hub.wagesKey=dataKey;
+  try{localStorage.setItem(WAGES_STORE,id)}catch(e){}
+  return "";
 };
 
 /* Tooltip for any element with data-tip (charts). */

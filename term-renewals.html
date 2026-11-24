@@ -239,7 +239,7 @@ input[type=text]{width:100%}
           <label class="row" style="gap:6px"><input type="checkbox" id="callHideDealt" checked> Hide families already sorted by phone (link sent, leaving or removed)</label>
           <label class="row" style="gap:6px"><input type="checkbox" id="callHideChanging" checked> Hide families who've asked for a class change (they're in Class change requests)</label></div></div>
         <div class="calls" id="calls"></div>
-        <p class="hint">Ring each family, then press what happened. <b>Send link: their class</b> emails the booking link for next term's matching class straight away. <b>Send link: different class</b> lets you pick another class for their school year, then emails that link. <b>Leaving</b> takes them off the list and out of the figures. <b>No answer</b> keeps them on the list so someone can try again. <b>Remove from list</b> takes them off the call list only (no email, figures unchanged); untick "Hide families already sorted" and press <b>Put back on list</b> to undo. Every call is saved with who rang and when, so nobody calls twice. Phone numbers come from JustGo with the morning sync.</p>
+        <p class="hint">Ring each family, then press what happened. <b>Send link: their class</b> emails the booking link for next term's matching class straight away. <b>Send link: different class</b> lets you pick another class for their school year, then emails that link. <b>Leaving</b> takes them off the list and out of the figures. <b>No answer</b> keeps them on the list so someone can try again. <b>Remove from list</b> takes them off the call list only (no email, figures unchanged); untick "Hide families already sorted" and press <b>Put back on list</b> to undo. Every call is saved with who rang and when, so nobody calls twice. Phone numbers come from JustGo with the morning sync. Call notes are deleted automatically after 6 months.</p>
       </section>
 
       <section class="panel fold" id="classPanel">
@@ -277,6 +277,11 @@ const who=()=>{let n=me();if(!n){n=(prompt("Who are you? (saved on this computer
 const when=ms=>new Date(ms).toLocaleString("en-GB",{weekday:"short",day:"numeric",month:"short",hour:"numeric",minute:"2-digit"});
 const mailerReady=()=>!!(S.mailerUrl&&S.mailerToken&&String(S.mailerFrom).toLowerCase()===String(S.sender).toLowerCase());
 
+// Data protection: call notes, renewal email logs and what families told us are deleted 6 months after they were made
+// (two renewal rounds later), checked each time the page opens. The registers copy (renewals/latest) is replaced by every sync.
+const KEEP_DAYS=183,pruned={};
+function prune(name,q){if(pruned[name])return;pruned[name]=1;const cut=Date.now()-KEEP_DAYS*864e5;
+  q.docs.forEach(d=>{const a=d.data().at,t=typeof a==="number"?a:Date.parse(a||"");if(t&&t<cut)d.ref.delete().catch(()=>{})})}
 function load(){
   Hub.doc("config/enquiryDesk").onSnapshot(d=>{S=EQ.settings(d.exists?d.data():{});mailState();renderPreview()},()=>{});
   Hub.doc("config/renewals").onSnapshot(d=>{cfg=d.exists?d.data():{};tpl={};fillTpl();renderPreview();$("sheetId").value=sheetId();$("closeDate").value=cfg.closeDate||"";if(R&&!respAt)loadResponses();else if(R)render()},()=>{});
@@ -284,12 +289,12 @@ function load(){
     let ren=null;try{ren=d.exists?JSON.parse(d.data().json):null}catch(e){}
     R=ren?EQ.renewals(ren):null;render();if(R&&!respAt)loadResponses();
   },e=>{$("statusNote").hidden=false;$("statusNote").textContent="Couldn't load the renewals ("+(e.code||"error")+")."});
-  Hub.col("renewalEmails").onSnapshot(q=>{logs=q.docs.map(d=>d.data());if(R)render()},()=>{});
-  Hub.col("renewalCalls").onSnapshot(q=>{calls=q.docs.map(d=>d.data());if(R){renderCalls();renderSteps()}},()=>{});
+  Hub.col("renewalEmails").onSnapshot(q=>{prune("renewalEmails",q);logs=q.docs.map(d=>d.data());if(R)render()},()=>{});
+  Hub.col("renewalCalls").onSnapshot(q=>{prune("renewalCalls",q);calls=q.docs.map(d=>d.data());if(R){renderCalls();renderSteps()}},()=>{});
   // step 5 requests go to Claude through the same private section the Email assistant uses
   Hub.doc("config/emailAssist").get().then(d=>{AKEY=d.exists&&d.data().key;if(!AKEY)return;Hub.fs.collection(`data/${AKEY}/changeRequests`).where("kind","in",["renewalsWaitingLists","renewalsOpenPublic"]).onSnapshot(q=>{reqs={};q.docs.forEach(x=>{const r={id:x.id,...x.data()},k=r.kind+"|"+r.term;if(!reqs[k]||(reqs[k].at||0)<(r.at||0))reqs[k]=r});if(R)renderSteps()},()=>{})}).catch(()=>{});
   // What families have told us (not continuing / want a different class), set by reception from their replies.
-  Hub.col("renewalStatus").onSnapshot(q=>{stat={};q.docs.forEach(d=>{const x=d.data();if(x.status)stat[x.key]=x});if(R){render()}},()=>{});
+  Hub.col("renewalStatus").onSnapshot(q=>{prune("renewalStatus",q);stat={};q.docs.forEach(d=>{const x=d.data();if(x.status)stat[x.key]=x});if(R){render()}},()=>{});
 }
 function mailState(){const ok=mailerReady();$("mailState").className="pill "+(ok?"good":"warn");$("mailState").textContent=ok?"✓ Sends from "+S.mailerFrom:"Sending not set up";$("fromAddr").textContent=S.sender;updateSendBtn()}
 

@@ -430,6 +430,18 @@ function readSyncHash(){
   return !!pendingImport;
 }
 readSyncHash();
+/* The JustGo button now opens this page at #jgwait and hands the data over by a browser message, accepted only from JustGo's address,
+   so children's and parents' details never sit in the address bar or the browser history. */
+const JG_ORIGIN="https://mybg.british-gymnastics.org";let lastSyncAt="";
+function clearWait(){if(location.hash==="#jgwait")history.replaceState(null,"",location.pathname+location.search)}
+clearWait();
+window.addEventListener("message",e=>{
+  if(e.origin!==JG_ORIGIN||!e.data||!e.data.saadiSync)return;
+  try{e.source.postMessage("saadiHubGot",JG_ORIGIN)}catch(x){}
+  const p=e.data.saadiSync;if(typeof p.text!=="string"||p.at===lastSyncAt)return;
+  lastSyncAt=p.at;pendingImport=p;
+  if(db)applyImport();else $("authMsg").textContent="Enter the password to load the numbers from JustGo.";
+});
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const gbp=n=>"£"+Math.round(n).toLocaleString("en-GB");
 const pct=x=>isFinite(x)?Math.round(x*100)+"%":"–";
@@ -800,7 +812,7 @@ $("weekDate").value=mondayOf(new Date());
 $("openPaste").onclick=$("emptyPaste").onclick=()=>{$("pastePanel").hidden=false;$("settingsPanel").hidden=true;$("pasteBox").focus()};
 $("closePaste").onclick=()=>{$("pastePanel").hidden=true;$("syncNote").hidden=true};
 $("jgBookmarklet").onclick=e=>{e.preventDefault();const n=$("syncNote");n.hidden=false;n.textContent="Drag the Send to SAADI Hub button onto your bookmarks bar, rather than clicking it here. Then click it while you're on JustGo Class Management."};
-window.addEventListener("hashchange",()=>{if(readSyncHash()){if(db)applyImport();else $("authMsg").textContent="Enter the password to load the numbers from JustGo."}});
+window.addEventListener("hashchange",()=>{clearWait();if(readSyncHash()){if(db)applyImport();else $("authMsg").textContent="Enter the password to load the numbers from JustGo."}});
 $("openSettings").onclick=()=>{renderSettings();$("settingsPanel").hidden=false;$("pastePanel").hidden=true};
 $("closeSettings").onclick=()=>{$("settingsPanel").hidden=true};
 $("pasteBox").addEventListener("input",onPaste);

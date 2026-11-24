@@ -15,11 +15,12 @@
 //      Pre-School classes and next term's (child, parent's first name, email and phone, trial / pay-as-you-go;
 //      phones are read from each not-yet-renewed child's member details, as the register has none), so the hub can show who has renewed,
 //   6. Failed Payments: one-off class payments that failed and weren't paid since, and regular payments still failing (Club Finances),
-//   7. only when every class is in, offers an "Open SAADI Hub" button, which sends it all to the hub
-//      in the address after "#jg=" (that part never leaves the browser).
+//   7. only when every class is in, offers an "Open SAADI Hub" button, which opens the hub and hands it everything
+//      by a browser message to the hub's own address only, so children's and parents' details never go in the address bar or browser history.
 // It reads only; it never clicks Book, Cancel or anything that changes JustGo.
 (async () => {
-  const HUB = "https://hub.saadigymnastics.co.uk/class-capacity.html";
+  const HUB_ORIGIN = "https://hub.saadigymnastics.co.uk";
+  const HUB = HUB_ORIGIN + "/class-capacity.html";
   const API = "https://justgorestapi-prod.justgo.com/api/v1/class-management/get-attendee-occurrence-calendar-view";
   // JustGo's id for "Rolling Term (SAADI)", where the WAG / MAG squads live.
   const ROLLING_TERM = "182";
@@ -246,9 +247,21 @@
   } catch (e) { payNote = " (Couldn't read the failed payments this time.)"; }
   if (!alive()) return;
   frames.forEach(x => x.remove());
-  const url = HUB + "#jg=" + encodeURIComponent(JSON.stringify({ v: 6, at: new Date().toISOString(), n, total, terms: [...terms], text, club, links, ren, pay }));
+  const payload = { v: 6, at: new Date().toISOString(), n, total, terms: [...terms], text, club, links, ren, pay };
   say("All " + n + " classes are ready." + renNote + payNote, "Open the hub, check the summary and press Save week.");
   ov.querySelector("#saadiSyncBtns").innerHTML = "";
-  btn("Open SAADI Hub", () => { const w = window.open(url, "saadiHubSync"); if (!w) location.href = url; close(); }, true);
+  // Open the hub at #jgwait and keep offering it the data (only to the hub's address) until it says it has it, for up to 2 minutes.
+  btn("Open SAADI Hub", () => {
+    const w = window.open(HUB + "#jgwait", "saadiHubSync");
+    if (!w) { say("The browser blocked the hub window.", "Allow pop-ups for this site, then press Open SAADI Hub again."); return; }
+    let got = false, tries = 0;
+    const onAck = e => { if (e.origin === HUB_ORIGIN && e.data === "saadiHubGot") got = true; };
+    window.addEventListener("message", onAck);
+    const t = setInterval(() => {
+      if (got || ++tries > 240 || w.closed) { clearInterval(t); window.removeEventListener("message", onAck); return; }
+      try { w.postMessage({ saadiSync: payload }, HUB_ORIGIN); } catch (e) {}
+    }, 500);
+    close();
+  }, true);
   btn("Cancel", close);
 })();

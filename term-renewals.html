@@ -64,6 +64,32 @@ table.t tr.kids td{background:var(--bg);padding:6px 8px 12px 28px}
 .opt button.sentbtn{background:var(--good-bg);color:var(--good);border-color:var(--good);opacity:1}
 input[type=text]{width:100%}
 .replied{font-weight:700;color:var(--ink);margin-top:2px}
+
+/* renewal steps */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}@media (max-width:900px){.steps{grid-template-columns:repeat(2,1fr)}}@media (max-width:560px){.steps{grid-template-columns:1fr}}
+.step{position:relative;border:2px solid var(--line);border-radius:16px;padding:14px 14px 12px;display:flex;flex-direction:column;gap:8px;background:var(--card,#fff)}
+.step.now{border-color:var(--accent,#d4066a);box-shadow:0 0 0 3px rgba(212,6,106,.12)}
+.step.done{border-color:var(--good);background:var(--good-bg)}
+.step .sn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:var(--accent,#d4066a);color:#fff;font-weight:800}
+.step.done .sn{background:var(--good)}
+.step h3{margin:0;font-size:17px}
+.step p{margin:0;font-size:13.5px;line-height:1.45}
+.step .sp{font-size:12.5px;color:var(--muted)}
+.bigtick{display:flex;align-items:center;gap:10px;margin-top:auto;padding:8px 10px;border-radius:12px;border:2px solid var(--line);background:#fff;cursor:pointer;font-weight:700;font-size:14px;text-align:left}
+.bigtick i{flex:none;width:34px;height:34px;border-radius:9px;border:3px solid var(--line);display:flex;align-items:center;justify-content:center;font-style:normal;font-size:22px;color:#fff}
+.bigtick[aria-pressed=true]{border-color:var(--good);color:var(--good)}
+.bigtick[aria-pressed=true] i{background:var(--good);border-color:var(--good)}
+.bigtick small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+/* call list */
+.calls{display:flex;flex-direction:column;gap:10px}
+.call{border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:grid;grid-template-columns:minmax(200px,1.1fr) minmax(220px,1.4fr) minmax(250px,1.3fr);gap:12px;align-items:start}
+.call.dealt{opacity:.6}
+.call .tel{font-size:18px;font-weight:800;text-decoration:none;color:var(--accent,#d4066a);white-space:nowrap}
+.call .acts{display:flex;flex-wrap:wrap;gap:6px}
+.call .acts button{font-size:13px}
+.call .hist{font-size:12px;color:var(--muted);margin-top:6px}
+.call .pick{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px;width:100%}
+@media (max-width:820px){.call{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -99,6 +125,11 @@ input[type=text]{width:100%}
 
     <div id="content" class="wrap" hidden>
       <div class="row" style="justify-content:space-between"><div class="eyebrow" id="termLine"></div><span class="muted small" id="asOf"></span></div>
+
+      <section class="panel" id="stepsPanel">
+        <div class="panel-head"><h2>Renewal steps</h2><span class="muted small" id="stepsNote">Work through these in order and tick each one when it's done.</span></div>
+        <div class="steps" id="steps"></div>
+      </section>
 
       <div class="hero">
         <section class="panel big"><span class="eyebrow">Renewed so far</span><span class="v" id="bigPct">–</span><span class="muted" id="bigSub"></span></section>
@@ -152,10 +183,11 @@ input[type=text]{width:100%}
       </section>
 
       <div class="grid2">
-        <section class="panel">
-          <div class="panel-head"><h2>Remind families who haven't booked</h2><span class="pill none" id="mailState"></span></div>
+        <section class="panel" id="remPanel">
+          <div class="panel-head"><h2 id="remTitle">Remind families who haven't booked</h2><span class="pill none" id="mailState"></span></div>
+          <div class="seg" id="remMode" style="margin-bottom:10px"><button type="button" data-m="first">Step 2: First reminder</button><button type="button" data-m="final">Step 3: Final reminder</button></div>
           <div class="toolbar">
-            <div class="wrap small" style="gap:4px;margin:0"><label class="row" style="gap:6px"><input type="checkbox" id="onlyNew" checked> Hide families reminded in the last <input type="number" id="days" value="5" min="0" max="60" style="width:56px"> days</label><label class="row" style="gap:6px"><input type="checkbox" id="onlyMatched" checked> Hide families with no class to book next term yet</label><label class="row" style="gap:6px"><input type="checkbox" id="hideTold" checked> Hide families who are leaving or have asked for a class change (from the forms, or marked here)</label></div>
+            <div class="wrap small" style="gap:4px;margin:0"><label class="row" style="gap:6px"><input type="checkbox" id="onlyNew" checked> Hide families who have already had <span id="remWhich">this</span> reminder</label><label class="row" style="gap:6px"><input type="checkbox" id="onlyMatched" checked> Hide families with no class to book next term yet</label><label class="row" style="gap:6px"><input type="checkbox" id="hideTold" checked> Hide families who are leaving or have asked for a class change (from the forms, or marked here)</label></div>
             <div class="row"><button type="button" id="selAll">Select all</button><button type="button" id="selNone">None</button></div>
           </div>
           <div class="fams" id="fams"></div>
@@ -165,7 +197,7 @@ input[type=text]{width:100%}
         <section class="panel">
           <div class="panel-head"><h2>Email preview</h2><span class="muted small" id="prevSubj"></span></div>
           <iframe class="preview" id="preview" title="Email preview" sandbox="allow-same-origin"></iframe>
-          <details><summary class="small">Change the wording</summary>
+          <details><summary class="small">Change the wording of the <span id="tMode">first</span> reminder</summary>
             <div class="wrap" style="gap:10px;margin-top:10px">
               <label class="f">Subject <input type="text" id="tSubject"></label>
               <label class="f">Heading <input type="text" id="tHeading"></label>
@@ -176,6 +208,15 @@ input[type=text]{width:100%}
           </details>
         </section>
       </div>
+
+      <section class="panel" id="callPanel">
+        <div class="panel-head"><h2>Step 4: Call families who haven't renewed</h2><span class="muted small" id="callNote"></span></div>
+        <div class="toolbar"><div class="wrap small" style="gap:4px;margin:0">
+          <label class="row" style="gap:6px"><input type="checkbox" id="callHideDealt" checked> Hide families already sorted by phone (link sent or leaving)</label>
+          <label class="row" style="gap:6px"><input type="checkbox" id="callHideChanging" checked> Hide families who've asked for a class change (they're in Class change requests)</label></div></div>
+        <div class="calls" id="calls"></div>
+        <p class="hint">Ring each family, then press what happened. <b>Send link: their class</b> emails the booking link for next term's matching class straight away. <b>Send link: different class</b> lets you pick another class for their school year, then emails that link. <b>Leaving</b> takes them off the list and out of the figures. <b>No answer</b> keeps them on the list so someone can try again. Every call is saved with who rang and when, so nobody calls twice. Phone numbers come from JustGo with the morning sync.</p>
+      </section>
     </div>
   </main>
 </div>
@@ -184,13 +225,13 @@ input[type=text]{width:100%}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="hub-core.js"></script>
-<script src="enquiry-core.js?v=21"></script>
+<script src="enquiry-core.js?v=22"></script>
 <script>
 if("serviceWorker" in navigator&&location.protocol==="https:"){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))}
 (function(){
 "use strict";
 const {$,esc}=Hub;
-let S=EQ.settings({}),R=null,logs=[],stat={},tpl={},resp={changes:[],leavers:[]},respAt=null,ST=null,cfg={},area="",sortKey="rate",sortDir=1,open=new Set(),sel=new Set(),previewKey=null,showRemoved=false;
+let S=EQ.settings({}),R=null,logs=[],stat={},tpl={},calls=[],reqs={},mode=(()=>{try{return localStorage.getItem("saadiRemMode")||"first"}catch(e){return"first"}})(),picking=new Set(),AKEY=null,resp={changes:[],leavers:[]},respAt=null,ST=null,cfg={},area="",sortKey="rate",sortDir=1,open=new Set(),sel=new Set(),previewKey=null,showRemoved=false;
 const pct=x=>isFinite(x)?Math.round(x*100)+"%":"–";
 const tone=x=>!isFinite(x)?"none":x>=.8?"good":x>=.5?"warn":"bad";
 const toneVar=x=>`var(--${tone(x)==="none"?"none":tone(x)})`;
@@ -198,16 +239,22 @@ const toast=t=>{const d=document.createElement("div");d.className="toast";d.text
 const fmtDay=iso=>new Date(iso).toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"});
 const timeOf=c=>EQ.prettyTime(c.start+(c.end?" - "+c.end:""));
 const title=c=>String(c.name).split("|")[0].trim();
+const me=()=>{try{return localStorage.getItem("saadiAssistName")||""}catch(e){return""}};
+const who=()=>{let n=me();if(!n){n=(prompt("Who are you? (saved on this computer, so the Hub can show who did what)")||"").trim();if(n)try{localStorage.setItem("saadiAssistName",n)}catch(e){}}return n||"someone"};
+const when=ms=>new Date(ms).toLocaleString("en-GB",{weekday:"short",day:"numeric",month:"short",hour:"numeric",minute:"2-digit"});
 const mailerReady=()=>!!(S.mailerUrl&&S.mailerToken&&String(S.mailerFrom).toLowerCase()===String(S.sender).toLowerCase());
 
 function load(){
   Hub.doc("config/enquiryDesk").onSnapshot(d=>{S=EQ.settings(d.exists?d.data():{});mailState();renderPreview()},()=>{});
-  Hub.doc("config/renewals").onSnapshot(d=>{cfg=d.exists?d.data():{};tpl=cfg.template||{};fillTpl();renderPreview();$("sheetId").value=sheetId();$("closeDate").value=cfg.closeDate||"";if(R&&!respAt)loadResponses();else if(R)render()},()=>{});
+  Hub.doc("config/renewals").onSnapshot(d=>{cfg=d.exists?d.data():{};tpl={};fillTpl();renderPreview();$("sheetId").value=sheetId();$("closeDate").value=cfg.closeDate||"";if(R&&!respAt)loadResponses();else if(R)render()},()=>{});
   Hub.doc("renewals/latest").onSnapshot(d=>{
     let ren=null;try{ren=d.exists?JSON.parse(d.data().json):null}catch(e){}
     R=ren?EQ.renewals(ren):null;render();if(R&&!respAt)loadResponses();
   },e=>{$("statusNote").hidden=false;$("statusNote").textContent="Couldn't load the renewals ("+(e.code||"error")+")."});
   Hub.col("renewalEmails").onSnapshot(q=>{logs=q.docs.map(d=>d.data());if(R)render()},()=>{});
+  Hub.col("renewalCalls").onSnapshot(q=>{calls=q.docs.map(d=>d.data());if(R){renderCalls();renderSteps()}},()=>{});
+  // step 5 requests go to Claude through the same private section the Email assistant uses
+  Hub.doc("config/emailAssist").get().then(d=>{AKEY=d.exists&&d.data().key;if(!AKEY)return;Hub.fs.collection(`data/${AKEY}/changeRequests`).where("kind","in",["renewalsWaitingLists","renewalsOpenPublic"]).onSnapshot(q=>{reqs={};q.docs.forEach(x=>{const r={id:x.id,...x.data()},k=r.kind+"|"+r.term;if(!reqs[k]||(reqs[k].at||0)<(r.at||0))reqs[k]=r});if(R)renderSteps()},()=>{})}).catch(()=>{});
   // What families have told us (not continuing / want a different class), set by reception from their replies.
   Hub.col("renewalStatus").onSnapshot(q=>{stat={};q.docs.forEach(d=>{const x=d.data();if(x.status)stat[x.key]=x});if(R){render()}},()=>{});
 }
@@ -325,7 +372,7 @@ function render(){
   $("fArea").querySelectorAll("button").forEach(b=>b.onclick=()=>{area=b.dataset.a;render()});
   const days=EQ.DAYS.filter(d=>R.per.some(c=>c.day===d)),dv=$("fDay").value;
   $("fDay").innerHTML='<option value="">Every day</option>'+days.map(d=>`<option value="${d}">${EQ.DAYNAME[d]}</option>`).join("");$("fDay").value=dv;
-  renderTable();renderFams();
+  renderTable();renderFams();renderCalls();renderSteps();
 }
 $("fDay").onchange=()=>renderTable();
 document.querySelectorAll("th[data-sort]").forEach(th=>th.onclick=()=>{const k=th.dataset.sort;sortDir=sortKey===k?-sortDir:1;sortKey=k;renderTable()});
@@ -348,11 +395,12 @@ function renderTable(){
 
 /* ---------- reminders ---------- */
 const STAT=[["changing","Changing class","warn"],["leaving","Not continuing","bad"]];
-const lastSent=f=>{const l=logs.filter(x=>String(x.email||"").toLowerCase()===String(f.email||"").toLowerCase()).map(x=>x.at).sort().pop();return l||null};
+const kindOf=x=>x.type?null:(x.kind||(/final/i.test(x.subject||"")?"final":"first"));
+const sentOf=(f,k)=>logs.filter(x=>String(x.email||"").toLowerCase()===String(f.email||"").toLowerCase()&&kindOf(x)===k).map(x=>x.at).sort().pop()||null;
+const lastSent=f=>sentOf(f,mode);
 function famList(){
   if(!R)return[];
-  const lim=+$("days").value||0,cut=Date.now()-lim*864e5;
-  return R.families.filter(f=>(!area||f.kids.some(k=>k.cur.area===area))&&(!$("onlyMatched").checked||f.kids.some(k=>k.next))&&(!$("hideTold").checked||!(stat[f.key]&&stat[f.key].status)&&!(ST&&f.kids.some(k=>["leaving","changing"].includes((ST.status[k.id]||{}).s))))&&(!$("onlyNew").checked||!lastSent(f)||new Date(lastSent(f))<cut))
+  return R.families.filter(f=>(!area||f.kids.some(k=>k.cur.area===area))&&(!$("onlyMatched").checked||f.kids.some(k=>k.next))&&(!$("hideTold").checked||!(stat[f.key]&&stat[f.key].status)&&!(ST&&f.kids.some(k=>["leaving","changing"].includes((ST.status[k.id]||{}).s))))&&(!$("onlyNew").checked||!lastSent(f)))
     .sort((a,b)=>(a.parentName||"").localeCompare(b.parentName||""));
 }
 function renderFams(){
@@ -362,7 +410,7 @@ function renderFams(){
     return `<label class="fam"><input type="checkbox" data-k="${esc(f.key)}" ${sel.has(f.key)?"checked":""} ${ok?"":"disabled"}>
       <div><div class="who">${esc(f.kids.map(k=>k.first+" "+k.last).join(", "))} <span class="muted" style="font-weight:400">${esc(f.parentName?f.parentName+" · ":"")}${esc(f.email||"no email in JustGo")}</span></div>
       <div class="kids">${f.kids.map(k=>`${esc(k.first)}: ${esc(k.cur.day)} ${esc(timeOf(k.cur))} ${esc(title(k.cur))}${k.next?"":" (no matching class)"}`).join("<br>")}</div></div>
-      <div class="last">${ls?`<span class="pill warn">Reminded ${new Date(ls).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</span>`:'<span class="pill none">Not reminded</span>'}
+      <div class="last">${[["first","First"],["final","Final"]].map(([k,l])=>{const d=sentOf(f,k);return d?`<span class="pill ${k==="final"?"bad":"warn"}">${l} ✓ ${new Date(d).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</span>`:`<span class="pill none">${l}: not sent</span>`}).join(" ")}
         <div class="stat" style="margin-top:6px;display:flex;gap:4px;justify-content:flex-end">${STAT.map(([v,l,c])=>`<button type="button" class="sb" data-key="${esc(f.key)}" data-v="${v}" aria-pressed="${(stat[f.key]||{}).status===v}" title="${esc(l)}" style="padding:2px 8px;font-size:12px;${(stat[f.key]||{}).status===v?`background:var(--${c}-bg);color:var(--${c});border-color:var(--${c})`:""}">${esc(l)}</button>`).join("")}</div></div></label>`}).join("")||'<p class="muted">No families to remind. Brilliant!</p>';
   $("fams").querySelectorAll("button.sb").forEach(b=>b.onclick=async e=>{e.preventDefault();e.stopPropagation();const k=b.dataset.key,v=b.dataset.v,f=R.families.find(x=>x.key===k);const cur=(stat[k]||{}).status;
     const id=k.replace(/[^a-z0-9]/gi,"_").slice(0,140);
@@ -373,10 +421,10 @@ function renderFams(){
   if(!previewKey&&list.length)previewKey=list[0].key;
   updateSendBtn();renderPreview();
 }
-$("onlyNew").onchange=renderFams;$("onlyMatched").onchange=renderFams;$("hideTold").onchange=renderFams;$("days").oninput=renderFams;
+$("onlyNew").onchange=renderFams;$("onlyMatched").onchange=renderFams;$("hideTold").onchange=renderFams;
 $("selAll").onclick=()=>{famList().filter(f=>/@/.test(f.email||"")).forEach(f=>sel.add(f.key));renderFams()};
 $("selNone").onclick=()=>{sel.clear();renderFams()};
-function updateSendBtn(){const n=sel.size;$("sendSel").disabled=!n||!mailerReady();$("sendSel").textContent=n?`Send reminder to ${n} famil${n===1?"y":"ies"}`:"Send reminder";
+function updateSendBtn(){const n=sel.size;$("sendSel").disabled=!n||!mailerReady();$("sendSel").textContent=n?`Send the ${mode} reminder to ${n} famil${n===1?"y":"ies"}`:`Send the ${mode} reminder`;
   if(!mailerReady())$("sendMsg").innerHTML='Set up sending first: <a href="enquiry-desk.html">Enquiry Desk</a> &gt; Emails &amp; settings.'}
 function termFor(f){
   const a=f.kids[0].cur.area,t=R.next.find(t=>a==="Pre-School"?/pre\s*-?\s*school/i.test(t.name):!/pre\s*-?\s*school/i.test(t.name))||R.next[0];
@@ -392,14 +440,14 @@ $("sendSel").onclick=async()=>{
   if(!mailerReady())return;
   const list=R.families.filter(f=>sel.has(f.key)&&/@/.test(f.email||""));
   if(!list.length)return;
-  if(!confirm(`Send the renewal reminder to ${list.length} famil${list.length===1?"y":"ies"} from ${S.mailerFrom}?`))return;
+  if(!confirm(`Send the ${mode.toUpperCase()} reminder to ${list.length} famil${list.length===1?"y":"ies"} from ${S.mailerFrom}?`))return;
   $("sendSel").disabled=true;let ok=0,bad=[];
   for(const f of list){
     $("sendMsg").textContent=`Sending ${ok+bad.length+1} of ${list.length}…`;
     const e=emailFor(f);
     try{const r=await fetch(S.mailerUrl,{method:"POST",body:JSON.stringify({token:S.mailerToken,to:f.email,subject:e.subject,html:e.html,text:e.text,fromName:S.fromName})});const j=await r.json();
       if(!j.ok)throw new Error(j.error||"not sent");
-      await Hub.col("renewalEmails").add({at:new Date().toISOString(),email:f.email,parentName:f.parentName||"",kids:f.kids.map(k=>k.id),childNames:f.kids.map(k=>k.first).join(", "),term:R.next.map(t=>t.name).join(" / "),subject:e.subject,via:S.mailerFrom});
+      await Hub.col("renewalEmails").add({kind:mode,by:me(),at:new Date().toISOString(),email:f.email,parentName:f.parentName||"",kids:f.kids.map(k=>k.id),childNames:f.kids.map(k=>k.first).join(", "),term:R.next.map(t=>t.name).join(" / "),subject:e.subject,via:S.mailerFrom});
       ok++;sel.delete(f.key)}
     catch(x){bad.push(`${f.email} (${x.message})`)}
   }
@@ -408,11 +456,113 @@ $("sendSel").onclick=async()=>{
 };
 
 /* ---------- wording ---------- */
-function fillTpl(){const t=Object.assign({},EQ.RENEWAL,tpl);$("tSubject").value=t.subject;$("tHeading").value=t.heading;$("tText").value=t.body}
+const baseTpl=m=>m==="final"?((cfg.templates&&cfg.templates.final)||cfg.template||{}):((cfg.templates&&cfg.templates.first)||{});
+function fillTpl(){tpl=Object.assign({},EQ.RENEWAL,baseTpl(mode));$("tSubject").value=tpl.subject;$("tHeading").value=tpl.heading;$("tText").value=tpl.body;$("tMode").textContent=mode}
 $("tSave").onclick=async()=>{const t={subject:$("tSubject").value,heading:$("tHeading").value,body:$("tText").value};
-  try{await Hub.doc("config/renewals").set({template:t},{merge:true});$("tMsg").textContent="Saved ✓"}catch(e){$("tMsg").textContent="Couldn't save"}};
-$("tReset").onclick=()=>{tpl={};$("tSubject").value=EQ.RENEWAL.subject;$("tHeading").value=EQ.RENEWAL.heading;$("tText").value=EQ.RENEWAL.body;renderPreview()};
+  try{await Hub.doc("config/renewals").set({templates:{[mode]:t}},{merge:true});$("tMsg").textContent=`Saved the ${mode} reminder ✓`}catch(e){$("tMsg").textContent="Couldn't save"}};
+$("tReset").onclick=()=>{tpl=Object.assign({},EQ.RENEWAL);$("tSubject").value=tpl.subject;$("tHeading").value=tpl.heading;$("tText").value=tpl.body;renderPreview()};
 ["tSubject","tHeading","tText"].forEach(id=>$(id).addEventListener("input",()=>{tpl={subject:$("tSubject").value,heading:$("tHeading").value,body:$("tText").value};renderPreview()}));
+function setMode(m){mode=m;try{localStorage.setItem("saadiRemMode",m)}catch(e){}sel.clear();
+  $("remMode").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.m===m)));
+  $("remTitle").textContent=m==="final"?"Step 3: Final reminder":"Step 2: First reminder";$("remWhich").textContent=m==="final"?"the final":"the first";
+  fillTpl();if(R)renderFams()}
+$("remMode").querySelectorAll("button").forEach(b=>b.onclick=()=>setMode(b.dataset.m));
+setMode(mode);
+
+/* ---------- the five steps ---------- */
+const termKey=()=>R&&R.next.length?R.next.map(t=>t.name).join(" / ").replace(/[^a-z0-9]+/gi,"_").slice(0,120):"term";
+const nextTermName=()=>R&&R.next.length?R.next.map(t=>t.name).join(" and "):"next term";
+const STEPS=[
+  {n:1,t:"Send renewals",d:()=>`In JustGo, open each class register for this term, select the families (leave out trials; Pre-School: whole-term payers only) and <b>Send Email</b> with next term's booking link. Renewals stay open for 2 weeks${cfg.closeDate?`, closing <b>${esc(new Date(cfg.closeDate).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"}))}</b>`:""}.`,
+   p:()=>R?`${R.renewed} of ${R.kids} children booked so far`:""},
+  {n:2,t:"First reminder",d:()=>"Email every family who hasn't booked, using the <b>first reminder</b> email.",go:["Open the first reminder",()=>{setMode("first");$("remPanel").scrollIntoView({behavior:"smooth"})}],
+   p:()=>{const n=R.families.filter(f=>sentOf(f,"first")).length;return `${n} of ${R.families.length} families sent the first reminder`}},
+  {n:3,t:"Final reminder",d:()=>"On the last day, email everyone still not booked with the <b>final reminder</b>: today is the last day before classes go to the public.",go:["Open the final reminder",()=>{setMode("final");$("remPanel").scrollIntoView({behavior:"smooth"})}],
+   p:()=>{const n=R.families.filter(f=>sentOf(f,"final")).length;return `${n} of ${R.families.length} families sent the final reminder`}},
+  {n:4,t:"Call families",d:()=>"Ring everyone who still hasn't renewed. For each: send the link to their class, send a link to a different class, or mark them as leaving.",go:["Open the call list",()=>$("callPanel").scrollIntoView({behavior:"smooth"})],
+   p:()=>{const c=callList(true),d=c.filter(f=>dealt(f)).length;return `${d} of ${c.length} families sorted by phone`}},
+  {n:5,t:"Contact the waiting lists",d:()=>"Claude checks every class's waiting list in JustGo, sees where there's space in the class each family wants, and emails them the booking link.",
+   claude:{kind:"renewalsWaitingLists",btn:"Ask Claude to contact the waiting lists",ask:t=>`Ask Claude to contact the waiting lists for ${t}?\n\nOnly do this once the calls are done, so renewing families keep their places.`,
+     text:t=>`Renewals step 5: for every class in "${t}", read its waiting list in JustGo. Work out the free places (capacity minus bookings, after the renewal calls). Where a family on a waiting list wants a class that now has space, email them from reception@ with that class's booking link (first come, first served, in waiting-list order). Don't email anyone for a class that is still full. Report who was emailed for which class, then tick step 5 on the Term Renewals page.`},p:()=>""},
+  {n:6,t:"Open classes to the public",d:()=>`Make next term's classes public in JustGo, so anyone can book the places that are left.`,
+   claude:{kind:"renewalsOpenPublic",btn:"Ask Claude to open all classes",ask:t=>`Ask Claude to make all ${t} classes public in JustGo?\n\nOnly do this once the waiting lists have been contacted.`,
+     text:t=>`Renewals step 6: in JustGo Class Management, make every class in "${t}" public (visible to everyone). Leave the classes and prices as they are. When done, tick step 6 on the Term Renewals page.`},p:()=>""}
+];
+function renderSteps(){
+  if(!R)return;const done=((cfg.steps||{})[termKey()])||{},cur=STEPS.find(x=>!done[x.n]);
+  $("steps").innerHTML=STEPS.map(x=>{const d=done[x.n],rq=x.claude?reqs[x.claude.kind+"|"+termKey()]:null;
+    const st=x.claude?(rq?`<div class="sp">${rq.status==="done"?"✓ Claude has done it":rq.status==="doing"?"Claude is on it…":rq.status==="question"?`<b style="color:var(--bad)">Claude has a question:</b> ${esc(rq.question||"")}`:`Asked ${esc(when(rq.at))}${rq.by?" by "+esc(rq.by):""}: waiting for Claude`}${rq.note?`<br>${esc(rq.note)}`:""}</div>`:""):"";
+    return `<div class="step${d?" done":cur===x?" now":""}"><div class="row" style="gap:8px"><span class="sn">${d?"✓":x.n}</span><h3>${esc(x.t)}</h3></div><p>${x.d()}</p>${x.p()?`<div class="sp">${esc(x.p())}</div>`:""}
+      ${x.go?`<button type="button" data-go="${x.n}">${esc(x.go[0])}</button>`:""}${x.claude&&!d?`<button type="button" class="primary" data-claude="${x.n}"${rq&&rq.status!=="done"&&rq.status!=="cancelled"?" disabled":""}>${rq&&rq.status!=="cancelled"?"Asked Claude ✓":esc(x.claude.btn)}</button>`:""}${st}
+      <button type="button" class="bigtick" data-tick="${x.n}" aria-pressed="${!!d}"><i>${d?"✓":""}</i><span>${d?"Done":"Tick when done"}${d?`<small>${esc(d.by||"")} · ${esc(when(d.at))}</small>`:""}</span></button></div>`}).join("");
+  $("steps").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>STEPS[+b.dataset.go-1].go[1]());
+  $("steps").querySelectorAll("[data-tick]").forEach(b=>b.onclick=async()=>{const n=b.dataset.tick,was=!!done[n];
+    if(was&&!confirm("Untick this step?"))return;
+    try{await Hub.doc("config/renewals").set({steps:{[termKey()]:{[n]:was?firebase.firestore.FieldValue.delete():{by:who(),at:Date.now()}}}},{merge:true});toast(was?"Unticked":"Step "+n+" done ✓")}catch(e){toast("Couldn't save: "+(e.code||e.message))}});
+  $("steps").querySelectorAll("[data-claude]").forEach(cb=>cb.onclick=async()=>{const x=STEPS[+cb.dataset.claude-1],c=x.claude;
+    if(!AKEY){toast("Claude's request box isn't set up yet (open the Email Assistant once).");return}
+    const t=nextTermName();if(!confirm(c.ask(t)))return;
+    try{await Hub.fs.collection(`data/${AKEY}/changeRequests`).add({kind:c.kind,term:termKey(),where:"justgo",status:"new",at:Date.now(),by:who(),shot:"",text:c.text(t)});toast("Sent to Claude ✓")}
+    catch(e){toast("Couldn't send: "+(e.code||e.message))}});
+}
+
+/* ---------- step 4: call list ---------- */
+const callsFor=f=>calls.filter(c=>c.key===f.key).sort((a,b)=>(b.at||0)-(a.at||0));
+const dealt=f=>callsFor(f).some(c=>["their","other","leaving"].includes(c.outcome))||(stat[f.key]||{}).status==="leaving";
+const OUT={their:"Sent the link to their class",other:"Sent a link to a different class",leaving:"Leaving",noanswer:"No answer"};
+function callList(all){
+  if(!R)return[];
+  return R.families.filter(f=>{
+    const ks=f.kids.map(k=>(ST&&ST.status[k.id]||{}).s);
+    if(!all&&$("callHideChanging").checked&&((stat[f.key]||{}).status==="changing"||ks.includes("changing")))return false;
+    if(ks.length&&ks.every(s=>s==="leaving")&&!callsFor(f).length)return false;   // told us on the form
+    if(!all&&$("callHideDealt").checked&&dealt(f))return false;
+    return true}).sort((a,b)=>(a.parentName||"").localeCompare(b.parentName||""));
+}
+const freeIn=n=>Math.max(0,(n.cap||0)-(n.booked||0));
+const clsLab=n=>`${n.day} ${timeOf(n)} ${title(n)}`;
+function optionsFor(k){const ys=k.years||[];return R.cls.filter(n=>n.kind==="n"&&n.area===k.cur.area&&(!ys.length||!n.years||!n.years.length||n.years.some(y=>ys.includes(y))))
+  .sort((a,b)=>EQ.DAYS.indexOf(a.day)-EQ.DAYS.indexOf(b.day)||EQ.mins(a.start)-EQ.mins(b.start))}
+function renderCalls(){
+  if(!R)return;const list=callList(),all=callList(true);
+  $("callNote").textContent=`${all.filter(dealt).length} of ${all.length} sorted · ${all.filter(f=>!f.phone).length} without a phone number`;
+  $("calls").innerHTML=list.map((f,i)=>{const h=callsFor(f),last=h[0],isDealt=dealt(f),okMail=/@/.test(f.email||"");
+    const tel=f.phone?`<a class="tel" href="tel:${esc(f.phone.replace(/[^\d+]/g,""))}">📞 ${esc(f.phone)}</a>`:'<span class="pill warn">No phone in JustGo</span>';
+    const kids=f.kids.map(k=>`<div><b>${esc(k.first)} ${esc(k.last)}</b>: ${esc(clsLab(k.cur))}${k.next?`<div class="small muted">Next term: ${esc(clsLab(k.next))} · ${freeIn(k.next)?freeIn(k.next)+" free":"full"}</div>`:'<div class="small" style="color:var(--warn)">No matching class next term</div>'}</div>`).join("");
+    const rem=[["first","First"],["final","Final"]].map(([k,l])=>sentOf(f,k)?`<span class="pill none">${l} reminder ✓</span>`:"").join(" ");
+    const pick=picking.has(f.key)?`<div class="pick">${f.kids.map((k,j)=>`<select data-pk="${i}:${j}"><option value="">${esc(k.first)}: choose a class…</option>${optionsFor(k).map(n=>`<option value="${n.g}">${esc(clsLab(n))} · ${freeIn(n)?freeIn(n)+" free":"full"}</option>`).join("")}</select>`).join("")}<button type="button" class="primary" data-sendother="${i}">Send</button></div>`:"";
+    return `<div class="call${isDealt?" dealt":""}"><div><div style="font-weight:700">${esc(f.parentName||"Parent")}</div>${tel}<div class="small muted">${esc(f.email||"no email")}</div><div style="margin-top:4px">${rem}</div></div>
+      <div class="small">${kids}</div>
+      <div><div class="acts">
+        <button type="button" class="primary" data-their="${i}" ${okMail&&f.kids.some(k=>k.next)?"":"disabled"}>Send link: their class</button>
+        <button type="button" data-other="${i}" ${okMail?"":"disabled"}>Send link: different class</button>
+        <button type="button" data-leave="${i}" style="color:var(--bad)">Leaving</button>
+        <button type="button" data-noans="${i}">No answer</button></div>${pick}
+        <div class="hist">${h.slice(0,3).map(c=>`${esc(OUT[c.outcome]||c.outcome)}${c.clsName?" ("+esc(c.clsName)+")":""} · ${esc(c.by||"")} · ${esc(when(c.at))}`).join("<br>")||"Not called yet"}</div></div></div>`}).join("")||'<p class="muted">Nobody left to call.</p>';
+  const fam=i=>list[+i];
+  const logCall=(f,outcome,extra)=>Hub.col("renewalCalls").add(Object.assign({key:f.key,email:f.email||"",parentName:f.parentName||"",outcome,by:who(),at:Date.now()},extra||{}));
+  const sendOffer=async(f,k,n)=>{const e=EQ.offerEmail({child:k.first,parentName:f.parentName||"",cls:n,full:!freeIn(n)},S,termFor(f).name);
+    const r=await fetch(S.mailerUrl,{method:"POST",body:JSON.stringify({token:S.mailerToken,to:f.email,subject:e.subject,html:e.html,text:e.text,fromName:S.fromName})});const j=await r.json();if(!j.ok)throw new Error(j.error||"not sent");
+    await Hub.col("renewalEmails").add({type:"offer",via:"call",full:!freeIn(n),at:new Date().toISOString(),email:f.email,child:k.first+" "+k.last,cls:n.g,clsName:clsLab(n),subject:e.subject,by:me()})};
+  $("calls").querySelectorAll("[data-their]").forEach(b=>b.onclick=async()=>{const f=fam(b.dataset.their),ks=f.kids.filter(k=>k.next);
+    if(!mailerReady())return toast("Set up sending from reception@ first");
+    if(!confirm(`Email ${f.email} the booking link for:\n${ks.map(k=>k.first+": "+clsLab(k.next)).join("\n")}`))return;
+    b.disabled=true;b.textContent="Sending…";
+    try{for(const k of ks)await sendOffer(f,k,k.next);await logCall(f,"their",{clsName:ks.map(k=>clsLab(k.next)).join(", ")});toast("Link sent ✓")}catch(e){toast("Not sent: "+e.message);renderCalls()}});
+  $("calls").querySelectorAll("[data-other]").forEach(b=>b.onclick=()=>{const f=fam(b.dataset.other);picking.has(f.key)?picking.delete(f.key):picking.add(f.key);renderCalls()});
+  $("calls").querySelectorAll("[data-sendother]").forEach(b=>b.onclick=async()=>{const i=b.dataset.sendother,f=fam(i);
+    const chosen=f.kids.map((k,j)=>{const g=($("calls").querySelector(`select[data-pk="${i}:${j}"]`)||{}).value;return g?{k,n:R.cls.find(c=>String(c.g)===String(g))}:null}).filter(Boolean);
+    if(!chosen.length)return toast("Choose a class first");if(!mailerReady())return toast("Set up sending from reception@ first");
+    if(!confirm(`Email ${f.email} the booking link for:\n${chosen.map(x=>x.k.first+": "+clsLab(x.n)+(freeIn(x.n)?"":" (full: the email says to join the waiting list)")).join("\n")}`))return;
+    b.disabled=true;b.textContent="Sending…";
+    try{for(const x of chosen)await sendOffer(f,x.k,x.n);await logCall(f,"other",{clsName:chosen.map(x=>clsLab(x.n)).join(", ")});picking.delete(f.key);toast("Link sent ✓")}catch(e){toast("Not sent: "+e.message);renderCalls()}});
+  $("calls").querySelectorAll("[data-leave]").forEach(b=>b.onclick=async()=>{const f=fam(b.dataset.leave);
+    if(!confirm(`Mark ${f.kids.map(k=>k.first).join(" and ")} as leaving? They come off the reminder and call lists and count as leaving.`))return;
+    try{await Hub.doc("renewalStatus/"+f.key.replace(/[^a-z0-9]/gi,"_").slice(0,140)).set({key:f.key,email:f.email||"",childNames:f.kids.map(x=>x.first).join(", "),status:"leaving",at:new Date().toISOString(),by:who(),via:"call"});
+      await logCall(f,"leaving");toast("Marked as leaving")}catch(e){toast("Couldn't save: "+(e.code||e.message))}});
+  $("calls").querySelectorAll("[data-noans]").forEach(b=>b.onclick=async()=>{const f=fam(b.dataset.noans);try{await logCall(f,"noanswer");toast("Noted: no answer")}catch(e){toast("Couldn't save")}});
+}
+$("callHideDealt").onchange=renderCalls;$("callHideChanging").onchange=renderCalls;
 
 Hub.gate(load);
 Hub.tooltips();

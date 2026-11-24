@@ -388,7 +388,7 @@ EQ.renewals=function(ren){
   const kidsCur={};
   ren.rows.forEach(([i,id,f])=>{const c=byIdx[i];if(!c)return;if(f==="T"){c.trial++;return}if(f==="P"){c.payg++;return}
     const k=ren.kids[id]||[];const renewedTo=nextOf[id]||[];
-    const kid={id,first:k[0]||"",last:k[1]||"",parentName:k[2]||"",email:(k[3]||"").trim(),age:k[4]||"",renewed:renewedTo.length>0,nextBooked:renewedTo,cur:c};
+    const kid={id,first:k[0]||"",last:k[1]||"",parentName:k[2]||"",email:(k[3]||"").trim(),age:k[4]||"",phone:String(k[5]||"").trim(),renewed:renewedTo.length>0,nextBooked:renewedTo,cur:c};
     kid.years=EQ.kidYears(kid);kid.next=matchNext(c,kid.years);
     c.kids.push(kid);(kidsCur[id]=kidsCur[id]||[]).push(kid)});
   EQ._yearsFit=yearsFit;
@@ -397,7 +397,8 @@ EQ.renewals=function(ren){
   const renewedIds=ids.filter(id=>kidsCur[id][0].renewed);
   // families still to renew, by parent email
   const fam={};ids.forEach(id=>{const k=kidsCur[id][0];if(k.renewed)return;const key=(k.email||"no-email:"+id).toLowerCase();
-    (fam[key]=fam[key]||{key,email:k.email,parentName:k.parentName,kids:[]}).kids.push({id,first:k.first,last:k.last,age:k.age,cur:k.cur,next:k.next})});
+    const fm=(fam[key]=fam[key]||{key,email:k.email,parentName:k.parentName,phone:k.phone,kids:[]});if(!fm.phone&&k.phone)fm.phone=k.phone;
+    fm.kids.push({id,first:k.first,last:k.last,age:k.age,years:k.years,cur:k.cur,next:k.next})});
   const areas={};per.forEach(c=>{const a=areas[c.area]=areas[c.area]||{area:c.area,eligible:0,renewed:0,classes:0};a.eligible+=c.eligible;a.renewed+=c.renewed;a.classes++});
   return{cls,per,kids:ids.length,renewed:renewedIds.length,rate:ids.length?renewedIds.length/ids.length:NaN,families:Object.values(fam),areas:Object.values(areas),
     nextBooked:ren.rows.filter(([i,,f])=>cls[i]&&cls[i].kind==="n"&&f!=="T").length,

@@ -12,7 +12,7 @@
 //   4. takes the same text a select-all copy would give (class, time, group, Booked / Available / Trial / Wait List, term),
 //      plus each class's public booking link (what JustGo's "Copy Link" gives), for the Enquiry Desk emails,
 //   5. Term Renewals: when next term's classes are set up (e.g. Spring), reads the registers of this term's Recreational and
-//      Pre-School classes and next term's (child, parent's first name and email, trial / pay-as-you-go), so the hub can show who has renewed,
+//      Pre-School classes and next term's (child, parent's first name, email and phone, trial / pay-as-you-go), so the hub can show who has renewed,
 //   6. Failed Payments: one-off class payments that failed and weren't paid since, and regular payments still failing (Club Finances),
 //   7. only when every class is in, offers an "Open SAADI Hub" button, which sends it all to the hub
 //      in the address after "#jg=" (that part never leaves the browser).
@@ -152,6 +152,9 @@
           return all;
         };
         const kids = {}, rows = [], cls = [];
+        // parent's phone for the renewal call list: whichever mobile/phone field JustGo fills in
+        const phoneOf = a => String(a.parentMobileNumber || a.parentMobile || a.parentPhoneNumber || a.mobileNumber || a.mobile || a.phoneNumber || a.phone ||
+          Object.keys(a).filter(k => /mobile|phone/i.test(k) && typeof a[k] === "string" && /\d{6}/.test(a[k].replace(/\D/g, ""))).map(k => a[k])[0] || "").trim();
         const queue = sessions.map((s, i) => [s, i]);
         let done = 0;
         sessions.forEach(([o, k]) => { const sc = (o.Schedules || [])[0] || {}; cls.push([o.SessionGuid, k, o.TermName, o.DayOfWeek, sc.StartTime || "", sc.EndTime || "", o.SessionName, typeof o.ColorName === "string" ? o.ColorName : "", o.AgeGroupName || "", +o.Capacity || 0, +o.TotalBookedCount || 0]); });
@@ -164,7 +167,7 @@
                 const id = String(a.memberId || a.entityid);
                 const fl = a.hasTrial ? "T" : String(a.chipStatus || "").toUpperCase() === "PAYG" ? "P" : "";
                 // Names and emails only for termly places this term and bookings next term; trials and pay-as-you-go are just counted.
-                if (!kids[id] && (fl === "" || o.__k === "n")) kids[id] = [a.firstName || "", a.lastName || "", a.parentFirstname || "", a.parentEmailAddress || a.emailAddress || "", a.age || ""];
+                if (!kids[id] && (fl === "" || o.__k === "n")) kids[id] = [a.firstName || "", a.lastName || "", a.parentFirstname || "", a.parentEmailAddress || a.emailAddress || "", a.age || "", phoneOf(a)];
                 rows.push([i, fl === "" || o.__k === "n" ? id : "", fl]);
               });
             } catch (e) {}

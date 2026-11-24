@@ -13,6 +13,7 @@
  *        BREATHE_API_KEY  = the key from Breathe (Configure > Settings > Integrations > API setup)
  *        SHEET_ID         = the staffing sheet's ID (the long code in its link)
  *        TOKEN            = a long random password (the Hub's Staffing page makes one for you)
+ *        QBO_CLIENT_ID / QBO_CLIENT_SECRET = QuickBooks production keys (developer.intuit.com, app "SAADI HUB"), optional
  *   3. Deploy > New deployment > Web app: Execute as "Me", Who has access "Anyone". Copy the Web app URL into the Hub.
  * Each new term: change SHEET_ID to the new term's sheet (or paste the new link into the Hub's Staffing settings).
  */
@@ -24,16 +25,19 @@ function doPost(e) {
   try {
     var q = JSON.parse(e.postData.contents || '{}');
     if (!q.token || q.token !== prop_('TOKEN')) return out_({ ok: false, error: 'Wrong token' });
-    var res = { ok: true, at: new Date().toISOString(), version: 6 };
+    var res = { ok: true, at: new Date().toISOString(), version: 7 };
     // cover: write the confirmed person into the rota, or close a shift so late "I can do it" taps are thanked and turned away
     if (q.action === 'write') { res.written = write_(q.sheetId || prop_('SHEET_ID'), q); return out_(res); }
     if (q.action === 'close') { P.setProperty('X:' + q.c, JSON.stringify({ by: q.by || '', at: res.at })); return out_(res); }
     if (q.action === 'reopen') { P.deleteProperty('X:' + q.c); return out_(res); }
+    if (q.action === 'qboDisconnect') { res.qbo = qboDisconnect_(); return out_(res); }
     var want = q.want || ['rota', 'staff', 'off'];
     if (want.indexOf('rota') >= 0) res.rota = rota_(q.sheetId || prop_('SHEET_ID'));
     if (want.indexOf('staff') >= 0) res.staff = staff_();
     if (want.indexOf('off') >= 0) res.off = off_(q.from, q.to);
     if (want.indexOf('replies') >= 0) res.replies = replies_();
+    if (want.indexOf('qbo') >= 0) res.qbo = qboStatus_();
+    if (want.indexOf('qboCosts') >= 0) res.qboCosts = qboCosts_(q.from, q.to);
     return out_(res);
   } catch (err) {
     return out_({ ok: false, error: String(err && err.message || err) });
@@ -43,8 +47,11 @@ function doPost(e) {
 /* The "I can do it" link in a cover email: ?shift=id&who=person&name=first name&what=shift text&sig=signature (Google reserves ?c=) */
 function doGet(e) {
   var q = (e && e.parameter) || {}, p = { c: q.shift, p: q.who, n: q.name, s: q.what, k: q.sig };
+  if (q.qbo === 'connect') return qboConnectPage_(q);
+  if (q.code && q.realmId) return qboCallback_(q);
+  if (q.error && q.state) return qboPage_('QuickBooks was not connected', 'Intuit said: ' + esc_(q.error) + '. You can close this and try again from the Hub.');
   if (q.shift && q.pick) return pickPage_(q);
-  if (!p.c) return out_({ ok: true, hello: 'SAADI Hub Staffing connector', version: 6 });
+  if (!p.c) return out_({ ok: true, hello: 'SAADI Hub Staffing connector', version: 7 });
   var ok = p.k && p.k === sign_(p.c + '|' + p.p);
   var msg, head;
   if (!ok) { head = 'That link doesn\'t look right'; msg = 'Please reply to the email instead and reception will sort it out.'; }
@@ -194,4 +201,130 @@ function off_(from, to) {
     list.push({ emp: s.employee && s.employee.id, start: s.start_date, end: end, halfStart: !!s.half_start, halfEnd: !!s.half_end, kind: 'off' });
   });
   return list;
+}
+
+/* ---------------- QuickBooks Online (read only, accounting scope) ----------------
+ * Connect once from the Hub (Staffing > Names & settings > QuickBooks). Intuit sends the browser back here with a code,
+ * which is swapped for tokens kept only in this script's properties. Access tokens last an hour and are renewed
+ * automatically; the refresh token rolls on as long as it's used at least every 100 days.
+ * Errors are logged with Intuit's intuit_tid (QBO_LOG, last 50) so Intuit support can trace them.
+ */
+var QBO_REDIRECT = 'https://script.google.com/macros/s/AKfycbz0Z9rRzE2sGUliJy36kw0he1dvdi4IZYp1L8FY_kcMGBRzxvyNNax9hrxbiN6umzAEsw/exec';
+var QBO_API = 'https://quickbooks.api.intuit.com/v3/company/';
+function qboRedirect_() { return prop_('QBO_REDIRECT') || QBO_REDIRECT; }
+function qboDiscovery_() {
+  var c = CacheService.getScriptCache(), hit = c.get('qboDisc');
+  if (hit) return JSON.parse(hit);
+  var r = UrlFetchApp.fetch('https://developer.api.intuit.com/.well-known/openid_configuration', { muteHttpExceptions: true });
+  var d = r.getResponseCode() === 200 ? JSON.parse(r.getContentText()) : {};
+  d = { auth: d.authorization_endpoint || 'https://appcenter.intuit.com/connect/oauth2',
+        token: d.token_endpoint || 'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer',
+        revoke: d.revocation_endpoint || 'https://developer.api.intuit.com/v2/oauth2/tokens/revoke' };
+  c.put('qboDisc', JSON.stringify(d), 21600);
+  return d;
+}
+function qboTid_(r) { var h = r.getHeaders(); return h['intuit_tid'] || h['Intuit_tid'] || h['INTUIT_TID'] || ''; }
+function qboLog_(what, code, tid, detail) {
+  var log = JSON.parse(P.getProperty('QBO_LOG') || '[]');
+  log.unshift({ at: new Date().toISOString(), what: what, code: code, intuit_tid: tid || '', detail: String(detail || '').slice(0, 300) });
+  P.setProperty('QBO_LOG', JSON.stringify(log.slice(0, 50)));
+}
+function qboPage_(head, msg) {
+  var html = '<!doctype html><title>SAADI Hub: QuickBooks</title><div style="font-family:Arial,sans-serif;max-width:520px;margin:40px auto;padding:24px;border-radius:14px;border-top:8px solid #2ca01c;background:#fff;box-shadow:0 4px 20px rgba(0,0,0,.08)">' +
+    '<h2 style="margin:0 0 10px;color:#1d1a1f">' + esc_(head) + '</h2><p style="font-size:16px;line-height:1.5;color:#333;margin:0">' + msg + '</p><p style="font-size:13px;color:#888;margin:18px 0 0">SAADI Business Hub</p></div>';
+  return HtmlService.createHtmlOutput(html).setTitle('SAADI Hub: QuickBooks').addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+/* Step 1: the Hub opens ?qbo=connect&sig=... (signed with the Hub token, so only the Hub can start a connection). */
+function qboConnectPage_(q) {
+  if (!q.sig || q.sig !== sign_('qbo-connect')) return qboPage_('That link does not look right', 'Please start again from the Staffing page in the Hub.');
+  if (!prop_('QBO_CLIENT_ID') || !prop_('QBO_CLIENT_SECRET')) return qboPage_('QuickBooks keys missing', 'Add QBO_CLIENT_ID and QBO_CLIENT_SECRET to this script\'s properties first.');
+  var state = Utilities.getUuid();
+  CacheService.getScriptCache().put('qboState:' + state, '1', 900);   // CSRF check, valid 15 minutes
+  var url = qboDiscovery_().auth + '?client_id=' + encodeURIComponent(prop_('QBO_CLIENT_ID')) + '&response_type=code&scope=' +
+    encodeURIComponent('com.intuit.quickbooks.accounting') + '&redirect_uri=' + encodeURIComponent(qboRedirect_()) + '&state=' + state;
+  return qboPage_('Connect QuickBooks', 'Sign in as the QuickBooks admin and choose <b>SAADI Gymnastics</b>. The Hub can only read the accounts; it cannot change anything.<br><br>' +
+    '<a href="' + esc_(url) + '" target="_top" style="display:inline-block;padding:12px 22px;background:#2ca01c;color:#fff;font-weight:700;text-decoration:none;border-radius:999px">Connect to QuickBooks</a>');
+}
+/* Step 2: Intuit sends the browser back with ?code=...&realmId=...&state=... */
+function qboCallback_(q) {
+  var c = CacheService.getScriptCache();
+  if (!q.state || !c.get('qboState:' + q.state)) return qboPage_('That did not work', 'The connection link had expired or did not come from the Hub. Please start again from the Staffing page.');
+  c.remove('qboState:' + q.state);
+  try {
+    qboTokens_({ grant_type: 'authorization_code', code: q.code, redirect_uri: qboRedirect_() });
+    P.setProperty('QBO_REALM_ID', String(q.realmId));
+    var co = qboGet_('companyinfo/' + q.realmId);
+    var name = co && co.CompanyInfo ? co.CompanyInfo.CompanyName : '';
+    P.setProperty('QBO_COMPANY', name);
+    return qboPage_('QuickBooks connected', 'The Hub is now connected to <b>' + esc_(name || 'your QuickBooks company') + '</b> (read only). You can close this tab.');
+  } catch (err) {
+    return qboPage_('QuickBooks was not connected', esc_(String(err.message || err)));
+  }
+}
+function qboTokens_(form) {
+  var auth = Utilities.base64Encode(prop_('QBO_CLIENT_ID') + ':' + prop_('QBO_CLIENT_SECRET'));
+  var r = UrlFetchApp.fetch(qboDiscovery_().token, { method: 'post', payload: form, muteHttpExceptions: true,
+    headers: { Authorization: 'Basic ' + auth, Accept: 'application/json' } });
+  var code = r.getResponseCode(), j = {};
+  try { j = JSON.parse(r.getContentText()); } catch (e) {}
+  if (code !== 200) {
+    qboLog_('token ' + form.grant_type, code, qboTid_(r), j.error || r.getContentText());
+    if (j.error === 'invalid_grant') { ['QBO_REFRESH', 'QBO_ACCESS', 'QBO_ACCESS_EXP'].forEach(function (k) { P.deleteProperty(k); }); throw new Error('QuickBooks needs reconnecting (access expired or was removed).'); }
+    throw new Error('QuickBooks sign-in failed (' + code + (j.error ? ', ' + j.error : '') + ')');
+  }
+  P.setProperty('QBO_ACCESS', j.access_token);
+  P.setProperty('QBO_ACCESS_EXP', String(Date.now() + (Number(j.expires_in || 3600) - 120) * 1000));
+  if (j.refresh_token) P.setProperty('QBO_REFRESH', j.refresh_token);
+  P.setProperty('QBO_REFRESHED', new Date().toISOString());
+  return j.access_token;
+}
+function qboAccess_(force) {
+  if (!force && P.getProperty('QBO_ACCESS') && Number(P.getProperty('QBO_ACCESS_EXP') || 0) > Date.now()) return P.getProperty('QBO_ACCESS');
+  if (!P.getProperty('QBO_REFRESH')) throw new Error('QuickBooks is not connected yet.');
+  var lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try { return qboTokens_({ grant_type: 'refresh_token', refresh_token: P.getProperty('QBO_REFRESH') }); }
+  finally { lock.releaseLock(); }
+}
+/* GET from the Accounting API; on an expired token, renew once and retry. */
+function qboGet_(path) {
+  var realm = P.getProperty('QBO_REALM_ID'); if (!realm) throw new Error('QuickBooks is not connected yet.');
+  for (var attempt = 0; attempt < 2; attempt++) {
+    var url = QBO_API + realm + '/' + path + (path.indexOf('?') >= 0 ? '&' : '?') + 'minorversion=75';
+    var r = UrlFetchApp.fetch(url, { headers: { Authorization: 'Bearer ' + qboAccess_(attempt > 0), Accept: 'application/json' }, muteHttpExceptions: true });
+    var code = r.getResponseCode();
+    if (code === 401 && attempt === 0) continue;
+    if (code !== 200) { var tid = qboTid_(r); qboLog_('GET ' + path.split('?')[0], code, tid, r.getContentText()); throw new Error('QuickBooks said ' + code + ' for ' + path.split('?')[0] + (tid ? ' (ref ' + tid + ')' : '')); }
+    return JSON.parse(r.getContentText());
+  }
+}
+function qboStatus_() {
+  var s = { keys: !!(prop_('QBO_CLIENT_ID') && prop_('QBO_CLIENT_SECRET')), connected: !!(P.getProperty('QBO_REFRESH') && P.getProperty('QBO_REALM_ID')),
+            company: P.getProperty('QBO_COMPANY') || '', lastRenewed: P.getProperty('QBO_REFRESHED') || '', connectSig: sign_('qbo-connect') };
+  var log = JSON.parse(P.getProperty('QBO_LOG') || '[]'); if (log.length) s.lastError = log[0];
+  return s;
+}
+function qboDisconnect_() {
+  var t = P.getProperty('QBO_REFRESH');
+  if (t) {
+    var auth = Utilities.base64Encode(prop_('QBO_CLIENT_ID') + ':' + prop_('QBO_CLIENT_SECRET'));
+    UrlFetchApp.fetch(qboDiscovery_().revoke, { method: 'post', contentType: 'application/json', payload: JSON.stringify({ token: t }), muteHttpExceptions: true, headers: { Authorization: 'Basic ' + auth, Accept: 'application/json' } });
+  }
+  ['QBO_REFRESH', 'QBO_ACCESS', 'QBO_ACCESS_EXP', 'QBO_REALM_ID', 'QBO_COMPANY'].forEach(function (k) { P.deleteProperty(k); });
+  return qboStatus_();
+}
+/* Staff costs for a date range from the Profit and Loss report: income total and every wage-type line. Totals only. */
+function qboCosts_(from, to) {
+  var rep = qboGet_('reports/ProfitAndLoss?start_date=' + from + '&end_date=' + to + '&accounting_method=Accrual');
+  var lines = [], income = null, expenses = null;
+  (function walk(rows) {
+    (rows || []).forEach(function (r) {
+      if (r.Summary && r.group === 'Income') income = Number(r.Summary.ColData[1].value || 0);
+      if (r.Summary && r.group === 'Expenses') expenses = Number(r.Summary.ColData[1].value || 0);
+      if (r.ColData && /wage|salar|payroll|pension|national insurance|\bni\b|staff|coach|employ/i.test(r.ColData[0].value || ''))
+        lines.push({ account: r.ColData[0].value, amount: Number(r.ColData[1].value || 0) });
+      if (r.Rows) walk(r.Rows.Row);
+    });
+  })(rep.Rows && rep.Rows.Row);
+  var staff = lines.reduce(function (a, b) { return a + b.amount; }, 0);
+  return { from: from, to: to, currency: (rep.Header && rep.Header.Currency) || 'GBP', income: income, expenses: expenses, staffCosts: Math.round(staff * 100) / 100, lines: lines };
 }

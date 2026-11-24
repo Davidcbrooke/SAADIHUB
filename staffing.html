@@ -75,7 +75,7 @@ table.wg input[type=number]{width:72px}
 table.wg input[type=text]{width:190px}
 table.wg td.flag{color:var(--bad);font-size:12px}
 table.wg td.note{font-size:12px;color:var(--muted)}
-table.wg tr.lv0 td:first-child{border-left:4px solid #e91e8c}table.wg tr.lv1 td:first-child{border-left:4px solid #f5c400}table.wg tr.lv2 td:first-child{border-left:4px solid #f28c00}table.wg tr.lv3 td:first-child{border-left:4px solid #1e63c6}table.wg tr.lv4 td:first-child{border-left:4px solid #0f9c9c}table.wg tr.lv5 td:first-child{border-left:4px solid #2e9d4a}table.wg tr.lv6 td:first-child{border-left:4px solid #7a3fb5}
+table.wg tr.lv0 td:first-child{border-left:4px solid #e91e8c}table.wg tr.lv1 td:first-child{border-left:4px solid #f5c400}table.wg tr.lv2 td:first-child{border-left:4px solid #f28c00}table.wg tr.lv3 td:first-child{border-left:4px solid #1e63c6}table.wg tr.lv4 td:first-child{border-left:4px solid #0f9c9c}table.wg tr.lv5 td:first-child{border-left:4px solid #2e9d4a}table.wg tr.lv6 td:first-child{border-left:4px solid #7a3fb5}table.wg tr.lv7 td:first-child{border-left:4px solid #28225C}
 .sug{background:#fff6e0;padding:0 4px;border-radius:4px}
 .wkdays{display:flex;gap:10px;margin:10px 0 4px;flex-wrap:wrap}
 .wd{position:relative;width:52px;height:52px;border-radius:14px;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--display);font-size:20px;font-weight:700;line-height:1}
@@ -200,7 +200,8 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
     </section>
 
     <section class="panel" id="wagesPanel" data-pane="wages" hidden>
-      <div class="row" style="gap:10px"><h2 style="margin:0">Wages <span class="pill warn" id="wgDraft" hidden>Draft: amounts not agreed yet</span></h2><span style="flex:1"></span><button type="button" id="wgLock">🔒 Lock</button></div>
+      <div class="row" style="gap:10px"><h2 style="margin:0">Wages: hourly (non-salaried) staff <span class="pill warn" id="wgDraft" hidden>Draft: amounts not agreed yet</span></h2><span style="flex:1"></span><button type="button" id="wgLock">🔒 Lock</button></div>
+      <p class="small" style="margin:6px 0 0"><b>For hourly-paid staff only.</b> Salaried staff aren't on this pay scale and are left off the lists below.</p>
       <p class="small muted" style="margin:6px 0 0">Each level is a set amount <b>on top of the starting rate for the person's age</b>. SAADI sets the starting rates for 14 to 17 (there's no legal minimum under 16, and 16–17 never go below it); 18–20 and 21+ follow the minimum wage, so they go up by themselves each April. 14 and 15 year olds can only be Trainee or Assistant coaches.</p>
       <h3 style="margin:14px 0 6px">Pay scale</h3>
       <div style="overflow:auto"><table class="pos wg" id="wgScale"></table></div>
@@ -208,7 +209,15 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
         <p class="small muted">Add next year's rates when the government announces them (usually in the autumn Budget, starting 1 April).</p></details>
       <div class="row" style="margin-top:10px;gap:12px"><label class="row" style="gap:6px"><input type="checkbox" id="wgAgreed"> These are our agreed rates</label><button type="button" class="primary" id="wgSaveScale">Save pay scale</button></div>
       <h3 style="margin:18px 0 6px">Staff</h3>
-      <p class="small muted" style="margin:0">Everyone in Breathe, with their date of birth from QuickBooks. Levels start from each person's positions (<span class="sug">suggested</span>) until you save. Rates use each person's age on the day.</p>
+      <p class="small muted" style="margin:0">Hourly-paid staff in Breathe (salaried staff from the payroll import are left off), with their date of birth from payroll or QuickBooks. Levels start from each person's positions (<span class="sug">suggested</span>) until you save. Rates use each person's age on the day.</p>
+      <details class="small" id="wgImpBox" style="margin:8px 0;padding:8px 10px;border:1px solid var(--line);border-radius:10px"><summary><b>Import payroll report</b> <span class="muted">(updates pay, dates of birth and weekly hours from QuickBooks Advanced Payroll)</span></summary>
+        <ol style="margin:8px 0 6px 18px;padding:0;line-height:1.7">
+          <li>Sign in to QuickBooks, then <a id="wgRepLink" target="_blank" rel="noopener">open the payroll report ↗</a> (current staff, with the right columns already picked).</li>
+          <li>Press <b>Download &gt; CSV</b> and choose the file here: <input type="file" id="wgImpFile" accept=".csv,text/csv"></li>
+          <li>Or, if the download doesn't work: press <b>Run report</b>, select the whole table, copy it and paste it here:<br><textarea id="wgImpPaste" rows="3" style="width:min(560px,100%)" placeholder="Paste the report table here"></textarea></li>
+        </ol>
+        <div id="wgImpPrev"></div>
+      </details>
       <div class="row small" style="gap:8px;margin:8px 0"><input type="search" id="wgFilter" placeholder="Find a name…" style="width:200px"><label class="row" style="gap:6px"><input type="checkbox" id="wgCoachOnly" checked> Only people with a level</label><label class="row" style="gap:6px"><input type="checkbox" id="wgShowRm"> Show removed <span id="wgRmCount"></span></label><span class="muted" id="wgQbo"></span></div>
       <div style="overflow:auto"><table class="pos wg" id="wgStaff"></table></div>
       <p class="small" id="wgUnder" style="margin:8px 0 0;font-weight:700;color:var(--bad)" hidden></p>
@@ -558,7 +567,8 @@ function renderPositions(){
 const NMW_DEFAULT=[{from:"2026-04-01",r16:8.00,r18:10.85,r21:12.71},{from:"2027-04-01",r16:8.31,r18:11.27,r21:13.21}];
 // "plus" = pounds an hour above the minimum wage for the person's age; null = unpaid. All start at £0 (just the minimum wage).
 const LEVELS_DEFAULT=[{n:0,name:"Demonstrator / Young Leader",plus:null},{n:1,name:"Trainee Coach",plus:0},{n:2,name:"Assistant Coach",plus:0},
-  {n:3,name:"Lead Coach",plus:0},{n:4,name:"Lead Coach + L1 qualification",plus:0},{n:5,name:"Lead Coach + L2 qualification",plus:0},{n:6,name:"Senior Coach",plus:0}];
+  {n:3,name:"Lead Coach",plus:0},{n:4,name:"Lead Coach + L1 qualification",plus:0},{n:5,name:"Lead Coach + L2 qualification",plus:0},
+  {n:6,name:"Senior Coach + L3 qualification (consultant contracted)",plus:0},{n:7,name:"Senior Coach",plus:0}];
 const BANDS=[["b14","14"],["b15","15"],["b16","16"],["b17","17"],["r18","18–20"],["r21","21 and over"]];
 // SAADI's own starting rates for 14-17 (editable); 18+ follow the minimum wage. 14-15s go no higher than Level 2.
 const BASES_DEFAULT={b14:5.5,b15:6.5,b16:8.5,b17:9.5};
@@ -591,7 +601,12 @@ function suggestLevel(id){const p=posOf(id);return p.includes("Lead Coach")?3:p.
 async function loadQbo(){if(qboBusy||QBO)return;qboBusy=true;
   try{const j=await post({want:["qboStaff"]});QBO=(j.qboStaff||[]).filter(q=>q.active!==false);qboErr=""}catch(e){qboErr=e.message}
   qboBusy=false;renderWages()}
-function wagesOpened(){if(wgUnsub)wgUnsub();wgUnsub=Hub.wagesDoc("wages/main").onSnapshot(d=>{WG=d.exists?d.data():null;if(pane==="wages")renderWages()},()=>{});render()}
+// 24 Nov 2026: a new Level 6 (consultant contracted) went in and Senior Coach moved to Level 7. Saved scales are moved over once.
+function moveToSeven(x){if(!x||!Array.isArray(x.levels)||x.levels.some(l=>l.n===7))return null;
+  const levels=x.levels.map(l=>l.n===6?Object.assign({},l,{n:7}):l).concat([{n:6,name:"Senior Coach + L3 qualification (consultant contracted)",plus:0}]).sort((a,b)=>a.n-b.n);
+  const staff={};Object.entries(x.staff||{}).forEach(([k,v])=>{staff[k]=v===6?7:v});return {levels,staff}}
+function wagesOpened(){if(wgUnsub)wgUnsub();wgUnsub=Hub.wagesDoc("wages/main").onSnapshot(d=>{WG=d.exists?d.data():null;
+  const mv=moveToSeven(WG);if(mv){WG=Object.assign({},WG,mv);Hub.wagesDoc("wages/main").set(mv,{merge:true}).catch(()=>{})}if(pane==="wages")renderWages()},()=>{});render()}
 async function showWagesLock(){
   if(wlSetUp===null)wlSetUp=await Hub.wagesIsSetUp();
   $("wlTitle").textContent=wlSetUp?"Wages":"Set the Wages password";
@@ -616,9 +631,10 @@ function renderWages(){
   if(!QBO&&!qboErr&&!qboBusy)loadQbo();
   $("wgQbo").textContent=qboErr?"Couldn't read QuickBooks: "+qboErr:QBO?`${QBO.length} current employees in QuickBooks`:"Reading dates of birth from QuickBooks…";
   const f=$("wgFilter").value.trim().toLowerCase(),hid=HID(),showRm=$("wgShowRm").checked;let unpaid16=0,noDob=0,under=0;
-  const nRm=STAFF.filter(s=>hid[s.id]).length;$("wgRmCount").textContent=nRm?`(${nRm})`:"";
+  const sal=w.salaried||{},nSal=STAFF.filter(s=>sal[s.id]).length;
+  const nRm=STAFF.filter(s=>hid[s.id]&&!sal[s.id]).length;$("wgRmCount").textContent=nRm?`(${nRm})`:"";
   const rows=STAFF.map(s=>{const saved=w.staff[s.id],lv=saved!==undefined?saved:suggestLevel(s.id),q=qboFor(s);return {s,lv,isSug:saved===undefined,q,dob:dobOf(s,q)}})
-    .filter(r=>(showRm||!hid[r.s.id])&&(showRm&&hid[r.s.id]||!$("wgCoachOnly").checked||hasLv(r.lv))&&(!f||fullName(r.s).toLowerCase().includes(f)))
+    .filter(r=>!sal[r.s.id]&&(showRm||!hid[r.s.id])&&(showRm&&hid[r.s.id]||!$("wgCoachOnly").checked||hasLv(r.lv))&&(!f||fullName(r.s).toLowerCase().includes(f)))
     .sort((a,b)=>(hasLv(b.lv)?+b.lv:-1)-(hasLv(a.lv)?+a.lv:-1)||fullName(a.s).localeCompare(fullName(b.s)));
   $("wgStaff").innerHTML=`<thead><tr><th>Name</th><th>Age</th><th>Level</th><th>Level rate</th><th>Top-up</th><th>Their rate now</th><th>${nx?"From "+esc(pretty(nx.from,{day:"numeric",month:"short"})):"Next April"}</th><th>Paid now (payroll)</th><th>Notes</th><th></th></tr></thead><tbody>`+
     rows.map(({s,lv,isSug,q,dob})=>{const age=ageOn(dob,today),has=hasLv(lv);
@@ -648,7 +664,7 @@ function renderWages(){
           `<td class="note">${warn.length?`<span style="color:${red?"var(--bad)":"#b36b00"};font-weight:700">⚠ ${esc(warn.join(" · "))}</span>${notes.length?"<br>":""}`:""}${esc(notes.join(" · "))}</td>`}
         <td>${isRm?`<button type="button" data-wback="${esc(s.id)}" style="white-space:nowrap">Put back</button>`:`<button type="button" data-wrm="${esc(s.id)}" title="Take off the Wages and Holiday lists" style="white-space:nowrap">Remove</button>`}</td></tr>`}).join("")+"</tbody>";
   $("wgUnder").hidden=!under;$("wgUnder").textContent=`⚠ ${under} ${under===1?"person is":"people are"} paid below the legal minimum wage for their age. Put their pay up in payroll now.`;
-  $("wgNote").textContent=`${rows.length} shown${noDob?` · ${noDob} without a date of birth`:""}${unpaid16?` · ${unpaid16} aged 16+ on Level 0`:""}`;
+  $("wgNote").textContent=`${rows.length} shown${nSal?` · ${nSal} salaried staff not shown`:""}${noDob?` · ${noDob} without a date of birth`:""}${unpaid16?` · ${unpaid16} aged 16+ on Level 0`:""}`;
   renderHoliday(rows);
 }
 /* Holiday: 5.6 weeks x usual weekly hours (pro rata by start date), plus 12.07% of overtime hours. */
@@ -708,6 +724,61 @@ function liveScale(){const today=Hub.todayIso(),nx=nextNmw(),bases=Object.assign
       const at=d=>money(Math.round((baseFor(b,d,bases)+plus)*100)/100);
       c.innerHTML=at(today)+(nx&&!YOUNG(b)&&b!=="b16"&&b!=="b17"||nx&&baseFor(b,nx.from,bases)!==baseFor(b,today,bases)?`<div class="nx">${at(nx.from)} from ${esc(pretty(nx.from,{day:"numeric",month:"short",year:"numeric"}))}</div>`:"")})})}
 $("wgScale").addEventListener("input",e=>{if(e.target.closest("input[data-lplus],input[data-base]"))liveScale()});
+/* ---------- import the payroll report (QuickBooks Advanced Payroll > Employee Details Report) ----------
+   Read in this browser only. Saves hourly pay and date of birth for under-22s, and weekly hours, behind the Wages password. */
+const PAYROLL_REPORT="https://quickbooks.yourpayroll.co.uk/Reporting/383516/EmployeeDetailsReport/Index/?submit=true&EmployeeFilter=1&LocationId=0&EmployingEntityId=0&PayScheduleId="+
+  ["FirstName","Surname","RateOfPay","DateOfBirth","DefaultHours"].map(c=>"&SelectedColumns="+c).join("")+"&EmployeeStartDateFrom=&EmployeeStartDateTo=&EmployeeEndDateFrom=&EmployeeEndDateTo=&StartDateFilterType=0&EndDateFilterType=0&Expand=true&EmployeeId=";
+$("wgRepLink").href=PAYROLL_REPORT;
+let IMP=null;
+function parseTable(text){const t=String(text||"").replace(/^\uFEFF/,"");const tab=t.split(/\r?\n/).some(l=>(l.match(/\t/g)||[]).length>=2);
+  const rows=[];let row=[],cell="",q=false;
+  for(let i=0;i<t.length;i++){const c=t[i];
+    if(q){if(c==='"'){if(t[i+1]==='"'){cell+='"';i++}else q=false}else cell+=c;continue}
+    if(c==='"'&&!cell){q=true;continue}
+    if(c===(tab?"\t":",")){row.push(cell.trim());cell="";continue}
+    if(c==="\n"||c==="\r"){if(c==="\r"&&t[i+1]==="\n")i++;row.push(cell.trim());cell="";if(row.some(Boolean))rows.push(row);row=[];continue}
+    cell+=c}
+  row.push(cell.trim());if(row.some(Boolean))rows.push(row);return rows}
+const isoDob=v=>{v=String(v||"").trim();let m=v.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})/);if(m)return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;m=v.match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[0]:""};
+function readReport(text){
+  const rows=parseTable(text),hi=rows.findIndex(r=>r.some(c=>/^first ?name$/i.test(c))&&r.some(c=>/^surname$|^last ?name$/i.test(c)));
+  if(hi<0)throw new Error("Couldn't find the First name and Surname columns. Use the Employee Details Report from the link above.");
+  const H=rows[hi].map(c=>c.toLowerCase()),col=re=>H.findIndex(h=>re.test(h));
+  const cF=col(/^first ?name/),cS=col(/^surname|^last ?name/),cR=col(/^rate of pay$|^rate of pay(?! \()/),cU=col(/unit|per$/),cD=col(/date of birth|^dob$/),cH=col(/default hours|^hours/);
+  if(cR<0)throw new Error("The report has no Rate of pay column. Use the link above, which picks the right columns.");
+  return rows.slice(hi+1).filter(r=>r[cF]&&r[cS]&&!/^all \(|employees\)$/i.test(r[cF])).map(r=>{
+    const raw=String(r[cR]||"")+" "+(cU>=0?r[cU]:""),num=+(raw.replace(/,/g,"").match(/\d+(\.\d+)?/)||[0])[0];
+    const salaried=/annum|year|salary/i.test(raw)||num>200;
+    return {first:r[cF],last:r[cS],rate:num,salaried,dob:cD>=0?isoDob(r[cD]):"",hours:cH>=0?(+String(r[cH]).replace(/[^\d.]/g,"")||0):null}})}
+function matchPerson(p){const f=nk(p.first),l=nk(p.last);
+  let m=STAFF.filter(x=>nk(x.last)===l&&(nk(x.first)===f||nk(x.known)===f||(f&&nk(x.first).startsWith(f))||(nk(x.first)&&f.startsWith(nk(x.first)))));
+  if(m.length!==1){const c=STAFF.filter(x=>nk(x.last)===l);if(c.length===1)m=c}
+  if(m.length!==1){const c=STAFF.filter(x=>nk(x.first)===f&&nk(x.last).slice(0,4)===l.slice(0,4));if(c.length===1)m=c}
+  return m.length===1?m[0]:null}
+function previewImport(text){const box=$("wgImpPrev");IMP=null;
+  let list;try{list=readReport(text)}catch(e){box.innerHTML=`<p style="color:var(--bad)">${esc(e.message)}</p>`;return}
+  const today=Hub.todayIso(),w=W(),paid=Object.assign({},w.paid||{}),dob=Object.assign({},w.dob||{}),ho=Object.assign({startMonth:1,people:{}},w.holiday||{});ho.people=Object.assign({},ho.people);
+  const sal=Object.assign({},w.salaried||{});
+  const changes=[],unmatched=[],used=new Set();let nPay=0,nDob=0,nHrs=0,nAdult=0,nSal=0;
+  list.forEach(p=>{const s=matchPerson(p);if(!s||used.has(s.id)){unmatched.push(p.first+" "+p.last);return}used.add(s.id);
+    const age=p.dob?ageOn(p.dob,today):null,adult=age!=null&&age>=22;
+    if(p.salaried){sal[s.id]=true;if(s.id in paid)delete paid[s.id]}else delete sal[s.id];
+    if(p.hours!=null&&p.hours>0&&+(ho.people[s.id]||{}).hours!==p.hours){ho.people[s.id]=Object.assign({},ho.people[s.id]||{},{hours:p.hours});nHrs++}
+    if(adult){nAdult++;if(s.id in paid)delete paid[s.id];if(s.id in dob)delete dob[s.id];return}
+    if(p.dob&&dob[s.id]!==p.dob){dob[s.id]=p.dob;nDob++}
+    if(p.salaried){nSal++;return}
+    const old=paid[s.id];if(old===undefined||+old!==p.rate){changes.push(`${fullName(s)}: ${old===undefined?"new":money(old)} → ${money(p.rate)}`);paid[s.id]=p.rate;nPay++}});
+  IMP={paid,dob,holiday:ho,salaried:sal};
+  box.innerHTML=`<p style="margin:6px 0"><b>${list.length}</b> people in the report · <b>${used.size}</b> matched to Breathe · <b>${nPay}</b> pay ${nPay===1?"rate":"rates"} new or changed · <b>${nDob}</b> dates of birth · <b>${nHrs}</b> weekly hours · ${nAdult} aged 22+ (no pay kept) · ${nSal} salaried (left off the hourly lists)</p>`+
+    (changes.length?`<div class="muted" style="max-height:140px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px 8px;margin:4px 0">${changes.map(esc).join("<br>")}</div>`:"")+
+    (unmatched.length?`<p class="muted" style="margin:4px 0">Not matched to anyone in Breathe (left out): ${esc(unmatched.join(", "))}</p>`:"")+
+    `<div class="row" style="gap:8px;margin-top:6px"><button type="button" class="primary" id="wgImpGo">Apply import</button><button type="button" id="wgImpCancel">Cancel</button></div>`;
+  $("wgImpGo").onclick=async()=>{if(!IMP)return;try{await Hub.wagesDoc("wages/main").set(Object.assign({},IMP,{paidFrom:"Payroll report import, "+today,paidAt:new Date().toISOString(),importBy:me()}),{merge:true});
+      box.innerHTML='<p style="color:var(--good);margin:6px 0"><b>Imported.</b> Pay, dates of birth and hours are updated.</p>';$("wgImpPaste").value="";$("wgImpFile").value="";IMP=null;toast("Payroll report imported")}catch(e){toast("Couldn't save: "+(e.code||e.message))}};
+  $("wgImpCancel").onclick=()=>{IMP=null;box.innerHTML="";$("wgImpPaste").value="";$("wgImpFile").value=""}}
+$("wgImpFile").onchange=e=>{const f=e.target.files[0];if(!f)return;if(!/\.csv$/i.test(f.name)&&f.type!=="text/csv"){$("wgImpPrev").innerHTML='<p style="color:var(--bad)">Choose the CSV download (Download &gt; CSV), not Excel or PDF.</p>';return}
+  const r=new FileReader();r.onload=()=>previewImport(r.result);r.readAsText(f)};
+$("wgImpPaste").addEventListener("paste",()=>setTimeout(()=>previewImport($("wgImpPaste").value),0));
 $("wgFilter").oninput=renderWages;$("wgCoachOnly").onchange=renderWages;$("wgShowRm").onchange=renderWages;
 // Remove / Put back: saved straight away (Wages and Holiday lists only; nothing changes in Breathe or payroll)
 $("wgStaff").addEventListener("click",async e=>{const r=e.target.closest("button[data-wrm],button[data-wback]");if(!r)return;

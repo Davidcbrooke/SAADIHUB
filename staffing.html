@@ -68,6 +68,12 @@ table.pos th:first-child,table.pos td:first-child{text-align:left;white-space:no
 table.pos thead th{position:sticky;top:0;background:var(--surface);font-size:12px}
 table.pos td.s{background:#fff6e0}
 table.pos tr.ret td{color:var(--muted)}
+table.hr{border-collapse:collapse;font-size:13px;width:100%;min-width:640px}
+table.hr td,table.hr th{border-bottom:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top}
+table.hr tr.hc td{background:var(--surface-2);font-weight:700}
+table.hr .chip{display:inline-block;border-radius:99px;padding:1px 8px;margin:1px 4px 1px 0;background:var(--surface-2);border:1px solid var(--line)}
+table.hr .chip.unk{background:#fff3e0;border-color:#f0b35a}
+table.hr input.mins{width:58px}
 table.wg td,table.wg th{text-align:left}
 table.wg td.m{font-variant-numeric:tabular-nums;white-space:nowrap}
 table.wg .nx{font-size:11px;color:var(--muted)}
@@ -164,7 +170,7 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
     </section>
 
     <div class="bar" id="topBar" hidden>
-      <div class="bar tabs" id="tabs"><button type="button" data-tab="cover">Cover</button><button type="button" data-tab="rota">Rota</button><button type="button" data-tab="positions">Positions</button><button type="button" data-tab="wages">Wages 🔒</button><button type="button" data-tab="names">Names &amp; settings <span class="pill warn" id="namesBadge" hidden></span></button></div>
+      <div class="bar tabs" id="tabs"><button type="button" data-tab="cover">Cover</button><button type="button" data-tab="rota">Rota</button><button type="button" data-tab="hubrota">Hub rota <span class="pill none" style="font-size:10px">preview</span></button><button type="button" data-tab="positions">Positions</button><button type="button" data-tab="wages">Wages 🔒</button><button type="button" data-tab="names">Names &amp; settings <span class="pill warn" id="namesBadge" hidden></span></button></div>
       <span style="flex:1"></span>
       <button type="button" id="prevWk" aria-label="Previous week">&larr;</button><span class="wk" id="wkLabel"></span><button type="button" id="nextWk" aria-label="Next week">&rarr;</button>
       <button type="button" id="thisWk">This week</button>
@@ -243,6 +249,17 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
       <p class="small muted" style="margin:0">Names on the rota that the Hub can't link to one person in Breathe, so it can't tell when they're off. Fix each one once: it's saved for everyone.</p>
       <div class="list" id="anomList"></div>
       <details class="small" style="margin-top:6px"><summary>Marked as not in Breathe <span id="ignCount"></span></summary><div class="list" id="ignList" style="margin-top:6px"></div></details>
+    </section>
+
+    <section class="panel" id="hubRotaPanel" data-pane="hubrota" hidden>
+      <div class="row" style="gap:10px;flex-wrap:wrap"><h2 style="margin:0">Hub rota</h2><span class="pill warn">Preview: the Google sheet is still the rota until Spring term</span><span style="flex:1"></span><button type="button" class="primary" id="hrImport">Import from the sheet</button></div>
+      <p class="small muted" style="margin:6px 0 0" id="hrInfo"></p>
+      <div class="bar" id="hrDays" style="margin-top:8px"></div>
+      <p class="small" id="hrWeekNote" style="margin:6px 0 0;color:#b36b00;font-weight:700" hidden></p>
+      <div id="hrDay" style="overflow:auto"></div>
+      <h3 style="margin:18px 0 6px">Hours this week</h3>
+      <p class="small muted" style="margin:0">From the rota and each class's length. Recreational 1 hr, Novice 1¼ hr, Pre-school 45 min, Play Gym 1¼ hr; set the others in the <b>Length</b> box on each class above. Part-shifts written in a cell (e.g. "Mel 5-6") still count as the whole class for now.</p>
+      <div id="hrHours" style="overflow:auto"></div>
     </section>
 
     <section class="panel" id="dayPanel" data-pane="rota" hidden>
@@ -854,6 +871,62 @@ $("wgSaveStaff").onclick=async()=>{const m=Object.assign({},W().staff),pd=Object
   STAFF.forEach(s=>{const d=dobOf(s,qboFor(s)),a=d?ageOn(d,Hub.todayIso()):null;if(a!=null&&a>=22)delete pd[s.id]});
   try{await Hub.wagesDoc("wages/main").set({staff:m,paid:pd,topup:tp,staffBy:me(),staffAt:new Date().toISOString()},{merge:true});toast("Pay bands and pay saved")}catch(e){toast("Couldn't save: "+(e.code||e.message))}};
 
+/* ---------- Hub rota (preview): the termly sheet imported into the Hub ----------
+   The sheet stays the master until Spring term; re-import any time. Stored at rota/<term> in the hub's data. */
+let HR=null,HR_KEY="",hrUnsub=null,hrDay="";
+const termKey=t=>String(t||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"term";
+// class lengths Dave gave (24 Nov 2026); everything else is set per class
+function classMins(cls){const c=String(cls||"").toLowerCase();
+  if(/pre\s*-?\s*school/.test(c))return 45;if(/play\s*gym/.test(c))return 75;if(/novice/.test(c))return 75;
+  // squads and others with their times in the name, e.g. "Pearl 4:00-7:00", "MAG Juniors 6-8pm", "Rec Plus 5:15pm-6:30pm"
+  const t=c.match(/(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)?\s*-\s*(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)?/);
+  if(t){const st=(+t[1]%12)*60+(+t[2]||0);let en=(+t[4]%12)*60+(+t[5]||0);if(en<=st)en+=720;const d=en-st;if(d>=15&&d<=600)return d}
+  if(/\bgroup\b|recreational/.test(c))return 60;return null}
+const minsKey=(day,r)=>[day,r.session,r.cls,r.cls==="Desk/Reception"?r.role:""].join("|");
+const rowMins=(day,r)=>{const v=((HR&&HR.mins)||{})[minsKey(day,r)];return v!==undefined&&v!==null&&v!==""?+v:classMins(r.cls)};
+function watchRota(){Hub.doc("config/rota").onSnapshot(d=>{const k=(d.exists&&d.data().current)||"";if(k===HR_KEY)return;HR_KEY=k;if(hrUnsub)hrUnsub();hrUnsub=null;HR=null;
+  if(k)hrUnsub=Hub.doc("rota/"+k).onSnapshot(x=>{HR=x.exists?x.data():null;if(pane==="hubrota")renderHubRota()},()=>{});if(pane==="hubrota")renderHubRota()},()=>{})}
+async function importRota(){if(!DATA||!DAYS.length)return toast("The rota sheet hasn't loaded yet");
+  const key=termKey(DATA.rota.title),days={};
+  DAYS.forEach(d=>{days[d.day]={weeks:d.weeks.map(w=>({date:w.date,label:w.label||"",note:w.note||""})),
+    rows:d.rows.map(r=>({session:r.session||"",cls:r.cls||"",termly:String(r.termly||""),role:r.role||"",colour:r.colour||"",cells:r.cells.map(c=>String(c||""))}))}});
+  const keep=HR&&HR_KEY===key?(HR.mins||{}):{};
+  $("hrImport").disabled=true;
+  try{await Hub.doc("rota/"+key).set({key,title:DATA.rota.title,days,mins:keep,importedAt:new Date().toISOString(),importedBy:me()||"Hub"});
+    await Hub.doc("config/rota").set({current:key},{merge:true});toast("Imported "+DATA.rota.title)}catch(e){toast("Couldn't import: "+(e.code||e.message))}
+  $("hrImport").disabled=false}
+function renderHubRota(){
+  if(!HR){$("hrInfo").textContent="Nothing imported yet. Press Import from the sheet to bring this term's rota into the Hub.";$("hrDays").innerHTML="";$("hrDay").innerHTML="";$("hrHours").innerHTML="";$("hrWeekNote").hidden=true;return}
+  const names=Object.keys(HR.days).sort((a,b)=>DAY_ORDER.indexOf(a)-DAY_ORDER.indexOf(b));
+  if(!hrDay||!HR.days[hrDay]){const t=DAY_ORDER[(new Date().getDay()+6)%7];hrDay=HR.days[t]?t:names[0]}
+  $("hrInfo").textContent=`${HR.title} · imported ${new Date(HR.importedAt).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}${HR.importedBy?" by "+HR.importedBy:""} · week of ${pretty(weekStart,{day:"numeric",month:"long"})} (use the arrows at the top to change week)`;
+  $("hrDays").innerHTML=names.map(n=>`<button type="button" data-hrday="${n}" aria-pressed="${n===hrDay}">${n.slice(0,3)} ${new Date(dateFor(n,weekStart)+"T12:00:00").getDate()}</button>`).join("");
+  const D=HR.days[hrDay],date=dateFor(hrDay,weekStart),c=D.weeks.findIndex(w=>w.date===date),wk=D.weeks[c];
+  $("hrWeekNote").hidden=!(wk&&(wk.note||/half term/i.test(wk.label)));$("hrWeekNote").textContent=wk?[wk.label,wk.note].filter(Boolean).join(" · "):"";
+  if(c<0){$("hrDay").innerHTML=`<p class="muted">${esc(hrDay)} ${esc(pretty(date,{day:"numeric",month:"long"}))} isn't in this term's rota.</p>`}
+  else{let last="",html="";
+    D.rows.forEach((r,i)=>{const head=r.session+"|"+r.cls;
+      if(head!==last){last=head;const k=minsKey(hrDay,r),m=rowMins(hrDay,r),set=((HR.mins||{})[k]!==undefined);
+        html+=`<tr class="hc"><td colspan="2"><i class="swatch" style="background:${esc(r.colour||"var(--line)")}"></i> ${esc(r.session)} · ${esc(r.cls)}${r.termly?` <span class="muted" style="font-weight:400">(${esc(r.termly)} children)</span>`:""}</td>
+          <td style="font-weight:400">Length <input type="number" class="mins" min="0" step="5" data-mins="${esc(k)}" value="${m==null?"":m}" placeholder="mins"> min${m==null?' <span style="color:#b36b00">not set</span>':set?"":' <span class="muted">(standard)</span>'}</td></tr>`}
+      const txt=(r.cells[c]||"").trim(),toks=ST.namesIn(txt),ppl=toks.map(t=>({t,p:who(t)}));
+      html+=`<tr><td style="width:180px">${esc(r.role)}</td><td>${ppl.map(x=>x.p&&!x.p.ignore?`<span class="chip">${esc(fullName(x.p))}</span>`:x.p&&x.p.ignore?"":`<span class="chip unk" title="Not matched to anyone in Breathe">${esc(x.t)}</span>`).join("")||(txt?"":'<span class="muted">–</span>')}</td>
+        <td class="small muted">${txt&&(toks.length===0||/\d|from|until|@|\(|\/|&|then|half/i.test(txt))?esc(txt):""}</td></tr>`});
+    $("hrDay").innerHTML=`<table class="hr"><thead><tr><th>Role</th><th>People</th><th>As written in the sheet</th></tr></thead><tbody>${html}</tbody></table>`}
+  // hours this week, per person
+  const tot={},cnt={},unk={};
+  names.forEach(n=>{const Dn=HR.days[n],ci=Dn.weeks.findIndex(w=>w.date===dateFor(n,weekStart));if(ci<0)return;
+    Dn.rows.forEach(r=>{const txt=(r.cells[ci]||"").trim();if(!txt)return;const m=rowMins(n,r);
+      ST.namesIn(txt).map(t=>who(t)).filter(p=>p&&!p.ignore).forEach(p=>{const id=p.id;cnt[id]=(cnt[id]||0)+1;if(m==null)unk[id]=(unk[id]||0)+1;else tot[id]=(tot[id]||0)+m})})});
+  const ids=Object.keys(cnt).sort((a,b)=>(tot[b]||0)-(tot[a]||0));const hm=m=>`${Math.floor(m/60)}h${m%60?" "+String(m%60).padStart(2,"0"):""}`;
+  $("hrHours").innerHTML=ids.length?`<table class="hr" style="min-width:420px"><thead><tr><th>Name</th><th>Hours</th><th>Shifts</th><th></th></tr></thead><tbody>${ids.map(id=>{const s=STAFF.find(x=>String(x.id)===String(id));
+    return `<tr><td>${esc(s?fullName(s):id)}</td><td><b>${hm(tot[id]||0)}</b></td><td>${cnt[id]}</td><td class="small" style="color:#b36b00">${unk[id]?`${unk[id]} shift${unk[id]===1?"":"s"} with no length set`:""}</td></tr>`}).join("")}</tbody></table>`:'<p class="muted">Nobody on the rota this week.</p>';
+}
+$("hrImport").onclick=importRota;
+document.addEventListener("click",e=>{const b=e.target.closest("button[data-hrday]");if(b){hrDay=b.dataset.hrday;renderHubRota()}});
+document.addEventListener("change",async e=>{const i=e.target.closest("input[data-mins]");if(!i||!HR_KEY)return;const v=i.value===""?null:Math.max(0,Math.round(+i.value));
+  try{await Hub.doc("rota/"+HR_KEY).set({mins:{[i.dataset.mins]:v}},{merge:true});toast("Length saved")}catch(x){toast("Couldn't save: "+(x.code||x.message))}});
+
 /* ---------- render ---------- */
 function render(){
   if(!cfgLoaded)return;
@@ -881,6 +954,7 @@ function render(){
   renderCover(offWeek.size);
   if(pane==="positions")renderPositions();
   if(pane==="wages")renderWages();
+  if(pane==="hubrota")renderHubRota();
   const v=dayView(day,dateFor(day,weekStart));
   $("dayTitle").textContent=`${day} ${pretty(dateFor(day,weekStart),{day:"numeric",month:"long"})}`;
   $("dayBody").innerHTML=v.html;
@@ -985,6 +1059,7 @@ $("saveNames").onclick=async()=>{const m={};document.querySelectorAll("#namesLis
   await Hub.doc("config/staffing").set(Object.assign({},CFG,{names:m}));toast("Names saved")};
 
 Hub.gate(()=>{
+  watchRota();
   // (guarded so an old cached hub-core.js can never stop the page loading)
   if(Hub.wagesSaved){const sv=Hub.wagesSaved();if(sv)Hub.openWages(sv,true).then(err=>{if(!err)wagesOpened()})}
   Hub.doc("config/enquiryDesk").onSnapshot(d=>{S=EQ.settings(d.exists?d.data():{});if(DATA)render()},()=>{});

@@ -201,7 +201,7 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
 
     <section class="panel" id="wagesPanel" data-pane="wages" hidden>
       <div class="row" style="gap:10px"><h2 style="margin:0">Wages <span class="pill warn" id="wgDraft" hidden>Draft: amounts not agreed yet</span></h2><span style="flex:1"></span><button type="button" id="wgLock">🔒 Lock</button></div>
-      <p class="small muted" style="margin:6px 0 0">Each level is paid a set amount <b>above the legal minimum wage for the person's age</b>, so every rate goes up by itself when the minimum wage rises each April. Under-16s have no legal minimum, so they're paid the 16–17 rate.</p>
+      <p class="small muted" style="margin:6px 0 0">Each level is a set amount <b>on top of the starting rate for the person's age</b>. SAADI sets the starting rates for 14 to 17 (there's no legal minimum under 16, and 16–17 never go below it); 18–20 and 21+ follow the minimum wage, so they go up by themselves each April. 14 and 15 year olds can only be Trainee or Assistant coaches.</p>
       <h3 style="margin:14px 0 6px">Pay scale</h3>
       <div style="overflow:auto"><table class="pos wg" id="wgScale"></table></div>
       <details style="margin-top:8px"><summary class="small">Minimum wage rates used (gov.uk)</summary><div style="overflow:auto"><table class="pos wg" id="wgNmw"></table></div>
@@ -556,18 +556,23 @@ function renderPositions(){
 /* ---------- wages (own password) ---------- */
 // UK National Minimum Wage per hour by age band (gov.uk). Under-16s have no legal minimum: they're paid the 16-17 rate.
 const NMW_DEFAULT=[{from:"2026-04-01",r16:8.00,r18:10.85,r21:12.71},{from:"2027-04-01",r16:8.31,r18:11.27,r21:13.21}];
-// "plus" = pounds an hour above the minimum wage for the person's age; null = unpaid. Suggested amounts until Dave agrees them.
-const LEVELS_DEFAULT=[{n:0,name:"Demonstrator / Young Leader",plus:null},{n:1,name:"Trainee Coach",plus:0},{n:2,name:"Assistant Coach",plus:0.5},
-  {n:3,name:"Lead Coach",plus:1.25},{n:4,name:"Lead Coach + L1 qualification",plus:2},{n:5,name:"Lead Coach + L2 qualification",plus:3},{n:6,name:"Senior Coach",plus:4.5}];
-const BANDS=[["u16","Under 16"],["r16","16–17"],["r18","18–20"],["r21","21 and over"]];
+// "plus" = pounds an hour above the minimum wage for the person's age; null = unpaid. All start at £0 (just the minimum wage).
+const LEVELS_DEFAULT=[{n:0,name:"Demonstrator / Young Leader",plus:null},{n:1,name:"Trainee Coach",plus:0},{n:2,name:"Assistant Coach",plus:0},
+  {n:3,name:"Lead Coach",plus:0},{n:4,name:"Lead Coach + L1 qualification",plus:0},{n:5,name:"Lead Coach + L2 qualification",plus:0},{n:6,name:"Senior Coach",plus:0}];
+const BANDS=[["b14","14"],["b15","15"],["b16","16"],["b17","17"],["r18","18–20"],["r21","21 and over"]];
+// SAADI's own starting rates for 14-17 (editable); 18+ follow the minimum wage. 14-15s go no higher than Level 2.
+const BASES_DEFAULT={b14:5.5,b15:6.5,b16:8.5,b17:9.5};
+const YOUNG=b=>b==="b14"||b==="b15",YOUNG_MAX=2;
 let WG=null,QBO=null,qboBusy=false,qboErr="",wgUnsub=null,wlSetUp=null;
-const W=()=>Object.assign({nmw:NMW_DEFAULT,levels:LEVELS_DEFAULT,staff:{},agreed:false},WG||{});
+const W=()=>{const w=Object.assign({nmw:NMW_DEFAULT,levels:LEVELS_DEFAULT,staff:{},agreed:false},WG||{});w.bases=Object.assign({},BASES_DEFAULT,w.bases||{});return w};
 const nmwOn=date=>{const l=W().nmw.slice().sort((a,b)=>a.from<b.from?-1:1);let c=l[0];l.forEach(x=>{if(x.from<=date)c=x});return c};
 const nextNmw=()=>W().nmw.filter(x=>x.from>Hub.todayIso()).sort((a,b)=>a.from<b.from?-1:1)[0]||null;
 const ageOn=(dob,date)=>{if(!dob)return null;const b=new Date(dob+"T12:00:00"),d=new Date(date+"T12:00:00");let a=d.getFullYear()-b.getFullYear();if(d.getMonth()<b.getMonth()||(d.getMonth()===b.getMonth()&&d.getDate()<b.getDate()))a--;return a};
-const bandOf=age=>age==null?"r21":age<16?"u16":age<18?"r16":age<21?"r18":"r21";
+const bandOf=age=>age==null?"r21":age<=14?"b14":age===15?"b15":age===16?"b16":age===17?"b17":age<21?"r18":"r21";
+// starting rate for an age band on a date: SAADI's rate for 14-17 (never below the legal 16-17 minimum), the minimum wage from 18
+const baseFor=(band,date,bases)=>{const m=nmwOn(date);if(band==="r18"||band==="r21")return m[band];const club=+((bases||W().bases)[band])||0;return Math.max(club,band==="b16"||band==="b17"?m.r16:0)};
 const levelOf=n=>W().levels.find(x=>x.n===+n);
-const rateFor=(n,band,date)=>{const L=levelOf(n);if(!L||L.plus==null)return 0;const m=nmwOn(date);return Math.round(((band==="u16"?m.r16:m[band])+(+L.plus||0))*100)/100};
+const rateFor=(n,band,date)=>{const L=levelOf(n);if(!L||L.plus==null)return 0;return Math.round((baseFor(band,date)+(+L.plus||0))*100)/100};
 const money=v=>"£"+(+v).toFixed(2);
 const legalMin=(age,date)=>{if(age==null||age<16)return 0;const m=nmwOn(date);return age<18?m.r16:age<21?m.r18:m.r21};
 const PAID=()=>W().paid||{};
@@ -597,10 +602,15 @@ function renderWages(){
   if(!open){showWagesLock();return}
   const w=W(),today=Hub.todayIso(),nx=nextNmw();
   $("wgDraft").hidden=!!w.agreed;$("wgAgreed").checked=!!w.agreed;
-  $("wgScale").innerHTML=`<thead><tr><th>Level</th><th>Role</th><th>Above minimum wage</th>${BANDS.map(b=>`<th>${b[1]}</th>`).join("")}</tr></thead><tbody>`+
+  const fromTxt=nx?esc(pretty(nx.from,{day:"numeric",month:"short",year:"numeric"})):"";
+  $("wgScale").innerHTML=`<thead><tr><th>Level</th><th>Role</th><th>On top of the starting rate</th>${BANDS.map(b=>`<th>${b[1]}</th>`).join("")}</tr></thead><tbody>`+
+    `<tr style="background:var(--surface-2)"><td><b>Starting rate</b></td><td class="muted small">by age</td><td></td>${BANDS.map(([b])=>YOUNG(b)||b==="b16"||b==="b17"
+      ?`<td>£<input type="number" step="0.05" min="0" data-base="${b}" value="${(+w.bases[b]).toFixed(2)}"><div class="nx" data-bnx="${b}"></div></td>`
+      :`<td class="m"><b>${money(baseFor(b,today))}</b>${nx?`<div class="nx">${money(baseFor(b,nx.from))} from ${fromTxt}</div>`:""}<div class="nx">minimum wage</div></td>`).join("")}</tr>`+
     w.levels.map(L=>`<tr class="lv${L.n}"><td><b>Level ${L.n}</b></td><td><input type="text" data-lname="${L.n}" value="${esc(L.name)}"></td>
       <td>${L.plus==null?'<span class="muted">Unpaid</span>':`+£<input type="number" step="0.05" min="0" data-lplus="${L.n}" value="${(+L.plus).toFixed(2)}">`}</td>
-      ${BANDS.map(([b])=>`<td class="m">${L.plus==null?"£0.00":money(rateFor(L.n,b,today))}${nx&&L.plus!=null?`<div class="nx">${money(rateFor(L.n,b,nx.from))} from ${esc(pretty(nx.from,{day:"numeric",month:"short",year:"numeric"}))}</div>`:""}</td>`).join("")}</tr>`).join("")+"</tbody>";
+      ${BANDS.map(([b])=>`<td class="m" data-sc="${L.n}:${b}"></td>`).join("")}</tr>`).join("")+"</tbody>";
+  liveScale();
   $("wgNmw").innerHTML=`<thead><tr><th>From</th><th>16–17</th><th>18–20</th><th>21 and over</th></tr></thead><tbody>`+
     w.nmw.concat([{from:"",r16:"",r18:"",r21:""}]).map((r,i)=>`<tr><td><input type="date" data-nf="${i}" value="${esc(r.from)}"></td>${["r16","r18","r21"].map(k=>`<td>£<input type="number" step="0.01" min="0" data-nr="${i}:${k}" value="${r[k]===""?"":(+r[k]).toFixed(2)}"></td>`).join("")}</tr>`).join("")+"</tbody>";
   if(!QBO&&!qboErr&&!qboBusy)loadQbo();
@@ -615,7 +625,8 @@ function renderWages(){
       const tu=+TOP()[s.id]||0,base=has?rateFor(lv,bandOf(age),today):null,now=has?Math.round((base+tu)*100)/100:null,
         later=has&&nx?Math.round((rateFor(lv,bandOf(ageOn(dob,nx.from)),nx.from)+tu)*100)/100:null;const notes=[];
       if(!dob&&QBO&&!q)notes.push("Not found in QuickBooks");else if(!dob&&q){notes.push("No date of birth in QuickBooks: paid as 21+");noDob++}
-      if(dob&&has)[16,18,21].forEach(t=>{const d=birthday(dob,t);if(d>today&&d<=addDays(today,365)){const r=rateFor(lv,bandOf(t),d);if(r!==rateFor(lv,bandOf(t-1),d))notes.push(`Turns ${t} on ${pretty(d,{day:"numeric",month:"short",year:"numeric"})}: ${money(r)}`)}});
+      if(has&&age!=null&&age<=15&&+lv>YOUNG_MAX)notes.push("14 and 15 year olds can only be Trainee or Assistant coaches");
+      if(dob&&has)[15,16,17,18,21].forEach(t=>{const d=birthday(dob,t);if(d>today&&d<=addDays(today,365)){const r=rateFor(lv,bandOf(t),d);if(r!==rateFor(lv,bandOf(t-1),d))notes.push(`Turns ${t} on ${pretty(d,{day:"numeric",month:"short",year:"numeric"})}: ${money(r)}`)}});
       const flag=has&&+lv===0&&age!=null&&age>=16;if(flag)unpaid16++;
       // what payroll actually pays, against the legal minimum for their age today, after a birthday, and from next April
       // pay is only kept for under-22s (where the age bands matter); 22 and over stay blank
@@ -684,6 +695,19 @@ $("wlForm").addEventListener("submit",async e=>{e.preventDefault();const pw=$("w
   $("wlGo").disabled=false;msg.textContent=err||"";
   if(!err){$("wlPass").value="";$("wlPass2").value="";wagesOpened()}});
 $("wgLock").onclick=()=>{Hub.lockWages();if(wgUnsub)wgUnsub();wgUnsub=null;WG=null;render()};
+// the age-band columns follow the "above minimum wage" box as you type (Save pay scale keeps it)
+// every cell is worked out from what's typed in the boxes, so the table follows as you type (Save pay scale keeps it)
+function liveScale(){const today=Hub.todayIso(),nx=nextNmw(),bases=Object.assign({},W().bases);
+  document.querySelectorAll("#wgScale input[data-base]").forEach(i=>{bases[i.dataset.base]=Math.max(0,+i.value||0)});
+  document.querySelectorAll("#wgScale [data-bnx]").forEach(d=>{const b=d.dataset.bnx,legal=b==="b16"||b==="b17"?nmwOn(today).r16:0;
+    d.textContent=bases[b]<legal?`Below the legal ${money(legal)}: ${money(legal)} is used`:YOUNG(b)?"no legal minimum":`legal minimum ${money(legal)}`});
+  W().levels.forEach(L=>{const pi=document.querySelector(`#wgScale input[data-lplus="${L.n}"]`),plus=L.plus==null?null:Math.max(0,+(pi?pi.value:L.plus)||0);
+    BANDS.forEach(([b])=>{const c=document.querySelector(`#wgScale td[data-sc="${L.n}:${b}"]`);if(!c)return;
+      if(YOUNG(b)&&L.n>YOUNG_MAX){c.innerHTML='<span class="muted">–</span>';return}
+      if(plus==null){c.textContent="£0.00";return}
+      const at=d=>money(Math.round((baseFor(b,d,bases)+plus)*100)/100);
+      c.innerHTML=at(today)+(nx&&!YOUNG(b)&&b!=="b16"&&b!=="b17"||nx&&baseFor(b,nx.from,bases)!==baseFor(b,today,bases)?`<div class="nx">${at(nx.from)} from ${esc(pretty(nx.from,{day:"numeric",month:"short",year:"numeric"}))}</div>`:"")})})}
+$("wgScale").addEventListener("input",e=>{if(e.target.closest("input[data-lplus],input[data-base]"))liveScale()});
 $("wgFilter").oninput=renderWages;$("wgCoachOnly").onchange=renderWages;$("wgShowRm").onchange=renderWages;
 // Remove / Put back: saved straight away (Wages and Holiday lists only; nothing changes in Breathe or payroll)
 $("wgStaff").addEventListener("click",async e=>{const r=e.target.closest("button[data-wrm],button[data-wback]");if(!r)return;
@@ -692,10 +716,11 @@ $("wgStaff").addEventListener("click",async e=>{const r=e.target.closest("button
 $("wgSaveScale").onclick=async()=>{const w=W();
   const levels=w.levels.map(L=>{const nm=document.querySelector(`[data-lname="${L.n}"]`),pl=document.querySelector(`[data-lplus="${L.n}"]`);
     return {n:L.n,name:(nm&&nm.value.trim())||L.name,plus:L.plus==null?null:Math.max(0,Math.round((+(pl&&pl.value)||0)*100)/100)}});
+  const bases=Object.assign({},w.bases);document.querySelectorAll("#wgScale input[data-base]").forEach(i=>{bases[i.dataset.base]=Math.max(0,Math.round((+i.value||0)*100)/100)});
   const nmw=[];document.querySelectorAll("#wgNmw input[data-nf]").forEach(i=>{const k=i.dataset.nf,v=x=>+(document.querySelector(`[data-nr="${k}:${x}"]`).value||0);
     if(/^\d{4}-\d{2}-\d{2}$/.test(i.value)&&v("r21")>0)nmw.push({from:i.value,r16:v("r16"),r18:v("r18"),r21:v("r21")})});
   if(!nmw.length)return toast("Keep at least one year of minimum wage rates");
-  try{await Hub.wagesDoc("wages/main").set({levels,nmw,agreed:$("wgAgreed").checked,scaleBy:me(),scaleAt:new Date().toISOString()},{merge:true});toast("Pay scale saved")}catch(e){toast("Couldn't save: "+(e.code||e.message))}};
+  try{await Hub.wagesDoc("wages/main").set({levels,nmw,bases,agreed:$("wgAgreed").checked,scaleBy:me(),scaleAt:new Date().toISOString()},{merge:true});toast("Pay scale saved")}catch(e){toast("Couldn't save: "+(e.code||e.message))}};
 $("wgSaveStaff").onclick=async()=>{const m=Object.assign({},W().staff),pd=Object.assign({},PAID());
   document.querySelectorAll("#wgStaff select[data-wlv]").forEach(x=>{m[x.dataset.wlv]=x.value==="none"?"none":+x.value});
   document.querySelectorAll("#wgStaff input[data-wpd]").forEach(x=>{if(x.value==="")delete pd[x.dataset.wpd];else pd[x.dataset.wpd]=Math.round(+x.value*100)/100});

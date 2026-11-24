@@ -170,7 +170,7 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
     </section>
 
     <div class="bar" id="topBar" hidden>
-      <div class="bar tabs" id="tabs"><button type="button" data-tab="cover">Cover</button><button type="button" data-tab="rota">Rota</button><button type="button" data-tab="sheet">Rota sheet</button><button type="button" data-tab="hubrota">Hub rota <span class="pill none" style="font-size:10px">preview</span></button><button type="button" data-tab="wages">Wages 🔒</button><button type="button" data-tab="names">Names &amp; settings <span class="pill warn" id="namesBadge" hidden></span></button></div>
+      <div class="bar tabs" id="tabs"><button type="button" data-tab="cover">Cover</button><button type="button" data-tab="rota" hidden>Rota</button><button type="button" data-tab="sheet" hidden>Rota sheet</button><button type="button" data-tab="hubrota" hidden>Hub rota <span class="pill none" style="font-size:10px">preview</span></button><button type="button" data-tab="wages">Wages 🔒</button><button type="button" data-tab="names" hidden>Names &amp; settings <span class="pill warn" id="namesBadge" hidden></span></button></div>
       <span style="flex:1"></span>
       <button type="button" id="prevWk" aria-label="Previous week">&larr;</button><span class="wk" id="wkLabel"></span><button type="button" id="nextWk" aria-label="Next week">&rarr;</button>
       <button type="button" id="thisWk">This week</button>
@@ -948,6 +948,8 @@ function render(){
   if(!cfgLoaded)return;
   const ready=!!(CFG.url&&DATA);
   $("topBar").hidden=!ready;
+  // tabs switched off for now (24 Nov 2026: Dave kept just Cover and Wages); remove "hidden" from a tab button to bring it back
+  if(document.querySelector(`#tabs button[data-tab="${pane}"]`)?.hidden)pane="cover";
   document.querySelectorAll("[data-pane]").forEach(el=>el.hidden=!ready||el.dataset.pane!==pane);
   if(!ready&&CFG.url)$("settingsPanel").hidden=false;
   document.querySelectorAll("#tabs button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.tab===pane)));

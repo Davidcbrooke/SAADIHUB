@@ -101,6 +101,27 @@ input[type=text]{width:100%}
 .panel.fold.folded{padding-top:12px;padding-bottom:12px}
 .grid2:has(> .panel.fold.folded + .panel.fold.folded){grid-template-columns:1fr 1fr;align-items:start}
 .grid2{align-items:start}
+
+/* step flow: one coloured block per step, holding that step's sections */
+.flow{display:flex;flex-direction:column;gap:14px}
+.sblock{border:2px solid color-mix(in srgb,var(--sc) 55%,transparent);border-left:10px solid var(--sc);border-radius:18px;background:color-mix(in srgb,var(--sc) 5%,var(--surface,#fff));overflow:hidden}
+.sblock.done{border-color:color-mix(in srgb,var(--good) 45%,transparent);border-left-color:var(--good);background:color-mix(in srgb,var(--good) 6%,var(--surface,#fff))}
+.sblock.now{box-shadow:0 0 0 4px color-mix(in srgb,var(--sc) 22%,transparent)}
+.sb-head{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:14px;align-items:center;padding:14px 16px;cursor:pointer}
+.sb-num{width:44px;height:44px;border-radius:50%;background:var(--sc);color:#fff;font-weight:900;font-size:21px;display:flex;align-items:center;justify-content:center}
+.sblock.done .sb-num{background:var(--good)}
+.sb-t{font-size:19px;font-weight:800;margin:0;display:flex;align-items:center;gap:8px}
+.sb-t .chev{color:var(--muted);font-size:14px;transition:transform .15s}
+.sblock.closed .sb-t .chev{transform:rotate(-90deg)}
+.sb-d{font-size:13.5px;line-height:1.45;margin:3px 0 0}
+.sb-p{font-size:12.5px;color:var(--muted);margin-top:3px}
+.sb-act button{white-space:normal;max-width:230px;text-align:center}
+.sb-body{padding:0 16px 16px;display:flex;flex-direction:column;gap:12px}
+.sblock.closed .sb-body{display:none}
+.sb-body .panel{margin:0}
+.sb-empty{font-size:13.5px;color:var(--muted);padding:4px 2px}
+.sblock .bigtick{margin-top:0;min-width:170px}
+@media (max-width:760px){.sb-head{grid-template-columns:auto 1fr}.sb-head .sb-act,.sb-head .bigtick{grid-column:1/-1}}
 </style>
 </head>
 <body>
@@ -137,15 +158,15 @@ input[type=text]{width:100%}
     <div id="content" class="wrap" hidden>
       <div class="row" style="justify-content:space-between"><div class="eyebrow" id="termLine"></div><span class="muted small" id="asOf"></span></div>
 
-      <section class="panel" id="stepsPanel">
-        <div class="panel-head"><h2>Renewal steps</h2><span class="row small" style="gap:10px"><span class="muted" id="stepsNote">Work through these in order and tick each one when it's done.</span><a href="#" id="foldAll">Fold all</a><a href="#" id="openAll">Open all</a></span></div>
-        <div class="steps" id="steps"></div>
-      </section>
 
-      <div class="hero">
+      <div class="hero" id="overview">
         <section class="panel big"><span class="eyebrow">Renewed so far</span><span class="v" id="bigPct">–</span><span class="muted" id="bigSub"></span></section>
         <div class="kpis" id="kpis"></div>
+
       </div>
+
+      <div class="row" style="justify-content:space-between;margin:6px 2px 4px"><h2 style="margin:0">Renewal steps</h2><span class="row small" style="gap:10px"><span class="muted">Work down the steps in order. Tick each one when it's done.</span><a href="#" id="openAll">Open all</a><a href="#" id="foldAll">Close all</a></span></div>
+      <div class="flow" id="flow"></div>
 
       <section class="panel fold" id="areaPanel">
         <div class="panel-head"><h2>By area</h2><span class="muted small" id="areaNote">children booked for next term, out of those on a termly place now</span></div>
@@ -185,10 +206,10 @@ input[type=text]{width:100%}
       </section>
 
 
-      <div class="grid2">
-        <section class="panel fold" id="remPanel">
-          <div class="panel-head"><h2 id="remTitle">Remind families who haven't booked</h2><span class="row" style="gap:8px"><span class="muted small" id="remNote"></span><span class="pill none" id="mailState"></span></span></div>
-          <div class="seg" id="remMode" style="margin-bottom:10px"><button type="button" data-m="first">Step 2: First reminder</button><button type="button" data-m="final">Step 3: Final reminder</button></div>
+      <div class="grid2" id="remGrid">
+        <section class="panel" id="remPanel">
+          <div class="panel-head"><h2 id="remTitle">Families to remind</h2><span class="row" style="gap:8px"><span class="muted small" id="remNote"></span><span class="pill none" id="mailState"></span></span></div>
+          <div class="seg" id="remMode" style="margin-bottom:10px" hidden><button type="button" data-m="first">Step 2: First reminder</button><button type="button" data-m="final">Step 3: Final reminder</button></div>
           <div class="toolbar">
             <div class="wrap small" style="gap:4px;margin:0"><label class="row" style="gap:6px"><input type="checkbox" id="onlyNew" checked> Hide families who have already had <span id="remWhich">this</span> reminder</label><label class="row" style="gap:6px"><input type="checkbox" id="onlyMatched" checked> Hide families with no class to book next term yet</label><label class="row" style="gap:6px"><input type="checkbox" id="hideTold" checked> Hide families who are leaving or have asked for a class change (from the forms, or marked here)</label></div>
             <div class="row"><button type="button" id="selAll">Select all</button><button type="button" id="selNone">None</button></div>
@@ -197,7 +218,7 @@ input[type=text]{width:100%}
           <div class="row"><button type="button" class="primary" id="sendSel" disabled>Send reminder</button><span class="small" id="sendMsg" aria-live="polite"></span></div>
           <p class="hint">One email per family, from <b id="fromAddr">reception@</b>, with a button to book each child's matching class for next term, and two buttons to tell us they want a different class or aren't continuing (these come to reception@ as emails). When a family tells you, press <b>Changing class</b> or <b>Not continuing</b> on their card so they aren't reminded again. Families without an email address in JustGo can't be selected.</p>
         </section>
-        <section class="panel fold" id="previewPanel">
+        <section class="panel" id="previewPanel">
           <div class="panel-head"><h2>Email preview</h2><span class="muted small" id="prevSubj"></span></div>
           <iframe class="preview" id="preview" title="Email preview" sandbox="allow-same-origin"></iframe>
           <details><summary class="small">Change the wording of the <span id="tMode">first</span> reminder</summary>
@@ -212,8 +233,8 @@ input[type=text]{width:100%}
         </section>
       </div>
 
-      <section class="panel fold" id="callPanel">
-        <div class="panel-head"><h2>Step 4: Call families who haven't renewed</h2><span class="muted small" id="callNote"></span></div>
+      <section class="panel" id="callPanel">
+        <div class="panel-head"><h2>Families to call</h2><span class="muted small" id="callNote"></span></div>
         <div class="toolbar"><div class="wrap small" style="gap:4px;margin:0">
           <label class="row" style="gap:6px"><input type="checkbox" id="callHideDealt" checked> Hide families already sorted by phone (link sent or leaving)</label>
           <label class="row" style="gap:6px"><input type="checkbox" id="callHideChanging" checked> Hide families who've asked for a class change (they're in Class change requests)</label></div></div>
@@ -476,10 +497,10 @@ $("tReset").onclick=()=>{tpl=Object.assign({},EQ.RENEWAL);$("tSubject").value=tp
 ["tSubject","tHeading","tText"].forEach(id=>$(id).addEventListener("input",()=>{tpl={subject:$("tSubject").value,heading:$("tHeading").value,body:$("tText").value};renderPreview()}));
 function setMode(m){mode=m;try{localStorage.setItem("saadiRemMode",m)}catch(e){}sel.clear();
   $("remMode").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.m===m)));
-  $("remTitle").textContent=m==="final"?"Step 3: Final reminder":"Step 2: First reminder";$("remWhich").textContent=m==="final"?"the final":"the first";
+  $("remTitle").textContent=m==="final"?"Families to send the final reminder":"Families to send the first reminder";$("remWhich").textContent=m==="final"?"the final":"the first";
   fillTpl();if(R)renderFams()}
 $("remMode").querySelectorAll("button").forEach(b=>b.onclick=()=>setMode(b.dataset.m));
-setMode(mode);
+setMode("first");
 
 /* ---------- the five steps ---------- */
 const termKey=()=>R&&R.next.length?R.next.map(t=>t.name).join(" / ").replace(/[^a-z0-9]+/gi,"_").slice(0,120):"term";
@@ -487,11 +508,11 @@ const nextTermName=()=>R&&R.next.length?R.next.map(t=>t.name).join(" and "):"nex
 const STEPS=[
   {n:1,t:"Send renewals",d:()=>`In JustGo, open each class register for this term, select the families (leave out trials; Pre-School: whole-term payers only) and <b>Send Email</b> with next term's booking link. Renewals stay open for 2 weeks${cfg.closeDate?`, closing <b>${esc(new Date(cfg.closeDate).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"}))}</b>`:""}.`,
    p:()=>R?`${R.renewed} of ${R.kids} children booked so far`:""},
-  {n:2,t:"First reminder",d:()=>"Email every family who hasn't booked, using the <b>first reminder</b> email.",go:["Open the first reminder",()=>{setMode("first");openOnly(OPEN_FOR[2]);$("remPanel").scrollIntoView({behavior:"smooth"})}],
+  {n:2,t:"First reminder",d:()=>"Email every family who hasn't booked, using the <b>first reminder</b> email.",
    p:()=>{const n=R.families.filter(f=>sentOf(f,"first")).length;return `${n} of ${R.families.length} families sent the first reminder`}},
-  {n:3,t:"Final reminder",d:()=>"On the last day, email everyone still not booked with the <b>final reminder</b>: today is the last day before classes go to the public.",go:["Open the final reminder",()=>{setMode("final");openOnly(OPEN_FOR[3]);$("remPanel").scrollIntoView({behavior:"smooth"})}],
+  {n:3,t:"Final reminder",d:()=>"On the last day, email everyone still not booked with the <b>final reminder</b>: today is the last day before classes go to the public.",
    p:()=>{const n=R.families.filter(f=>sentOf(f,"final")).length;return `${n} of ${R.families.length} families sent the final reminder`}},
-  {n:4,t:"Call families",d:()=>"Ring everyone who still hasn't renewed. For each: send the link to their class, send a link to a different class, or mark them as leaving.",go:["Open the call list",()=>{openOnly(OPEN_FOR[4]);$("callPanel").scrollIntoView({behavior:"smooth"})}],
+  {n:4,t:"Call families",d:()=>"Ring everyone who still hasn't renewed. For each: send the link to their class, send a link to a different class, or mark them as leaving.",
    p:()=>{const c=callList(true),d=c.filter(f=>dealt(f)).length;return `${d} of ${c.length} families sorted by phone`}},
   {n:5,t:"Contact the waiting lists",d:()=>"Claude checks every class's waiting list in JustGo, sees where there's space in the class each family wants, and emails them the booking link.",
    claude:{kind:"renewalsWaitingLists",btn:"Ask Claude to contact the waiting lists",ask:t=>`Ask Claude to contact the waiting lists for ${t}?\n\nOnly do this once the calls are done, so renewing families keep their places.`,
@@ -500,39 +521,59 @@ const STEPS=[
    claude:{kind:"renewalsOpenPublic",btn:"Ask Claude to open all classes",ask:t=>`Ask Claude to make all ${t} classes public in JustGo?\n\nOnly do this once the waiting lists have been contacted.`,
      text:t=>`Renewals step 6: in JustGo Class Management, make every class in "${t}" public (visible to everyone). Leave the classes and prices as they are. When done, tick step 6 on the Term Renewals page.`},p:()=>""}
 ];
+const SCOL_STEP={1:"#8F286B",2:"#0073B3",3:"#E8822F",4:"#6BA526",5:"#00AEB7",6:"#E84187"};
+const BODY={1:["areaPanel","statusPanel","changesPanel","leaversPanel","classPanel"],2:["remGrid"],3:["remGrid"],4:["callPanel"]};
+let blockPref=(()=>{try{return JSON.parse(localStorage.getItem("saadiRenBlocks")||"{}")}catch(e){return{}}})();
+const saveBlocks=()=>{try{localStorage.setItem("saadiRenBlocks",JSON.stringify(blockPref))}catch(e){}};
+function curStep(){const done=((cfg.steps||{})[termKey()])||{},c=STEPS.find(x=>!done[x.n]);return c?c.n:6}
+let flowBuilt=false;
+function buildFlow(){
+  if(flowBuilt)return;flowBuilt=true;
+  $("flow").innerHTML=STEPS.map(x=>`<section class="sblock" id="sb${x.n}" style="--sc:${SCOL_STEP[x.n]}"><div class="sb-head" data-sb="${x.n}"></div><div class="sb-body" id="sbb${x.n}"></div></section>`).join("");
+  [1,4].forEach(n=>BODY[n].forEach(id=>$("sbb"+n).appendChild($(id))));
+  $("flow").querySelectorAll(".sb-head").forEach(h=>h.addEventListener("click",e=>{if(e.target.closest("button,a,input,select"))return;const n=+h.dataset.sb;setBlock(n,$("sb"+n).classList.contains("closed"))}));
+}
+function isOpen(n){const cur=curStep();if(blockPref.step!==cur){blockPref={step:cur};saveBlocks()}return blockPref[n]!==undefined?blockPref[n]==="open":n===cur}
+function setBlock(n,open){blockPref[n]=open?"open":"closed";if(open&&(n===2||n===3))blockPref[n===2?3:2]="closed";saveBlocks();placeBlocks()}
+function placeBlocks(){
+  [1,2,3,4,5,6].forEach(n=>$("sb"+n).classList.toggle("closed",!isOpen(n)));
+  // the reminder (with its preview) sits in whichever of steps 2 and 3 is open
+  const m=isOpen(3)&&!isOpen(2)?"final":"first",host=$("sbb"+(m==="final"?3:2)),other=$("sbb"+(m==="final"?2:3));
+  if($("remGrid").parentNode!==host){host.appendChild($("remGrid"))}
+  other.innerHTML=`<div class="sb-empty">Open this step to send the ${m==="final"?"first":"final"} reminder.</div>`;host.querySelectorAll(".sb-empty").forEach(x=>x.remove());
+  if(mode!==m)setMode(m);
+  [5,6].forEach(n=>{if(!$("sbb"+n).innerHTML)$("sbb"+n).innerHTML=`<div class="sb-empty">${n===5?"Claude reads each class's waiting list in JustGo and emails families where there's room in the class they want, from reception@. You'll see when it's done here.":"Claude makes every class for next term public in JustGo. Do this last."}</div>`});
+}
 function renderSteps(){
-  if(!R)return;const done=((cfg.steps||{})[termKey()])||{},cur=STEPS.find(x=>!done[x.n]);
-  $("steps").innerHTML=STEPS.map(x=>{const d=done[x.n],rq=x.claude?reqs[x.claude.kind+"|"+termKey()]:null;
-    const st=x.claude?(rq?`<div class="sp">${rq.status==="done"?"✓ Claude has done it":rq.status==="doing"?"Claude is on it…":rq.status==="question"?`<b style="color:var(--bad)">Claude has a question:</b> ${esc(rq.question||"")}`:`Asked ${esc(when(rq.at))}${rq.by?" by "+esc(rq.by):""}: waiting for Claude`}${rq.note?`<br>${esc(rq.note)}`:""}</div>`:""):"";
-    return `<div class="step${d?" done":cur===x?" now":""}"><div class="row" style="gap:8px"><span class="sn">${d?"✓":x.n}</span><h3>${esc(x.t)}</h3></div><p>${x.d()}</p>${x.p()?`<div class="sp">${esc(x.p())}</div>`:""}
-      ${x.go?`<button type="button" data-go="${x.n}">${esc(x.go[0])}</button>`:""}${x.claude&&!d?`<button type="button" class="primary" data-claude="${x.n}"${rq&&rq.status!=="done"&&rq.status!=="cancelled"?" disabled":""}>${rq&&rq.status!=="cancelled"?"Asked Claude ✓":esc(x.claude.btn)}</button>`:""}${st}
-      <button type="button" class="bigtick" data-tick="${x.n}" aria-pressed="${!!d}"><i>${d?"✓":""}</i><span>${d?"Done":"Tick when done"}${d?`<small>${esc(d.by||"")} · ${esc(when(d.at))}</small>`:""}</span></button></div>`}).join("");
-  $("steps").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>STEPS[+b.dataset.go-1].go[1]());
-  $("steps").querySelectorAll("[data-tick]").forEach(b=>b.onclick=async()=>{const n=b.dataset.tick,was=!!done[n];
+  if(!R)return;buildFlow();const done=((cfg.steps||{})[termKey()])||{},cur=STEPS.find(x=>!done[x.n]);
+  STEPS.forEach(x=>{const d=done[x.n],rq=x.claude?reqs[x.claude.kind+"|"+termKey()]:null,blk=$("sb"+x.n);
+    blk.classList.toggle("done",!!d);blk.classList.toggle("now",cur===x);
+    const st=x.claude&&rq?`<div class="sb-p">${rq.status==="done"?"✓ Claude has done it":rq.status==="doing"?"Claude is on it…":rq.status==="question"?`<b style="color:var(--bad)">Claude has a question:</b> ${esc(rq.question||"")}`:`Asked ${esc(when(rq.at))}${rq.by?" by "+esc(rq.by):""}: waiting for Claude`}${rq.note?" · "+esc(rq.note):""}</div>`:"";
+    blk.querySelector(".sb-head").innerHTML=`<span class="sb-num">${d?"✓":x.n}</span>
+      <div><h3 class="sb-t">Step ${x.n}: ${esc(x.t)} <span class="chev">▾</span></h3><p class="sb-d">${x.d()}</p>${x.p()?`<div class="sb-p">${esc(x.p())}</div>`:""}${st}</div>
+      <div class="sb-act">${x.claude&&!d?`<button type="button" class="primary" data-claude="${x.n}"${rq&&rq.status!=="done"&&rq.status!=="cancelled"?" disabled":""}>${rq&&rq.status!=="cancelled"?"Asked Claude ✓":esc(x.claude.btn)}</button>`:""}</div>
+      <button type="button" class="bigtick" data-tick="${x.n}" aria-pressed="${!!d}"><i>${d?"✓":""}</i><span>${d?"Done":"Tick when done"}${d?`<small>${esc(d.by||"")} · ${esc(when(d.at))}</small>`:""}</span></button>`});
+  $("flow").querySelectorAll("[data-tick]").forEach(b=>b.onclick=async()=>{const n=b.dataset.tick,was=!!done[n];
     if(was&&!confirm("Untick this step?"))return;
     try{await Hub.doc("config/renewals").set({steps:{[termKey()]:{[n]:was?firebase.firestore.FieldValue.delete():{by:who(),at:Date.now()}}}},{merge:true});toast(was?"Unticked":"Step "+n+" done ✓")}catch(e){toast("Couldn't save: "+(e.code||e.message))}});
-  $("steps").querySelectorAll("[data-claude]").forEach(cb=>cb.onclick=async()=>{const x=STEPS[+cb.dataset.claude-1],c=x.claude;
+  $("flow").querySelectorAll("[data-claude]").forEach(cb=>cb.onclick=async()=>{const x=STEPS[+cb.dataset.claude-1],c=x.claude;
     if(!AKEY){toast("Claude's request box isn't set up yet (open the Email Assistant once).");return}
     const t=nextTermName();if(!confirm(c.ask(t)))return;
     try{await Hub.fs.collection(`data/${AKEY}/changeRequests`).add({kind:c.kind,term:termKey(),where:"justgo",status:"new",at:Date.now(),by:who(),shot:"",text:c.text(t)});toast("Sent to Claude ✓")}
     catch(e){toast("Couldn't send: "+(e.code||e.message))}});
+  placeBlocks();
 }
 
-
-/* ---------- foldable sections: follow the current step, remember each person's choices ---------- */
-const FOLDS=["areaPanel","statusPanel","changesPanel","leaversPanel","remPanel","previewPanel","callPanel","classPanel"];
-const OPEN_FOR={1:["statusPanel","changesPanel"],2:["statusPanel","changesPanel","remPanel","previewPanel"],3:["statusPanel","changesPanel","remPanel","previewPanel"],4:["callPanel","changesPanel"],5:["statusPanel"],6:["statusPanel"]};
-let foldPref=(()=>{try{return JSON.parse(localStorage.getItem("saadiRenFolds")||"{}")}catch(e){return{}}})(),foldStep=null;
-const saveFolds=()=>{try{localStorage.setItem("saadiRenFolds",JSON.stringify(foldPref))}catch(e){}};
-function curStep(){const done=((cfg.steps||{})[termKey()])||{},c=STEPS.find(x=>!done[x.n]);return c?c.n:6}
-function applyFolds(){const n=curStep();
-  if(foldPref.step!==n){foldPref={step:n};saveFolds()}   // a new step: start again from that step's layout
-  FOLDS.forEach(id=>{const el=$(id);if(!el)return;const user=foldPref[id];el.classList.toggle("folded",user!==undefined?user==="closed":!OPEN_FOR[n].includes(id))})}
+/* ---------- inside step 1: each section folds on its own ---------- */
+const FOLDS=["areaPanel","statusPanel","changesPanel","leaversPanel","classPanel"];
+const OPEN1=["statusPanel","changesPanel"];
+let foldPref=(()=>{try{return JSON.parse(localStorage.getItem("saadiRenFolds2")||"{}")}catch(e){return{}}})();
+const saveFolds=()=>{try{localStorage.setItem("saadiRenFolds2",JSON.stringify(foldPref))}catch(e){}};
+function applyFolds(){FOLDS.forEach(id=>{const el=$(id);if(!el)return;const u=foldPref[id];el.classList.toggle("folded",u!==undefined?u==="closed":!OPEN1.includes(id))})}
 function setFold(id,open){foldPref[id]=open?"open":"closed";saveFolds();$(id).classList.toggle("folded",!open)}
 FOLDS.forEach(id=>{const el=$(id);if(!el)return;const h=el.querySelector(":scope>.panel-head h2,:scope>.toolbar h2");if(h)h.addEventListener("click",()=>setFold(id,el.classList.contains("folded")))});
-$("foldAll").onclick=e=>{e.preventDefault();FOLDS.forEach(id=>setFold(id,false))};
-$("openAll").onclick=e=>{e.preventDefault();FOLDS.forEach(id=>setFold(id,true))};
-const openOnly=ids=>FOLDS.forEach(id=>setFold(id,ids.includes(id)));
+$("openAll").onclick=e=>{e.preventDefault();[1,2,4,5,6].forEach(n=>blockPref[n]="open");blockPref[3]="closed";saveBlocks();FOLDS.forEach(id=>setFold(id,true));placeBlocks()};
+$("foldAll").onclick=e=>{e.preventDefault();[1,2,3,4,5,6].forEach(n=>blockPref[n]="closed");saveBlocks();placeBlocks()};
 function foldNotes(){if(!R)return;
   $("areaNote").textContent=R.areas.map(a=>`${a.area} ${pct(a.eligible?a.renewed/a.eligible:NaN)}`).join(" · ");
   const n=R.families.length,f=R.families.filter(x=>sentOf(x,"first")).length,l=R.families.filter(x=>sentOf(x,"final")).length;

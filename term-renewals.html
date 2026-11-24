@@ -90,6 +90,17 @@ input[type=text]{width:100%}
 .call .hist{font-size:12px;color:var(--muted);margin-top:6px}
 .call .pick{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px;width:100%}
 @media (max-width:820px){.call{grid-template-columns:1fr}}
+
+/* foldable sections */
+.panel.fold>.panel-head h2,.panel.fold>.toolbar h2{cursor:pointer;user-select:none}
+.panel.fold>.panel-head h2::before,.panel.fold>.toolbar h2::before{content:"▾";display:inline-block;width:1.1em;color:var(--muted);transition:transform .15s}
+.panel.fold.folded>.panel-head h2::before,.panel.fold.folded>.toolbar h2::before{transform:rotate(-90deg)}
+.panel.fold.folded>*:not(:first-child){display:none!important}
+.panel.fold.folded>.toolbar>*:not(h2){display:none!important}
+.panel.fold.folded>.panel-head{margin-bottom:0}
+.panel.fold.folded{padding-top:12px;padding-bottom:12px}
+.grid2:has(> .panel.fold.folded + .panel.fold.folded){grid-template-columns:1fr 1fr;align-items:start}
+.grid2{align-items:start}
 </style>
 </head>
 <body>
@@ -127,7 +138,7 @@ input[type=text]{width:100%}
       <div class="row" style="justify-content:space-between"><div class="eyebrow" id="termLine"></div><span class="muted small" id="asOf"></span></div>
 
       <section class="panel" id="stepsPanel">
-        <div class="panel-head"><h2>Renewal steps</h2><span class="muted small" id="stepsNote">Work through these in order and tick each one when it's done.</span></div>
+        <div class="panel-head"><h2>Renewal steps</h2><span class="row small" style="gap:10px"><span class="muted" id="stepsNote">Work through these in order and tick each one when it's done.</span><a href="#" id="foldAll">Fold all</a><a href="#" id="openAll">Open all</a></span></div>
         <div class="steps" id="steps"></div>
       </section>
 
@@ -136,12 +147,12 @@ input[type=text]{width:100%}
         <div class="kpis" id="kpis"></div>
       </div>
 
-      <section class="panel">
-        <div class="panel-head"><h2>By area</h2><span class="muted small">children booked for next term, out of those on a termly place now</span></div>
+      <section class="panel fold" id="areaPanel">
+        <div class="panel-head"><h2>By area</h2><span class="muted small" id="areaNote">children booked for next term, out of those on a termly place now</span></div>
         <div class="areas" id="areas"></div>
       </section>
 
-      <section class="panel" id="statusPanel">
+      <section class="panel fold" id="statusPanel">
         <div class="panel-head"><h2>Where every child stands</h2><div class="row"><span class="small muted" id="respNote">Reading the form responses…</span><button type="button" id="respRefresh">Refresh responses</button></div></div>
         <div class="sbar" id="sBar"></div>
         <div class="legend" id="sLegend"></div>
@@ -162,21 +173,21 @@ input[type=text]{width:100%}
         </details>
       </section>
 
-      <section class="panel" id="changesPanel">
+      <section class="panel fold" id="changesPanel">
         <div class="panel-head"><h2>Class change requests</h2><span class="row" style="gap:8px"><span class="muted small" id="chNote"></span><button type="button" id="reread" title="Read every emailed class change and leaving request again, with the latest reading rules">Re-read emailed requests</button></span></div>
         <div class="tbl-wrap"><table class="t"><thead><tr><th>Child and class now</th><th>Would like</th><th>Notes</th><th>Next term's classes that fit</th></tr></thead><tbody id="chBody"></tbody></table></div>
         <p class="hint">Matched to next term's classes on the requested days and times, for the child's school year (worked out from their current class and their age in JustGo), not by colour, as colours cover different years in different classes. <b>Space now</b>: free after holding places for children who haven't renewed yet, so you can send the booking link now. <b>Wait</b>: the class only has room once renewals close. <b>Full</b>: no room even then. For Wait or Full you can still press <b>Send link anyway</b>: that email doesn't promise a place, and tells the family to join the waiting list if the class is full.</p>
       </section>
 
-      <section class="panel" id="leaversPanel">
+      <section class="panel fold" id="leaversPanel">
         <div class="panel-head"><h2>Leaving</h2><span class="muted small" id="lvNote"></span></div>
         <div class="tbl-wrap"><table class="t"><thead><tr><th>Child</th><th>Main reason</th><th>Experience (1–5)</th><th>Recommend (0–10)</th><th>What we could do differently</th></tr></thead><tbody id="lvBody"></tbody></table></div>
       </section>
 
 
       <div class="grid2">
-        <section class="panel" id="remPanel">
-          <div class="panel-head"><h2 id="remTitle">Remind families who haven't booked</h2><span class="pill none" id="mailState"></span></div>
+        <section class="panel fold" id="remPanel">
+          <div class="panel-head"><h2 id="remTitle">Remind families who haven't booked</h2><span class="row" style="gap:8px"><span class="muted small" id="remNote"></span><span class="pill none" id="mailState"></span></span></div>
           <div class="seg" id="remMode" style="margin-bottom:10px"><button type="button" data-m="first">Step 2: First reminder</button><button type="button" data-m="final">Step 3: Final reminder</button></div>
           <div class="toolbar">
             <div class="wrap small" style="gap:4px;margin:0"><label class="row" style="gap:6px"><input type="checkbox" id="onlyNew" checked> Hide families who have already had <span id="remWhich">this</span> reminder</label><label class="row" style="gap:6px"><input type="checkbox" id="onlyMatched" checked> Hide families with no class to book next term yet</label><label class="row" style="gap:6px"><input type="checkbox" id="hideTold" checked> Hide families who are leaving or have asked for a class change (from the forms, or marked here)</label></div>
@@ -186,7 +197,7 @@ input[type=text]{width:100%}
           <div class="row"><button type="button" class="primary" id="sendSel" disabled>Send reminder</button><span class="small" id="sendMsg" aria-live="polite"></span></div>
           <p class="hint">One email per family, from <b id="fromAddr">reception@</b>, with a button to book each child's matching class for next term, and two buttons to tell us they want a different class or aren't continuing (these come to reception@ as emails). When a family tells you, press <b>Changing class</b> or <b>Not continuing</b> on their card so they aren't reminded again. Families without an email address in JustGo can't be selected.</p>
         </section>
-        <section class="panel">
+        <section class="panel fold" id="previewPanel">
           <div class="panel-head"><h2>Email preview</h2><span class="muted small" id="prevSubj"></span></div>
           <iframe class="preview" id="preview" title="Email preview" sandbox="allow-same-origin"></iframe>
           <details><summary class="small">Change the wording of the <span id="tMode">first</span> reminder</summary>
@@ -201,7 +212,7 @@ input[type=text]{width:100%}
         </section>
       </div>
 
-      <section class="panel" id="callPanel">
+      <section class="panel fold" id="callPanel">
         <div class="panel-head"><h2>Step 4: Call families who haven't renewed</h2><span class="muted small" id="callNote"></span></div>
         <div class="toolbar"><div class="wrap small" style="gap:4px;margin:0">
           <label class="row" style="gap:6px"><input type="checkbox" id="callHideDealt" checked> Hide families already sorted by phone (link sent or leaving)</label>
@@ -210,9 +221,9 @@ input[type=text]{width:100%}
         <p class="hint">Ring each family, then press what happened. <b>Send link: their class</b> emails the booking link for next term's matching class straight away. <b>Send link: different class</b> lets you pick another class for their school year, then emails that link. <b>Leaving</b> takes them off the list and out of the figures. <b>No answer</b> keeps them on the list so someone can try again. Every call is saved with who rang and when, so nobody calls twice. Phone numbers come from JustGo with the morning sync.</p>
       </section>
 
-      <section class="panel">
+      <section class="panel fold" id="classPanel">
         <div class="toolbar">
-          <h2>By class</h2>
+          <h2>By class <span class="muted small" id="classNote" style="font-weight:400"></span></h2>
           <div class="row"><div class="seg" id="fArea"></div><select id="fDay"><option value="">Every day</option></select><span class="muted small">Click a class to see who has and hasn't booked</span></div>
         </div>
         <div class="tbl-wrap"><table class="t"><thead><tr><th data-sort="day">Day</th><th data-sort="time">Time</th><th data-sort="name">Class this term</th><th data-sort="rate">Renewed</th><th data-sort="left">Still to book</th><th>Next term's class</th></tr></thead><tbody id="tBody"></tbody></table></div>
@@ -373,7 +384,7 @@ function render(){
   $("fArea").querySelectorAll("button").forEach(b=>b.onclick=()=>{area=b.dataset.a;render()});
   const days=EQ.DAYS.filter(d=>R.per.some(c=>c.day===d)),dv=$("fDay").value;
   $("fDay").innerHTML='<option value="">Every day</option>'+days.map(d=>`<option value="${d}">${EQ.DAYNAME[d]}</option>`).join("");$("fDay").value=dv;
-  renderTable();renderFams();renderCalls();renderSteps();
+  renderTable();renderFams();renderCalls();renderSteps();foldNotes();applyFolds();
 }
 $("fDay").onchange=()=>renderTable();
 document.querySelectorAll("th[data-sort]").forEach(th=>th.onclick=()=>{const k=th.dataset.sort;sortDir=sortKey===k?-sortDir:1;sortKey=k;renderTable()});
@@ -476,11 +487,11 @@ const nextTermName=()=>R&&R.next.length?R.next.map(t=>t.name).join(" and "):"nex
 const STEPS=[
   {n:1,t:"Send renewals",d:()=>`In JustGo, open each class register for this term, select the families (leave out trials; Pre-School: whole-term payers only) and <b>Send Email</b> with next term's booking link. Renewals stay open for 2 weeks${cfg.closeDate?`, closing <b>${esc(new Date(cfg.closeDate).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"}))}</b>`:""}.`,
    p:()=>R?`${R.renewed} of ${R.kids} children booked so far`:""},
-  {n:2,t:"First reminder",d:()=>"Email every family who hasn't booked, using the <b>first reminder</b> email.",go:["Open the first reminder",()=>{setMode("first");$("remPanel").scrollIntoView({behavior:"smooth"})}],
+  {n:2,t:"First reminder",d:()=>"Email every family who hasn't booked, using the <b>first reminder</b> email.",go:["Open the first reminder",()=>{setMode("first");openOnly(OPEN_FOR[2]);$("remPanel").scrollIntoView({behavior:"smooth"})}],
    p:()=>{const n=R.families.filter(f=>sentOf(f,"first")).length;return `${n} of ${R.families.length} families sent the first reminder`}},
-  {n:3,t:"Final reminder",d:()=>"On the last day, email everyone still not booked with the <b>final reminder</b>: today is the last day before classes go to the public.",go:["Open the final reminder",()=>{setMode("final");$("remPanel").scrollIntoView({behavior:"smooth"})}],
+  {n:3,t:"Final reminder",d:()=>"On the last day, email everyone still not booked with the <b>final reminder</b>: today is the last day before classes go to the public.",go:["Open the final reminder",()=>{setMode("final");openOnly(OPEN_FOR[3]);$("remPanel").scrollIntoView({behavior:"smooth"})}],
    p:()=>{const n=R.families.filter(f=>sentOf(f,"final")).length;return `${n} of ${R.families.length} families sent the final reminder`}},
-  {n:4,t:"Call families",d:()=>"Ring everyone who still hasn't renewed. For each: send the link to their class, send a link to a different class, or mark them as leaving.",go:["Open the call list",()=>$("callPanel").scrollIntoView({behavior:"smooth"})],
+  {n:4,t:"Call families",d:()=>"Ring everyone who still hasn't renewed. For each: send the link to their class, send a link to a different class, or mark them as leaving.",go:["Open the call list",()=>{openOnly(OPEN_FOR[4]);$("callPanel").scrollIntoView({behavior:"smooth"})}],
    p:()=>{const c=callList(true),d=c.filter(f=>dealt(f)).length;return `${d} of ${c.length} families sorted by phone`}},
   {n:5,t:"Contact the waiting lists",d:()=>"Claude checks every class's waiting list in JustGo, sees where there's space in the class each family wants, and emails them the booking link.",
    claude:{kind:"renewalsWaitingLists",btn:"Ask Claude to contact the waiting lists",ask:t=>`Ask Claude to contact the waiting lists for ${t}?\n\nOnly do this once the calls are done, so renewing families keep their places.`,
@@ -506,6 +517,27 @@ function renderSteps(){
     try{await Hub.fs.collection(`data/${AKEY}/changeRequests`).add({kind:c.kind,term:termKey(),where:"justgo",status:"new",at:Date.now(),by:who(),shot:"",text:c.text(t)});toast("Sent to Claude ✓")}
     catch(e){toast("Couldn't send: "+(e.code||e.message))}});
 }
+
+
+/* ---------- foldable sections: follow the current step, remember each person's choices ---------- */
+const FOLDS=["areaPanel","statusPanel","changesPanel","leaversPanel","remPanel","previewPanel","callPanel","classPanel"];
+const OPEN_FOR={1:["statusPanel","changesPanel"],2:["statusPanel","changesPanel","remPanel","previewPanel"],3:["statusPanel","changesPanel","remPanel","previewPanel"],4:["callPanel","changesPanel"],5:["statusPanel"],6:["statusPanel"]};
+let foldPref=(()=>{try{return JSON.parse(localStorage.getItem("saadiRenFolds")||"{}")}catch(e){return{}}})(),foldStep=null;
+const saveFolds=()=>{try{localStorage.setItem("saadiRenFolds",JSON.stringify(foldPref))}catch(e){}};
+function curStep(){const done=((cfg.steps||{})[termKey()])||{},c=STEPS.find(x=>!done[x.n]);return c?c.n:6}
+function applyFolds(){const n=curStep();
+  if(foldPref.step!==n){foldPref={step:n};saveFolds()}   // a new step: start again from that step's layout
+  FOLDS.forEach(id=>{const el=$(id);if(!el)return;const user=foldPref[id];el.classList.toggle("folded",user!==undefined?user==="closed":!OPEN_FOR[n].includes(id))})}
+function setFold(id,open){foldPref[id]=open?"open":"closed";saveFolds();$(id).classList.toggle("folded",!open)}
+FOLDS.forEach(id=>{const el=$(id);if(!el)return;const h=el.querySelector(":scope>.panel-head h2,:scope>.toolbar h2");if(h)h.addEventListener("click",()=>setFold(id,el.classList.contains("folded")))});
+$("foldAll").onclick=e=>{e.preventDefault();FOLDS.forEach(id=>setFold(id,false))};
+$("openAll").onclick=e=>{e.preventDefault();FOLDS.forEach(id=>setFold(id,true))};
+const openOnly=ids=>FOLDS.forEach(id=>setFold(id,ids.includes(id)));
+function foldNotes(){if(!R)return;
+  $("areaNote").textContent=R.areas.map(a=>`${a.area} ${pct(a.eligible?a.renewed/a.eligible:NaN)}`).join(" · ");
+  const n=R.families.length,f=R.families.filter(x=>sentOf(x,"first")).length,l=R.families.filter(x=>sentOf(x,"final")).length;
+  $("remNote").textContent=`${n} famil${n===1?"y":"ies"} still to book · first sent ${f} · final sent ${l}`;
+  const low=R.per.filter(c=>c.eligible&&c.rate<.5).length;const nc=R.per.filter(c=>c.eligible).length;$("classNote").textContent=`· ${nc} class${nc===1?"":"es"}${low?` · ${low} under 50%`:""}`}
 
 /* ---------- step 4: call list ---------- */
 const callsFor=f=>calls.filter(c=>c.key===f.key).sort((a,b)=>(b.at||0)-(a.at||0));

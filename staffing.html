@@ -571,6 +571,8 @@ const rateFor=(n,band,date)=>{const L=levelOf(n);if(!L||L.plus==null)return 0;co
 const money=v=>"£"+(+v).toFixed(2);
 const legalMin=(age,date)=>{if(age==null||age<16)return 0;const m=nmwOn(date);return age<18?m.r16:age<21?m.r18:m.r21};
 const PAID=()=>W().paid||{};
+// date of birth: payroll's (saved behind the Wages password) first, then QuickBooks' accounting record
+const dobOf=(s,q)=>(W().dob||{})[s.id]||(q&&q.dob)||"";
 const nk=s=>String(s||"").toLowerCase().replace(/[^a-z]/g,"");
 const hasLv=lv=>lv!==null&&lv!==undefined&&lv!==""&&lv!=="none";
 const birthday=(dob,n)=>String(+dob.slice(0,4)+n)+dob.slice(4);
@@ -601,13 +603,13 @@ function renderWages(){
   if(!QBO&&!qboErr&&!qboBusy)loadQbo();
   $("wgQbo").textContent=qboErr?"Couldn't read QuickBooks: "+qboErr:QBO?`${QBO.length} current employees in QuickBooks`:"Reading dates of birth from QuickBooks…";
   const f=$("wgFilter").value.trim().toLowerCase();let unpaid16=0,noDob=0,under=0;
-  const rows=STAFF.map(s=>{const saved=w.staff[s.id],lv=saved!==undefined?saved:suggestLevel(s.id),q=qboFor(s);return {s,lv,isSug:saved===undefined,q,dob:(q&&q.dob)||""}})
+  const rows=STAFF.map(s=>{const saved=w.staff[s.id],lv=saved!==undefined?saved:suggestLevel(s.id),q=qboFor(s);return {s,lv,isSug:saved===undefined,q,dob:dobOf(s,q)}})
     .filter(r=>(!$("wgCoachOnly").checked||hasLv(r.lv))&&(!f||fullName(r.s).toLowerCase().includes(f)))
     .sort((a,b)=>(hasLv(b.lv)?+b.lv:-1)-(hasLv(a.lv)?+a.lv:-1)||fullName(a.s).localeCompare(fullName(b.s)));
   $("wgStaff").innerHTML=`<thead><tr><th>Name</th><th>Age</th><th>Level</th><th>Scale now</th><th>${nx?"From "+esc(pretty(nx.from,{day:"numeric",month:"short"})):"Next April"}</th><th>Paid now (payroll)</th><th>Notes</th></tr></thead><tbody>`+
     rows.map(({s,lv,isSug,q,dob})=>{const age=ageOn(dob,today),has=hasLv(lv);
       const now=has?rateFor(lv,bandOf(age),today):null,later=has&&nx?rateFor(lv,bandOf(ageOn(dob,nx.from)),nx.from):null;const notes=[];
-      if(QBO&&!q)notes.push("Not found in QuickBooks");else if(q&&!dob){notes.push("No date of birth in QuickBooks: paid as 21+");noDob++}
+      if(!dob&&QBO&&!q)notes.push("Not found in QuickBooks");else if(!dob&&q){notes.push("No date of birth in QuickBooks: paid as 21+");noDob++}
       if(dob&&has)[16,18,21].forEach(t=>{const d=birthday(dob,t);if(d>today&&d<=addDays(today,365)){const r=rateFor(lv,bandOf(t),d);if(r!==rateFor(lv,bandOf(t-1),d))notes.push(`Turns ${t} on ${pretty(d,{day:"numeric",month:"short",year:"numeric"})}: ${money(r)}`)}});
       const flag=has&&+lv===0&&age!=null&&age>=16;if(flag)unpaid16++;
       // what payroll actually pays, against the legal minimum for their age today, after a birthday, and from next April
@@ -685,7 +687,7 @@ $("wgSaveStaff").onclick=async()=>{const m=Object.assign({},W().staff),pd=Object
   document.querySelectorAll("#wgStaff select[data-wlv]").forEach(x=>{m[x.dataset.wlv]=x.value==="none"?"none":+x.value});
   document.querySelectorAll("#wgStaff input[data-wpd]").forEach(x=>{if(x.value==="")delete pd[x.dataset.wpd];else pd[x.dataset.wpd]=Math.round(+x.value*100)/100});
   // drop pay for anyone now 22 or over
-  STAFF.forEach(s=>{const q=qboFor(s),a=q&&q.dob?ageOn(q.dob,Hub.todayIso()):null;if(a!=null&&a>=22)delete pd[s.id]});
+  STAFF.forEach(s=>{const d=dobOf(s,qboFor(s)),a=d?ageOn(d,Hub.todayIso()):null;if(a!=null&&a>=22)delete pd[s.id]});
   try{await Hub.wagesDoc("wages/main").set({staff:m,paid:pd,staffBy:me(),staffAt:new Date().toISOString()},{merge:true});toast("Levels and pay saved")}catch(e){toast("Couldn't save: "+(e.code||e.message))}};
 
 /* ---------- render ---------- */

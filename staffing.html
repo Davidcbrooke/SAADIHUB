@@ -260,7 +260,7 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
-<script src="hub-core.js"></script>
+<script src="hub-core.js?v=2"></script>
 <script src="enquiry-core.js?v=21"></script>
 <script src="staffing-core.js?v=5"></script>
 <script>
@@ -789,7 +789,8 @@ $("saveNames").onclick=async()=>{const m={};document.querySelectorAll("#namesLis
   await Hub.doc("config/staffing").set(Object.assign({},CFG,{names:m}));toast("Names saved")};
 
 Hub.gate(()=>{
-  {const sv=Hub.wagesSaved();if(sv)Hub.openWages(sv,true).then(err=>{if(!err)wagesOpened()})}
+  // (guarded so an old cached hub-core.js can never stop the page loading)
+  if(Hub.wagesSaved){const sv=Hub.wagesSaved();if(sv)Hub.openWages(sv,true).then(err=>{if(!err)wagesOpened()})}
   Hub.doc("config/enquiryDesk").onSnapshot(d=>{S=EQ.settings(d.exists?d.data():{});if(DATA)render()},()=>{});
   Hub.col("cover").onSnapshot(s=>{COVER={};s.docs.forEach(d=>COVER[d.id]=d.data());if(DATA)render()},()=>{});
   Hub.doc("config/staffing").onSnapshot(d=>{const was=CFG.url;CFG=d.exists?d.data():{};if(!CFG.sheet)CFG.sheet=DEFAULT_SHEET;if(CFG.url&&(!DATA||CFG.url!==was))load();else render()},e=>{$("statusNote").hidden=false;$("statusNote").textContent="Couldn't load the settings ("+(e.code||"error")+")."});

@@ -204,11 +204,6 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
       <div class="row" style="margin-top:10px"><button type="button" class="primary" id="saveNames">Save names</button></div>
     </details>
 
-    <details class="panel" id="qboPanel" data-pane="names" hidden><summary>QuickBooks <span class="pill" id="qboPill">not checked</span></summary>
-      <p class="small muted" style="margin:8px 0">Read only. The Hub reads SAADI's QuickBooks through the same Google script as Breathe, so the keys never reach the Hub. It shows staff costs against income from the Profit &amp; Loss report: totals only.</p>
-      <div id="qboBody" class="small"><span class="muted">Open this to check the connection.</span></div>
-    </details>
-
     <details class="panel" id="settingsPanel" data-pane="names" hidden><summary>Settings</summary>
       <div class="wrap small" style="gap:10px;margin-top:10px">
         <label class="f">Staffing sheet link (change it each term) <input type="url" id="sheetIn" style="width:100%"></label>
@@ -640,44 +635,6 @@ Hub.gate(()=>{
   Hub.doc("config/staffing").onSnapshot(d=>{const was=CFG.url;CFG=d.exists?d.data():{};if(!CFG.sheet)CFG.sheet=DEFAULT_SHEET;if(CFG.url&&(!DATA||CFG.url!==was))load();else render()},e=>{$("statusNote").hidden=false;$("statusNote").textContent="Couldn't load the settings ("+(e.code||"error")+")."});
 });
 
-/* ---------- QuickBooks (read only, via the Staffing script) ---------- */
-let QBO=null,QBOC=null;
-const gbp=n=>n==null?"–":"£"+Math.round(n).toLocaleString("en-GB");
-const isoD=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
-function qboRanges(){const t=new Date(),a=new Date(t.getFullYear(),t.getMonth(),1),lm=new Date(t.getFullYear(),t.getMonth()-1,1),le=new Date(t.getFullYear(),t.getMonth(),0);
-  return [["This month so far",isoD(a),isoD(t)],[lm.toLocaleDateString("en-GB",{month:"long"}),isoD(lm),isoD(le)]]}
-async function qboLoad(){
-  if(!CFG.url)return;$("qboBody").innerHTML='<span class="muted">Checking QuickBooks…</span>';
-  try{const j=await post({want:["qbo"]});QBO=j.qbo;if(!QBO)throw new Error("The Google script needs updating to the latest version (Deploy > Manage deployments > New version).");}
-  catch(e){$("qboPill").className="pill bad";$("qboPill").textContent="error";$("qboBody").innerHTML=`<span class="bad">${esc(e.message)}</span>`;return}
-  if(QBO.connected&&!QBOC){QBOC=[];for(const [label,from,to] of qboRanges()){try{const c=(await post({want:["qboCosts"],from,to})).qboCosts;c.lines=(c.lines||[]).filter(l=>!/welfare|training|uniform|recruit/i.test(l.account));c.staffCosts=c.lines.reduce((a,l)=>a+l.amount,0);QBOC.push({label,...c})}catch(e){QBOC.push({label,error:e.message})}}}
-  qboShow();
-}
-function qboShow(){
-  const s=QBO||{},pill=$("qboPill");
-  pill.className="pill "+(s.connected?"good":s.keys?"warn":"bad");pill.textContent=s.connected?"connected":s.keys?"not connected":"keys missing";
-  const link=s.connectSig?`${CFG.url}?qbo=connect&sig=${s.connectSig}`:"";
-  let h="";
-  if(!s.keys)h+=`<p>Add <code>QBO_CLIENT_ID</code> and <code>QBO_CLIENT_SECRET</code> to the Google script's properties.</p>`;
-  else if(!s.connected)h+=`<p>Keys are in. Connect once, signed in as the QuickBooks admin:</p><button type="button" class="primary" data-qbogo="${esc(link)}">Connect QuickBooks</button><p class="muted">When it says "QuickBooks connected", come back here and press Check again.</p>`;
-  else{
-    h+=`<p>Connected to <b>${esc(s.company||"QuickBooks")}</b>${s.lastRenewed?` · access last renewed ${esc(new Date(s.lastRenewed).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}))}`:""}.</p>`;
-    h+=`<table class="nt"><thead><tr><th>Period</th><th>Staff costs</th><th>Income</th><th>Staff costs as % of income</th></tr></thead><tbody>${(QBOC||[]).map(c=>c.error?`<tr><td>${esc(c.label)}</td><td colspan="3" class="bad">${esc(c.error)}</td></tr>`
-      :`<tr><td><b>${esc(c.label)}</b></td><td>${gbp(c.staffCosts)}</td><td>${gbp(c.income)}</td><td>${c.income?Math.round(100*c.staffCosts/c.income)+"%":"–"}</td></tr>`).join("")}</tbody></table>`;
-    const lines=(QBOC||[]).find(c=>c.lines&&c.lines.length);
-    if(lines)h+=`<details style="margin-top:6px"><summary>Which accounts count as staff costs</summary><div class="muted">${lines.lines.map(l=>esc(l.account)).join(" · ")}</div></details>`;
-    else if(QBOC&&QBOC.length)h+=`<p class="muted">No wage or salary accounts found on the Profit &amp; Loss yet.</p>`;
-  }
-  if(s.lastError)h+=`<p class="muted" style="margin-top:8px">Last QuickBooks error: ${esc(s.lastError.what)} (${esc(s.lastError.code)})${s.lastError.intuit_tid?" · Intuit ref "+esc(s.lastError.intuit_tid):""} · ${esc(new Date(s.lastError.at).toLocaleString("en-GB"))}</p>`;
-  h+=`<div class="row" style="margin-top:8px"><button type="button" id="qboCheck">Check again</button>${s.connected?'<button type="button" id="qboOff" class="link">Disconnect</button>':""}</div>`;
-  $("qboBody").innerHTML=h;
-}
-document.addEventListener("toggle",e=>{if(e.target.id==="qboPanel"&&e.target.open&&!QBO)qboLoad()},true);
-document.addEventListener("click",async e=>{
-  const g=e.target.closest("[data-qbogo]");if(g)window.open(g.dataset.qbogo,"_blank","noopener");
-  if(e.target.id==="qboCheck"){QBO=null;QBOC=null;qboLoad()}
-  if(e.target.id==="qboOff"&&confirm("Disconnect the Hub from QuickBooks? You can connect again any time.")){QBO=(await post({action:"qboDisconnect"})).qbo;QBOC=null;qboShow()}
-});
 </script>
 </body>
 </html>

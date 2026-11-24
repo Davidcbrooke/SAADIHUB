@@ -14,6 +14,7 @@
  *        SHEET_ID         = the staffing sheet's ID (the long code in its link)
  *        TOKEN            = a long random password (the Hub's Staffing page makes one for you)
  *        QBO_CLIENT_ID / QBO_CLIENT_SECRET = QuickBooks production keys (developer.intuit.com, app "SAADI HUB"), optional
+ *        QBO_OWNER_KEY = Dave's own key for QuickBooks figures (not the Hub TOKEN; the Hub never sees QuickBooks)
  *   3. Deploy > New deployment > Web app: Execute as "Me", Who has access "Anyone". Copy the Web app URL into the Hub.
  * Each new term: change SHEET_ID to the new term's sheet (or paste the new link into the Hub's Staffing settings).
  */
@@ -25,19 +26,21 @@ function doPost(e) {
   try {
     var q = JSON.parse(e.postData.contents || '{}');
     if (!q.token || q.token !== prop_('TOKEN')) return out_({ ok: false, error: 'Wrong token' });
-    var res = { ok: true, at: new Date().toISOString(), version: 7 };
+    var res = { ok: true, at: new Date().toISOString(), version: 9 };
     // cover: write the confirmed person into the rota, or close a shift so late "I can do it" taps are thanked and turned away
     if (q.action === 'write') { res.written = write_(q.sheetId || prop_('SHEET_ID'), q); return out_(res); }
     if (q.action === 'close') { P.setProperty('X:' + q.c, JSON.stringify({ by: q.by || '', at: res.at })); return out_(res); }
     if (q.action === 'reopen') { P.deleteProperty('X:' + q.c); return out_(res); }
-    if (q.action === 'qboDisconnect') { res.qbo = qboDisconnect_(); return out_(res); }
+    var owner = prop_('QBO_OWNER_KEY') && q.ownerKey === prop_('QBO_OWNER_KEY');   // QuickBooks is Dave-only: never the Hub's token
+    if (q.action === 'qboDisconnect') { if (!owner) return out_({ ok: false, error: 'Owner key needed' }); res.qbo = qboDisconnect_(); return out_(res); }
     var want = q.want || ['rota', 'staff', 'off'];
     if (want.indexOf('rota') >= 0) res.rota = rota_(q.sheetId || prop_('SHEET_ID'));
     if (want.indexOf('staff') >= 0) res.staff = staff_();
     if (want.indexOf('off') >= 0) res.off = off_(q.from, q.to);
     if (want.indexOf('replies') >= 0) res.replies = replies_();
-    if (want.indexOf('qbo') >= 0) res.qbo = qboStatus_();
-    if (want.indexOf('qboCosts') >= 0) res.qboCosts = qboCosts_(q.from, q.to);
+    if (owner && want.indexOf('qbo') >= 0) res.qbo = qboStatus_();
+    if (want.indexOf('qboStaff') >= 0) res.qboStaff = qboStaff_(q.wageFor || []);
+    if (owner && want.indexOf('qboCosts') >= 0) res.qboCosts = qboCosts_(q.from, q.to);
     return out_(res);
   } catch (err) {
     return out_({ ok: false, error: String(err && err.message || err) });
@@ -51,7 +54,7 @@ function doGet(e) {
   if (q.code && q.realmId) return qboCallback_(q);
   if (q.error && q.state) return qboPage_('QuickBooks was not connected', 'Intuit said: ' + esc_(q.error) + '. You can close this and try again from the Hub.');
   if (q.shift && q.pick) return pickPage_(q);
-  if (!p.c) return out_({ ok: true, hello: 'SAADI Hub Staffing connector', version: 7 });
+  if (!p.c) return out_({ ok: true, hello: 'SAADI Hub Staffing connector', version: 9 });
   var ok = p.k && p.k === sign_(p.c + '|' + p.p);
   var msg, head;
   if (!ok) { head = 'That link doesn\'t look right'; msg = 'Please reply to the email instead and reception will sort it out.'; }
@@ -204,7 +207,8 @@ function off_(from, to) {
 }
 
 /* ---------------- QuickBooks Online (read only, accounting scope) ----------------
- * Connect once from the Hub (Staffing > Names & settings > QuickBooks). Intuit sends the browser back here with a code,
+ * Owner only: every QuickBooks request needs QBO_OWNER_KEY (kept in C:\NGL\credentials\.env, never in the Hub).
+ * Connect by opening <web app url>?qbo=connect&sig=<QBO_OWNER_KEY>. Intuit sends the browser back here with a code,
  * which is swapped for tokens kept only in this script's properties. Access tokens last an hour and are renewed
  * automatically; the refresh token rolls on as long as it's used at least every 100 days.
  * Errors are logged with Intuit's intuit_tid (QBO_LOG, last 50) so Intuit support can trace them.
@@ -236,7 +240,7 @@ function qboPage_(head, msg) {
 }
 /* Step 1: the Hub opens ?qbo=connect&sig=... (signed with the Hub token, so only the Hub can start a connection). */
 function qboConnectPage_(q) {
-  if (!q.sig || q.sig !== sign_('qbo-connect')) return qboPage_('That link does not look right', 'Please start again from the Staffing page in the Hub.');
+  if (!prop_('QBO_OWNER_KEY') || q.sig !== prop_('QBO_OWNER_KEY')) return qboPage_('That link does not look right', 'Please start again from the Staffing page in the Hub.');
   if (!prop_('QBO_CLIENT_ID') || !prop_('QBO_CLIENT_SECRET')) return qboPage_('QuickBooks keys missing', 'Add QBO_CLIENT_ID and QBO_CLIENT_SECRET to this script\'s properties first.');
   var state = Utilities.getUuid();
   CacheService.getScriptCache().put('qboState:' + state, '1', 900);   // CSRF check, valid 15 minutes
@@ -299,7 +303,7 @@ function qboGet_(path) {
 }
 function qboStatus_() {
   var s = { keys: !!(prop_('QBO_CLIENT_ID') && prop_('QBO_CLIENT_SECRET')), connected: !!(P.getProperty('QBO_REFRESH') && P.getProperty('QBO_REALM_ID')),
-            company: P.getProperty('QBO_COMPANY') || '', lastRenewed: P.getProperty('QBO_REFRESHED') || '', connectSig: sign_('qbo-connect') };
+            company: P.getProperty('QBO_COMPANY') || '', lastRenewed: P.getProperty('QBO_REFRESHED') || '' };
   var log = JSON.parse(P.getProperty('QBO_LOG') || '[]'); if (log.length) s.lastError = log[0];
   return s;
 }
@@ -327,4 +331,27 @@ function qboCosts_(from, to) {
   })(rep.Rows && rep.Rows.Row);
   var staff = lines.reduce(function (a, b) { return a + b.amount; }, 0);
   return { from: from, to: to, currency: (rep.Header && rep.Header.Currency) || 'GBP', income: income, expenses: expenses, staffCosts: Math.round(staff * 100) / 100, lines: lines };
+}
+
+/* Staff from QuickBooks: correct name, date of birth, phone for everyone; hourly rate ONLY for the ids the Hub has
+ * ticked (wageFor). No bank, NI number, address or salary details are read. */
+function qboStaff_(wageFor) {
+  var want = {}; (wageFor || []).forEach(function (id) { want[String(id)] = 1; });
+  var out = [], start = 1;
+  while (start < 5000) {
+    var j = qboGet_('query?query=' + encodeURIComponent('select * from Employee startposition ' + start + ' maxresults 500'));
+    var list = (j.QueryResponse && j.QueryResponse.Employee) || [];
+    list.forEach(function (e) {
+      var o = { id: e.Id, active: e.Active !== false, first: e.GivenName || '', middle: e.MiddleName || '', last: e.FamilyName || '',
+                display: e.DisplayName || '', dob: e.BirthDate || '',
+                phone: (e.Mobile && e.Mobile.FreeFormNumber) || (e.PrimaryPhone && e.PrimaryPhone.FreeFormNumber) || '',
+                email: (e.PrimaryEmailAddr && e.PrimaryEmailAddr.Address) || '', hired: e.HiredDate || '', released: e.ReleasedDate || '',
+                hasRate: e.BillRate != null && Number(e.BillRate) > 0 };
+      if (want[String(e.Id)] && o.hasRate) o.hourly = Number(e.BillRate);
+      out.push(o);
+    });
+    if (list.length < 500) break;
+    start += 500;
+  }
+  return out;
 }

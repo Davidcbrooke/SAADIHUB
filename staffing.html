@@ -170,7 +170,7 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
     </section>
 
     <div class="bar" id="topBar" hidden>
-      <div class="bar tabs" id="tabs"><button type="button" data-tab="cover">Cover</button><button type="button" data-tab="rota">Rota</button><button type="button" data-tab="hubrota">Hub rota <span class="pill none" style="font-size:10px">preview</span></button><button type="button" data-tab="positions">Positions</button><button type="button" data-tab="wages">Wages 🔒</button><button type="button" data-tab="names">Names &amp; settings <span class="pill warn" id="namesBadge" hidden></span></button></div>
+      <div class="bar tabs" id="tabs"><button type="button" data-tab="cover">Cover</button><button type="button" data-tab="rota">Rota</button><button type="button" data-tab="sheet">Rota sheet</button><button type="button" data-tab="hubrota">Hub rota <span class="pill none" style="font-size:10px">preview</span></button><button type="button" data-tab="positions">Positions</button><button type="button" data-tab="wages">Wages 🔒</button><button type="button" data-tab="names">Names &amp; settings <span class="pill warn" id="namesBadge" hidden></span></button></div>
       <span style="flex:1"></span>
       <button type="button" id="prevWk" aria-label="Previous week">&larr;</button><span class="wk" id="wkLabel"></span><button type="button" id="nextWk" aria-label="Next week">&rarr;</button>
       <button type="button" id="thisWk">This week</button>
@@ -249,6 +249,12 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px}
       <p class="small muted" style="margin:0">Names on the rota that the Hub can't link to one person in Breathe, so it can't tell when they're off. Fix each one once: it's saved for everyone.</p>
       <div class="list" id="anomList"></div>
       <details class="small" style="margin-top:6px"><summary>Marked as not in Breathe <span id="ignCount"></span></summary><div class="list" id="ignList" style="margin-top:6px"></div></details>
+    </section>
+
+    <section class="panel" id="sheetPanel" data-pane="sheet" hidden>
+      <div class="row" style="gap:10px;flex-wrap:wrap"><h2 style="margin:0" id="shTitle">Rota sheet</h2><span style="flex:1"></span><a id="shOpen" target="_blank" rel="noopener" style="padding:8px 16px;border-radius:999px;text-decoration:none;background:#d4066a;color:#fff;font-weight:700">Open in a new tab ↗</a></div>
+      <p class="small muted" style="margin:6px 0 8px">The live Google Sheet. Changes here go straight into the sheet. You need to be signed in to Google with access to it. If it doesn't show below, use <b>Open in a new tab</b>.</p>
+      <iframe id="shFrame" title="Rota sheet" style="width:100%;height:78vh;border:1px solid var(--line);border-radius:10px;background:#fff" loading="lazy"></iframe>
     </section>
 
     <section class="panel" id="hubRotaPanel" data-pane="hubrota" hidden>
@@ -955,6 +961,9 @@ function render(){
   if(pane==="positions")renderPositions();
   if(pane==="wages")renderWages();
   if(pane==="hubrota")renderHubRota();
+  if(pane==="sheet"){const id=sheetIdOf(CFG.sheet)||DEFAULT_SHEET,u="https://docs.google.com/spreadsheets/d/"+id+"/edit";$("shOpen").href=u;$("shTitle").textContent=DATA&&DATA.rota?DATA.rota.title:"Rota sheet";
+    // load once (and again only if the sheet changes), so switching tabs doesn't reload it
+    if($("shFrame").dataset.id!==id){$("shFrame").dataset.id=id;$("shFrame").src=u+"?rm=minimal"}}
   const v=dayView(day,dateFor(day,weekStart));
   $("dayTitle").textContent=`${day} ${pretty(dateFor(day,weekStart),{day:"numeric",month:"long"})}`;
   $("dayBody").innerHTML=v.html;

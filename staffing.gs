@@ -320,7 +320,7 @@ function qboCosts_(from, to) {
     (rows || []).forEach(function (r) {
       if (r.Summary && r.group === 'Income') income = Number(r.Summary.ColData[1].value || 0);
       if (r.Summary && r.group === 'Expenses') expenses = Number(r.Summary.ColData[1].value || 0);
-      if (r.ColData && /wage|salar|payroll|pension|national insurance|\bni\b|staff|coach|employ/i.test(r.ColData[0].value || ''))
+      if (r.ColData && /wage|salar|payroll|pension|national insurance|\bni\b|staff|coach|employ/i.test(r.ColData[0].value || '') && !/welfare|training|uniform|recruit/i.test(r.ColData[0].value || ''))
         lines.push({ account: r.ColData[0].value, amount: Number(r.ColData[1].value || 0) });
       if (r.Rows) walk(r.Rows.Row);
     });

@@ -650,7 +650,7 @@ async function qboLoad(){
   if(!CFG.url)return;$("qboBody").innerHTML='<span class="muted">Checking QuickBooks…</span>';
   try{const j=await post({want:["qbo"]});QBO=j.qbo;if(!QBO)throw new Error("The Google script needs updating to the latest version (Deploy > Manage deployments > New version).");}
   catch(e){$("qboPill").className="pill bad";$("qboPill").textContent="error";$("qboBody").innerHTML=`<span class="bad">${esc(e.message)}</span>`;return}
-  if(QBO.connected&&!QBOC){QBOC=[];for(const [label,from,to] of qboRanges()){try{const c=(await post({want:["qboCosts"],from,to})).qboCosts;QBOC.push({label,...c})}catch(e){QBOC.push({label,error:e.message})}}}
+  if(QBO.connected&&!QBOC){QBOC=[];for(const [label,from,to] of qboRanges()){try{const c=(await post({want:["qboCosts"],from,to})).qboCosts;c.lines=(c.lines||[]).filter(l=>!/welfare|training|uniform|recruit/i.test(l.account));c.staffCosts=c.lines.reduce((a,l)=>a+l.amount,0);QBOC.push({label,...c})}catch(e){QBOC.push({label,error:e.message})}}}
   qboShow();
 }
 function qboShow(){

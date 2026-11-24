@@ -12,7 +12,8 @@
 //   4. takes the same text a select-all copy would give (class, time, group, Booked / Available / Trial / Wait List, term),
 //      plus each class's public booking link (what JustGo's "Copy Link" gives), for the Enquiry Desk emails,
 //   5. Term Renewals: when next term's classes are set up (e.g. Spring), reads the registers of this term's Recreational and
-//      Pre-School classes and next term's (child, parent's first name, email and phone, trial / pay-as-you-go), so the hub can show who has renewed,
+//      Pre-School classes and next term's (child, parent's first name, email and phone, trial / pay-as-you-go;
+//      phones are read from each not-yet-renewed child's member details, as the register has none), so the hub can show who has renewed,
 //   6. Failed Payments: one-off class payments that failed and weren't paid since, and regular payments still failing (Club Finances),
 //   7. only when every class is in, offers an "Open SAADI Hub" button, which sends it all to the hub
 //      in the address after "#jg=" (that part never leaves the browser).
@@ -151,7 +152,7 @@
           }
           return all;
         };
-        const kids = {}, rows = [], cls = [];
+        const kids = {}, rows = [], cls = [], ent = {};
         // parent's phone for the renewal call list: whichever mobile/phone field JustGo fills in
         const phoneOf = a => String(a.parentMobileNumber || a.parentMobile || a.parentPhoneNumber || a.mobileNumber || a.mobile || a.phoneNumber || a.phone ||
           Object.keys(a).filter(k => /mobile|phone/i.test(k) && typeof a[k] === "string" && /\d{6}/.test(a[k].replace(/\D/g, ""))).map(k => a[k])[0] || "").trim();
@@ -168,6 +169,7 @@
                 const fl = a.hasTrial ? "T" : String(a.chipStatus || "").toUpperCase() === "PAYG" ? "P" : "";
                 // Names and emails only for termly places this term and bookings next term; trials and pay-as-you-go are just counted.
                 if (!kids[id] && (fl === "" || o.__k === "n")) kids[id] = [a.firstName || "", a.lastName || "", a.parentFirstname || "", a.parentEmailAddress || a.emailAddress || "", a.age || "", phoneOf(a)];
+                if (a.entityid) ent[id] = a.entityid;
                 rows.push([i, fl === "" || o.__k === "n" ? id : "", fl]);
               });
             } catch (e) {}
@@ -175,8 +177,25 @@
             say("Reading the class registers… " + done + " of " + sessions.length);
           }
         }));
+        // Phones for the renewal call list: the register has none, so for each child on a termly place this term
+        // with no booking next term, read the phone from the member's details (the same call as JustGo's Member Details panel).
+        const booked = new Set(rows.filter(r => sessions[r[0]][1] === "n" && r[1]).map(r => r[1]));
+        const need = [...new Set(rows.filter(r => sessions[r[0]][1] === "c" && r[1] && !r[2]).map(r => r[1]))].filter(id => kids[id] && !kids[id][5] && ent[id] && !booked.has(id));
+        let got = 0;
+        await Promise.all(Array.from({ length: 6 }, async () => {
+          while (need.length && alive()) {
+            const id = need.shift();
+            try {
+              const r = await fetch("/WidgetService.mvc/ExecuteWidgetCommandAlt", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ payload: { commands: [{ Id: 1, Service: "JustGoBooking", Method: "GetEntityInfo", Arguments: [+ent[id], "Member", 0, 0, 0] }] }, paths: ["commands"] }) });
+              const j = (await r.json())[0], e = j && j.IsSuccess && j.Result && j.Result.Result && j.Result.Result.EntityInfo;
+              if (e && e.Phone) kids[id][5] = String(e.Phone).trim();
+            } catch (x) {}
+            got++;
+            say("Finding phone numbers for the call list… " + got);
+          }
+        }));
         ren = { v: 1, at: new Date().toISOString(), club, cur: cur.map(t => [t.ClassTermId, t.Name, t.StartDate, t.EndDate]), next: nxt.map(t => [t.ClassTermId, t.Name, t.StartDate, t.EndDate]), cls, kids, rows };
-        renNote = " Renewals: " + Object.keys(kids).length + " children.";
+        renNote = " Renewals: " + Object.keys(kids).length + " children, " + Object.values(kids).filter(k => k[5]).length + " phone numbers.";
       } else renNote = " (Couldn't read the registers for renewals this time.)";
     }
   } catch (e) { renNote = " (Couldn't read the registers for renewals this time.)"; }

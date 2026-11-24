@@ -100,6 +100,9 @@ table.nt td.nac{width:1%;white-space:nowrap}
 table.nt .na{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end;min-width:260px;max-width:420px}
 table.nt tr.nx td{background:var(--surface-2);border-bottom:1px solid var(--line)}
 table.nt .elig{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px}
+table.nt td.ncol{min-width:280px;width:30%}
+table.nt textarea.cnote{display:block;width:100%;min-width:260px;margin:0;font:inherit;font-size:13px;padding:4px 6px;border:1px solid var(--line);border-radius:8px;resize:vertical}
+table.nt .cnby{font-size:11px;color:var(--muted)}
 button.sm,select.sm{padding:4px 10px;font-size:13px}
 select.sm{max-width:150px}
 button.ok{background:var(--good);border-color:var(--good);color:#fff}
@@ -406,6 +409,8 @@ function groupNeeds(list){
   return Object.values(g).map(x=>{x.pos=[...new Set(x.items.map(i=>i.pos))];x.sessions=[...new Set(x.items.map(i=>i.r.session))];return x})
     .sort((a,b)=>a.date.localeCompare(b.date)||(a.off?fullName(a.off):"~").localeCompare(b.off?fullName(b.off):"~"));
 }
+// Notes against each shift (e.g. two people sharing it, or someone coming off another group): saved when you click away.
+const noteBox=id=>{const d=COVER[id]||{};return `<textarea class="cnote" rows="2" data-note="${esc(id)}" placeholder="Notes, e.g. Sam 4–5pm then Jo; Alex from the Pre-School group">${esc(d.note||"")}</textarea>${d.note&&d.noteBy?`<div class="cnby">${esc(d.noteBy)} · ${esc(new Date(d.noteAt).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}))}</div>`:""}`};
 const itemText=i=>`${i.r.session} ${i.r.cls} (${i.r.role})`;
 const groupText=g=>`${pretty(g.date,{weekday:"long",day:"numeric",month:"long"})}: ${g.items.map(itemText).join(", ")}`;
 const RET=()=>CFG.retained||{};
@@ -429,6 +434,7 @@ function renderCover(offCount){
   NEEDS=groupNeeds(needsThisWeek());
   const wkEnd=addDays(weekStart,6);
   const today=Hub.todayIso();
+  NEEDS=NEEDS.filter(g=>g.date>=today);   // days already gone aren't shown
   const who=ids=>(ids||[]).map(id=>STAFF.find(s=>String(s.id)===String(id))).filter(Boolean).map(fullName).join(" / ");
   // covered = confirmed in the Hub, marked Sorted, or named as cover in the Breathe absence note
   const covOf=g=>{const d=COVER[g.id];
@@ -451,7 +457,7 @@ function renderCover(offCount){
   const mailerOk=!!(S.mailerUrl&&S.mailerToken);
   const everyone=STAFF.slice().sort((a,b)=>fullName(a).localeCompare(fullName(b)));
   // day letters with a bubble: people off (or empty slots) still needing cover that day; tap to show just that day
-  $("wkDays").innerHTML=DAY_ORDER.map(dn=>{const dt=dateFor(dn,weekStart),n=open.filter(g=>g.date===dt).length,past=dt<today;
+  $("wkDays").innerHTML=DAY_ORDER.filter(dn=>dateFor(dn,weekStart)>=today).map(dn=>{const dt=dateFor(dn,weekStart),n=open.filter(g=>g.date===dt).length,past=dt<today;
     return `<button type="button" class="wd${dayFilter===dt?" on":""}${past?" past":""}${dt===today?" today":""}" data-wd="${dt}" title="${esc(pretty(dt,{weekday:"long",day:"numeric",month:"long"}))}: ${n} need${n===1?"s":""} cover">${dn.charAt(0)}<small>${new Date(dt+"T12:00:00").getDate()}</small>${n?`<em>${n}</em>`:""}</button>`}).join("");
   const shown=dayFilter?all.filter(g=>g.date===dayFilter):all;
   const shortSession=t=>String(t).replace(/:00\s*/,"").replace(/\s*(AM|PM)$/i,m=>m.trim().toLowerCase());
@@ -466,6 +472,7 @@ function renderCover(offCount){
       <td><b>${esc(offWho)}</b>${!gh&&g.off?`<div class="small muted">${g.o.kind==="holiday"?"Holiday":"Off"}${g.off.job?" · "+esc(g.off.job):""}</div>`:""}</td>
       <td><b>${esc((g.pos||[]).join(" + "))}</b><div class="shs">${shifts}</div></td>
       <td>${status}</td>
+      <td class="ncol">${noteBox(g.id)}</td>
       <td class="nac"><div class="na">${c.k==="sorted"?`<button type="button" class="sm" data-unsort="${esc(g.id)}">Undo</button>`:""}</div></td></tr></tbody>`};
   const rows=shown.map(g=>{
     if(g.cov)return coveredRow(g);
@@ -481,13 +488,14 @@ function renderCover(offCount){
       <td><b>${g.off?esc(fullName(g.off)):"Nobody on rota"}</b>${g.off?`<div class="small muted">${g.o.kind==="holiday"?"Holiday":"Off"}${g.off.job?" · "+esc(g.off.job):""}</div>`:""}</td>
       <td>${need}<div class="shs">${shifts}</div></td>
       <td>${status}</td>
+      <td class="ncol">${noteBox(g.id)}</td>
       <td class="nac"><div class="na">${yes.map(s=>`<button type="button" class="ok sm" data-confirm="${s.id}">Confirm ${esc(firstOf(s))}</button>`).join("")}${send}
         <button type="button" class="sm" data-sorted title="Dealt with another way: take it off the list (the rota sheet isn't changed)">Sorted</button>
         <button type="button" class="link sm" data-find title="See or untick who it goes to">${showFind?"▴ names":"▾ names"}</button>
         ${CFG.waOn&&el.length?`<button type="button" class="wa sm" data-wagroup>WhatsApp group</button>`:""}
         <select data-cover class="sm" title="Covered another way"><option value="">Covered by…</option>${everyone.map(s=>`<option value="${s.id}">${esc(fullName(s))}${isRetained(s.id)?" (retained)":g.pos.every(p=>posOf(s.id).includes(p))?"":" (not all positions)"}</option>`).join("")}</select></div></td></tr>
-      ${showFind?`<tr class="nx"><td></td><td colspan="4"><div class="elig">${el.map(s=>`<label class="pp"><input type="checkbox" data-elig="${s.id}" ${s.email?"checked":"disabled"}> ${esc(fullName(s))}${L!=null&&lvOf(s.id)!==L?` <span class="pill none">Band ${BAND(lvOf(s.id))}</span>`:""}${s.email?"":" (no email)"}${CFG.waOn&&s.wa?` <button type="button" class="wa sm" data-wa="${s.id}">WhatsApp</button>`:""}</label>`).join("")||`<span class="muted">${L==null?"Nobody with these positions is free. Check the Positions tab.":"Nobody in this pay band is free. Try + also Band "+BAND(L-1)+", or set pay bands in the Wages tab."}</span>`}</div></td></tr>`:""}</tbody>`});
-  $("needList").innerHTML=dayFilter&&!rows.length?`<p class="small muted" style="margin:0">Nobody is off on ${esc(pretty(dayFilter,{weekday:"long",day:"numeric",month:"long"}))}.</p>`:rows.length?`<table class="nt"><thead><tr><th>Day</th><th>Who's off</th><th>Needed · shifts</th><th>Status</th><th></th></tr></thead>${rows.join("")}</table>`:'<p class="small muted" style="margin:0">Nothing needs cover from today to the end of this week.</p>';
+      ${showFind?`<tr class="nx"><td></td><td colspan="5"><div class="elig">${el.map(s=>`<label class="pp"><input type="checkbox" data-elig="${s.id}" ${s.email?"checked":"disabled"}> ${esc(fullName(s))}${L!=null&&lvOf(s.id)!==L?` <span class="pill none">Band ${BAND(lvOf(s.id))}</span>`:""}${s.email?"":" (no email)"}${CFG.waOn&&s.wa?` <button type="button" class="wa sm" data-wa="${s.id}">WhatsApp</button>`:""}</label>`).join("")||`<span class="muted">${L==null?"Nobody with these positions is free. Check the Positions tab.":"Nobody in this pay band is free. Try + also Band "+BAND(L-1)+", or set pay bands in the Wages tab."}</span>`}</div></td></tr>`:""}</tbody>`});
+  $("needList").innerHTML=dayFilter&&!rows.length?`<p class="small muted" style="margin:0">Nobody is off on ${esc(pretty(dayFilter,{weekday:"long",day:"numeric",month:"long"}))}.</p>`:rows.length?`<table class="nt"><thead><tr><th>Day</th><th>Who's off</th><th>Needed · shifts</th><th>Status</th><th>Notes</th><th></th></tr></thead>${rows.join("")}</table>`:'<p class="small muted" style="margin:0">Nothing needs cover from today to the end of this week.</p>';
 }
 async function post(body){const r=await fetch(CFG.url,{method:"POST",body:JSON.stringify(Object.assign({token:CFG.token},body))});const j=await r.json();if(!j.ok)throw new Error(j.error||"The Google script refused");return j}
 async function sendMail(to,subject,heading,paras,foot){
@@ -957,6 +965,12 @@ document.addEventListener("click",async e=>{const u=e.target.closest("button[dat
   await post({action:"reopen",c:id}).catch(()=>{});
   const prev=COVER[id]||{};await Hub.doc("cover/"+id).set({status:(prev.offeredTo||[]).length?"offered":"open",sortedAt:null},{merge:true});toast("Back on the list")});
 document.addEventListener("change",e=>{const s=e.target.closest("select[data-cover]");if(!s||!s.value)return;const card=s.closest("[data-need]");const n=NEEDS.find(x=>x.id===card.dataset.need);if(n)confirmCover(n,s.value);s.value=""});
+let noteRedraw=false;
+const typing=()=>{const a=document.activeElement;return !!(a&&a.matches&&a.matches("textarea[data-note]"))};
+document.addEventListener("focusout",async e=>{const t=e.target.closest&&e.target.closest("textarea[data-note]");if(!t)return;
+  const id=t.dataset.note,v=t.value.trim(),was=((COVER[id]||{}).note||"").trim();
+  if(v!==was){try{await Hub.doc("cover/"+id).set({note:v,noteBy:me()||"Hub",noteAt:Date.now()},{merge:true});toast(v?"Note saved":"Note cleared")}catch(x){toast("Couldn't save the note: "+(x.code||x.message))}}
+  if(noteRedraw&&!typing()){noteRedraw=false;render()}});
 $("posFilter").oninput=renderPositions;$("posAll").onchange=renderPositions;
 $("savePos").onclick=async()=>{const m=Object.assign({},POS());const rows={};
   document.querySelectorAll("#posTable input[data-pid]").forEach(i=>{(rows[i.dataset.pid]=rows[i.dataset.pid]||[]);if(i.checked)rows[i.dataset.pid].push(i.dataset.pos)});
@@ -974,7 +988,7 @@ Hub.gate(()=>{
   // (guarded so an old cached hub-core.js can never stop the page loading)
   if(Hub.wagesSaved){const sv=Hub.wagesSaved();if(sv)Hub.openWages(sv,true).then(err=>{if(!err)wagesOpened()})}
   Hub.doc("config/enquiryDesk").onSnapshot(d=>{S=EQ.settings(d.exists?d.data():{});if(DATA)render()},()=>{});
-  Hub.col("cover").onSnapshot(s=>{COVER={};s.docs.forEach(d=>COVER[d.id]=d.data());if(DATA)render()},()=>{});
+  Hub.col("cover").onSnapshot(s=>{COVER={};s.docs.forEach(d=>COVER[d.id]=d.data());if(!DATA)return;if(typing())noteRedraw=true;else render()},()=>{});
   Hub.doc("config/staffing").onSnapshot(d=>{cfgLoaded=true;const was=CFG.url;CFG=d.exists?d.data():{};if(!CFG.sheet)CFG.sheet=DEFAULT_SHEET;if(CFG.url&&(!DATA||CFG.url!==was))load();else render()},e=>{$("statusNote").hidden=false;$("statusNote").textContent="Couldn't load the settings ("+(e.code||"error")+")."});
 });
 

@@ -236,10 +236,10 @@ input[type=text]{width:100%}
       <section class="panel" id="callPanel">
         <div class="panel-head"><h2>Families to call</h2><span class="muted small" id="callNote"></span></div>
         <div class="toolbar"><div class="wrap small" style="gap:4px;margin:0">
-          <label class="row" style="gap:6px"><input type="checkbox" id="callHideDealt" checked> Hide families already sorted by phone (link sent or leaving)</label>
+          <label class="row" style="gap:6px"><input type="checkbox" id="callHideDealt" checked> Hide families already sorted by phone (link sent, leaving or removed)</label>
           <label class="row" style="gap:6px"><input type="checkbox" id="callHideChanging" checked> Hide families who've asked for a class change (they're in Class change requests)</label></div></div>
         <div class="calls" id="calls"></div>
-        <p class="hint">Ring each family, then press what happened. <b>Send link: their class</b> emails the booking link for next term's matching class straight away. <b>Send link: different class</b> lets you pick another class for their school year, then emails that link. <b>Leaving</b> takes them off the list and out of the figures. <b>No answer</b> keeps them on the list so someone can try again. Every call is saved with who rang and when, so nobody calls twice. Phone numbers come from JustGo with the morning sync.</p>
+        <p class="hint">Ring each family, then press what happened. <b>Send link: their class</b> emails the booking link for next term's matching class straight away. <b>Send link: different class</b> lets you pick another class for their school year, then emails that link. <b>Leaving</b> takes them off the list and out of the figures. <b>No answer</b> keeps them on the list so someone can try again. <b>Remove from list</b> takes them off the call list only (no email, figures unchanged); untick "Hide families already sorted" and press <b>Put back on list</b> to undo. Every call is saved with who rang and when, so nobody calls twice. Phone numbers come from JustGo with the morning sync.</p>
       </section>
 
       <section class="panel fold" id="classPanel">
@@ -582,8 +582,10 @@ function foldNotes(){if(!R)return;
 
 /* ---------- step 4: call list ---------- */
 const callsFor=f=>calls.filter(c=>c.key===f.key).sort((a,b)=>(b.at||0)-(a.at||0));
-const dealt=f=>callsFor(f).some(c=>["their","other","leaving"].includes(c.outcome))||(stat[f.key]||{}).status==="leaving";
-const OUT={their:"Sent the link to their class",other:"Sent a link to a different class",leaving:"Leaving",noanswer:"No answer"};
+// "Remove from list" takes a family off the call list without changing the figures; "Put back on list" undoes it (the latest one counts).
+const removed=f=>{const r=callsFor(f).find(c=>c.outcome==="removed"||c.outcome==="restored");return !!r&&r.outcome==="removed"};
+const dealt=f=>callsFor(f).some(c=>["their","other","leaving"].includes(c.outcome))||removed(f)||(stat[f.key]||{}).status==="leaving";
+const OUT={their:"Sent the link to their class",other:"Sent a link to a different class",leaving:"Leaving",noanswer:"No answer",removed:"Removed from the list",restored:"Put back on the list"};
 function callList(all){
   if(!R)return[];
   return R.families.filter(f=>{
@@ -611,7 +613,8 @@ function renderCalls(){
         <button type="button" class="primary" data-their="${i}" ${okMail&&f.kids.some(k=>k.next)?"":"disabled"}>Send link: their class</button>
         <button type="button" data-other="${i}" ${okMail?"":"disabled"}>Send link: different class</button>
         <button type="button" data-leave="${i}" style="color:var(--bad)">Leaving</button>
-        <button type="button" data-noans="${i}">No answer</button></div>${pick}
+        <button type="button" data-noans="${i}">No answer</button>
+        ${removed(f)?`<button type="button" data-restore="${i}">Put back on list</button>`:`<button type="button" data-remove="${i}" style="color:var(--muted,#666)">Remove from list</button>`}</div>${pick}
         <div class="hist">${h.slice(0,3).map(c=>`${esc(OUT[c.outcome]||c.outcome)}${c.clsName?" ("+esc(c.clsName)+")":""} · ${esc(c.by||"")} · ${esc(when(c.at))}`).join("<br>")||"Not called yet"}</div></div></div>`}).join("")||'<p class="muted">Nobody left to call.</p>';
   const fam=i=>list[+i];
   const logCall=(f,outcome,extra)=>Hub.col("renewalCalls").add(Object.assign({key:f.key,email:f.email||"",parentName:f.parentName||"",outcome,by:who(),at:Date.now()},extra||{}));
@@ -635,6 +638,10 @@ function renderCalls(){
     try{await Hub.doc("renewalStatus/"+f.key.replace(/[^a-z0-9]/gi,"_").slice(0,140)).set({key:f.key,email:f.email||"",childNames:f.kids.map(x=>x.first).join(", "),status:"leaving",at:new Date().toISOString(),by:who(),via:"call"});
       await logCall(f,"leaving");toast("Marked as leaving")}catch(e){toast("Couldn't save: "+(e.code||e.message))}});
   $("calls").querySelectorAll("[data-noans]").forEach(b=>b.onclick=async()=>{const f=fam(b.dataset.noans);try{await logCall(f,"noanswer");toast("Noted: no answer")}catch(e){toast("Couldn't save")}});
+  $("calls").querySelectorAll("[data-remove]").forEach(b=>b.onclick=async()=>{const f=fam(b.dataset.remove);
+    if(!confirm(`Take ${f.parentName||"this family"} off the call list? Nothing changes in the figures or in JustGo. Untick "Hide families already sorted" to see them again.`))return;
+    try{await logCall(f,"removed");toast("Removed from the call list")}catch(e){toast("Couldn't save")}});
+  $("calls").querySelectorAll("[data-restore]").forEach(b=>b.onclick=async()=>{const f=fam(b.dataset.restore);try{await logCall(f,"restored");toast("Back on the call list")}catch(e){toast("Couldn't save")}});
 }
 $("callHideDealt").onchange=renderCalls;$("callHideChanging").onchange=renderCalls;
 

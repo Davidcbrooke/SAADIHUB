@@ -18,11 +18,14 @@ Hub.fmtDate=(iso,opts)=>{if(!iso)return "";const d=new Date(iso+"T12:00:00");ret
 async function hashPw(pw,salt){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode((salt||SALT)+pw.trim()));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
 function remember(id,yes){try{yes?localStorage.setItem(KEY_STORE,id):localStorage.removeItem(KEY_STORE)}catch(e){}}
 
+/* Each device keeps a copy of what it has read, so moving between pages only fetches what changed (saves the free daily read quota). */
+window.hubFirestore=window.hubFirestore||function(){const f=firebase.firestore();if(!window.__hubCache){window.__hubCache=1;try{f.enablePersistence({synchronizeTabs:true}).catch(()=>{})}catch(e){}}return f};
+window.hubOnce=window.hubOnce||(q=>new Promise((ok,no)=>{let u=()=>{};u=q.onSnapshot({includeMetadataChanges:true},s=>{if(!s.metadata.fromCache){u();ok(s)}},no)}));
 Hub.start=function(){
   const cfg=window.SAADI_FIREBASE_CONFIG;
   if(!window.firebase||!cfg||!cfg.apiKey)return false;
   if(!firebase.apps.length)firebase.initializeApp(cfg);
-  Hub.fs=firebase.firestore();return true;
+  Hub.fs=hubFirestore();return true;
 };
 Hub.open=async function(id,rem){
   let k;

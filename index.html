@@ -189,7 +189,7 @@ function loadRenewals(){
   }).catch(()=>{});
 }
 function loadEnquiries(){
-  Promise.all([Hub.doc("config/enquiryDesk").get().catch(()=>null),Hub.col("enquiries").get()]).then(([d,q])=>{
+  Promise.all([Hub.doc("config/enquiryDesk").get().catch(()=>null),hubOnce(Hub.col("enquiries"))]).then(([d,q])=>{
     if(q.empty)return;
     const S=EQ.settings(d&&d.exists?d.data():{}),recs=q.docs.map(x=>({id:x.id,...x.data()})),t=todayIso();
     const due=EQ.actions(recs,S,t).filter(a=>a.dueNow).length,up=recs.filter(r=>r.stage==="trial_booked"&&r.trialDate>=t).length,st=EQ.stats(recs,EQ.addDays(t,-30),t);

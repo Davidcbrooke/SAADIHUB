@@ -908,7 +908,7 @@ async function changePw(role){
   if(!window.firebase||!cfg||!cfg.apiKey||/PASTE/.test(cfg.apiKey)){
     showNote("Setup needed: add your Firebase settings to firebase-config.js (see the setup guide).");return;
   }
-  firebase.initializeApp(cfg);fs=firebase.firestore();
+  firebase.initializeApp(cfg);window.hubFirestore=window.hubFirestore||function(){const f=firebase.firestore();if(!window.__hubCache){window.__hubCache=1;try{f.enablePersistence({synchronizeTabs:true}).catch(()=>{})}catch(e){}}return f};fs=hubFirestore();
   $("authForm").addEventListener("submit",async e=>{
     e.preventDefault();const pw=$("authPass").value;if(!pw.trim()){$("authMsg").textContent="Type the password first.";return}
     $("authGo").disabled=true;$("authMsg").textContent="Checking…";

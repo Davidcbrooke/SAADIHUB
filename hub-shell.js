@@ -97,7 +97,9 @@ async function badges(){
   if (!id && !signedIn) return;
   started = true;
   if (!firebase.apps.length) firebase.initializeApp(window.SAADI_FIREBASE_CONFIG);
-  const fs = firebase.firestore();
+  window.hubFirestore=window.hubFirestore||function(){const f=firebase.firestore();if(!window.__hubCache){window.__hubCache=1;try{f.enablePersistence({synchronizeTabs:true}).catch(()=>{})}catch(e){}}return f};
+  window.hubOnce=window.hubOnce||(q=>new Promise((ok,no)=>{let u=()=>{};u=q.onSnapshot({includeMetadataChanges:true},s=>{if(!s.metadata.fromCache){u();ok(s)}},no)}));
+  const fs = hubFirestore();
   let dk = signedIn;
   if (!dk) try { const k = await fs.doc("keys/" + id).get(); dk = k.exists && k.data().dataKey; } catch (e) {}
   if (!dk) { started = false; return; }
@@ -122,7 +124,7 @@ async function badges(){
   }
   // Enquiry Desk: follow-ups due today
   if (!window.EQ) await loadScript("enquiry-core.js?v=20");
-  if (window.EQ) Promise.all([D("config/enquiryDesk").get().catch(() => null), C("enquiries").get()]).then(([d, q]) => {
+  if (window.EQ) Promise.all([D("config/enquiryDesk").get().catch(() => null), hubOnce(C("enquiries"))]).then(([d, q]) => {
     const S = EQ.settings(d && d.exists ? d.data() : {}), recs = q.docs.map(x => ({id: x.id, ...x.data()}));
     const due = EQ.actions(recs, S, todayIso()).filter(a => a.dueNow).length;
     setBadge("enq", due, `${due} follow-up${due === 1 ? "" : "s"} due`);

@@ -1,7 +1,7 @@
 // Template only. Get your own copy, with the desk's key filled in, from the desk:
 // Emails & settings > Sending emails > Copy the mailer code.
 /**
- * SAADI Enquiry Desk mailer (version 7). Sends the desk's emails from reception@saadigymnastics.co.uk,
+ * SAADI Enquiry Desk mailer (version 8). Sends the desk's emails from reception@saadigymnastics.co.uk,
  * reads the renewal form responses for the Term Renewals page, and every 5 minutes moves families' emailed
  * "Change of class" / "Not continuing" requests into the "Renewal replies" folder and adds them to that spreadsheet.
  * Set up from the desk: Emails & settings > Sending emails. Don't share this code: it contains the desk's key.
@@ -308,6 +308,15 @@ function fsList(col) {
   return out;
 }
 
+/* Only the documents with this status (a query reads just those, not the whole collection: saves the free daily quota). */
+function fsWhere(col, field, value) {
+  var base = fsBase().replace(/\/$/, '');
+  var q = { structuredQuery: { from: [{ collectionId: col }], where: { fieldFilter: { field: { fieldPath: field }, op: 'EQUAL', value: fsVal(value) } } } };
+  var r = UrlFetchApp.fetch(base + ':runQuery', { method: 'post', contentType: 'application/json', payload: JSON.stringify(q), muteHttpExceptions: true });
+  if (r.getResponseCode() !== 200) return [];
+  return JSON.parse(r.getContentText()).filter(function (x) { return x.document; }).map(function (x) { return fsDoc(x.document); });
+}
+
 /* ---- every 5 minutes: copy new emails to the Hub ---- */
 function assistantRun(manual) {
   if (!asOn()) return 0;
@@ -338,7 +347,8 @@ function assistantRun(manual) {
     asProps().setProperty('ASSIST_SEEN', JSON.stringify(seen.slice(-500)));
     asProps().setProperty('ASSIST_LAST_RUN', new Date().toISOString());
     asProps().deleteProperty('ASSIST_LAST_ERROR');
-    if (new Date().getMinutes() < 5) asTidy();                      // once an hour: drop finished items older than 30 days
+    var now = new Date();
+    if (now.getHours() === 3 && now.getMinutes() < 5) asTidy();     // once a day: drop finished items older than 30 days
   } catch (err) {
     asProps().setProperty('ASSIST_LAST_ERROR', new Date().toISOString() + ' ' + String(err.message || err).slice(0, 300));
     if (manual) throw err;
@@ -347,7 +357,7 @@ function assistantRun(manual) {
 }
 /* Claude's drafts (written to the Hub) also go into Gmail as a draft reply, with a label. */
 function asGmailDrafts() {
-  fsList('emailAssist').forEach(function (d) {
+  fsWhere('emailAssist', 'status', 'waiting').forEach(function (d) {
     if (d.status !== 'waiting' || d.inGmail || !d.draft) return;
     var t = GmailApp.getThreadById(String(d.threadId));
     if (t) {

@@ -18,6 +18,7 @@ const PAGES = [
     {href: "business-plan.html", name: "Business Plan", desc: "Every objective with its owner, due date and progress.", icon: "target"},
     {href: "calendar.html", name: "Club Calendar", desc: "Term dates, assessments and competitions, with clashes flagged.", icon: "calendar"}]},
   {group: "Team", items: [
+    {href: "guide.html", name: "How it works", desc: "Step by step: what each Team page is for, what to do each week, when something happens, at month end, and the steps for staff.", icon: "help"},
     {href: "rota.html", name: "Rota", desc: "Calendar of everyone's shifts. Red = needs cover: offer it to the same band, one band down or one person.", icon: "calendar"},
     {href: "shifts.html", name: "Shift offers", desc: "Staff who've offered to cover a shift: give it to one person and the rota updates.", icon: "repeat"},
     {href: "people.html", name: "People", desc: "Everything about each member of staff: details, contract, band, working days, groups, holiday. Approve time off.", icon: "people"},
@@ -35,6 +36,7 @@ const ICONS = {
   calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   people: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2a5 5 0 0 1 5.5 4.8"/>',
   doc: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.7-2.5 2-2.5 4"/><circle cx="12" cy="17" r=".6"/>',
   menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
   lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'
 };

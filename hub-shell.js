@@ -19,6 +19,7 @@ const PAGES = [
     {href: "calendar.html", name: "Club Calendar", desc: "Term dates, assessments and competitions, with clashes flagged.", icon: "calendar"}]},
   {group: "Team", items: [
     {href: "rota.html", name: "Rota", desc: "Calendar of everyone's shifts. Red = needs cover: offer it to the same band, one band down or one person, and pick who gets it.", icon: "calendar"},
+    {href: "documents.html", name: "Documents", desc: "Contracts to sign and company documents everyone must read: who's signed, who's read, and reminders.", icon: "doc"},
     {href: "people.html", name: "People", desc: "Approve holiday, see who's off and who's sick, and manage staff records. Sign in as yourself.", icon: "people"},
     {href: "staffing.html", name: "Staffing", desc: "Who's off, who's covering, and offering spare shifts to the people who can do them.", icon: "people"}]}
 ];
@@ -32,6 +33,7 @@ const ICONS = {
   target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
   calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   people: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2a5 5 0 0 1 5.5 4.8"/>',
+  doc: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/>',
   menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
   lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'
 };

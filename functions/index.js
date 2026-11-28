@@ -328,6 +328,230 @@ exports.coverNotify = onDocumentWritten({ document: "openShifts/{id}", secrets: 
   }
 });
 
+/* ------------------------------------------------------------------ documents: contracts to sign + company documents
+   Files live in a private London bucket that only this server can open. Every download goes through docGet, which
+   checks who is asking. Signing is done here (not in the browser) so the record of who/when/where can't be faked. */
+const DOCS_BUCKET = "saadi-team-docs-643022190115";
+const bucket = () => admin.storage().bucket(DOCS_BUCKET);
+const sha256 = buf => crypto.createHash("sha256").update(buf).digest("hex");
+const MAX_PDF = 7 * 1024 * 1024;
+const londonTime = d => new Date(d).toLocaleString("en-GB", { timeZone: "Europe/London", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+function who(req) {
+  const t = req.auth && req.auth.token;
+  if (!t || !t.pid) throw new HttpsError("unauthenticated", "Sign in first.");
+  return { pid: t.pid, role: t.role || "staff", uid: req.auth.uid, mgr: ["manager", "owner"].includes(t.role) };
+}
+function readPdf(b64) {
+  const buf = Buffer.from(String(b64 || ""), "base64");
+  if (buf.length < 100 || buf.slice(0, 5).toString() !== "%PDF-") throw new HttpsError("invalid-argument", "That isn't a PDF.");
+  if (buf.length > MAX_PDF) throw new HttpsError("invalid-argument", "That PDF is over 7 MB. Save a smaller copy and try again.");
+  return buf;
+}
+async function pageCount(buf) { try { const { PDFDocument } = require("pdf-lib"); return (await PDFDocument.load(buf, { ignoreEncryption: true })).getPageCount(); } catch (e) { return null; } }
+async function nameOf(pid) { const s = await db.doc(`people/${pid}`).get(); return s.exists ? personName(s.data()) : ""; }
+const clientInfo = req => {
+  const h = (req.rawRequest && req.rawRequest.headers) || {};
+  return { ip: String(h["x-forwarded-for"] || (req.rawRequest && req.rawRequest.ip) || "").split(",")[0].trim().slice(0, 60), ua: String(h["user-agent"] || "").slice(0, 220) };
+};
+
+// upload a PDF: a document for one person to sign, or a company document for everyone (new or a new version)
+exports.docUpload = onCall({ secrets: [BREVO_API_KEY], memory: "512MiB", timeoutSeconds: 120 }, async req => {
+  const me = who(req), d = req.data || {};
+  if (!me.mgr) throw new HttpsError("permission-denied", "Managers only.");
+  const buf = readPdf(d.pdf), title = String(d.title || "").trim().slice(0, 120);
+  if (!title) throw new HttpsError("invalid-argument", "Give it a title.");
+  const file = { sha256: sha256(buf), bytes: buf.length, pages: await pageCount(buf), name: String(d.fileName || "").slice(0, 120) || null };
+  const byName = await nameOf(me.pid);
+
+  if (d.kind === "sign") {
+    const ps = await db.doc(`people/${d.personId}`).get();
+    if (!ps.exists || ps.data().status === "leaver") throw new HttpsError("not-found", "Can't find that member of staff.");
+    const ref = db.collection("signDocs").doc(), path = `sign/${ref.id}/original.pdf`;
+    await bucket().file(path).save(buf, { contentType: "application/pdf", resumable: false });
+    const counterBy = d.needsCounter === false ? null : (d.counterBy || (me.role === "owner" ? me.pid : null));
+    await ref.set({
+      personId: d.personId, personName: personName(ps.data()), title, note: String(d.note || "").slice(0, 500) || null,
+      needsCounter: d.needsCounter !== false, counterBy, status: "sent", original: { path, ...file },
+      sentBy: me.pid, sentByName: byName, sentAt: FV.serverTimestamp(), reminders: 0, updatedBy: me.uid, updatedAt: FV.serverTimestamp()
+    });
+    await notify(d.personId, {
+      subject: `Please read and sign: ${title}`, heading: "A document to sign",
+      lines: [`<b>${esc(title)}</b> is ready for you to read and sign in SAADI Team.`, d.note ? `Note: “${esc(d.note)}”` : "", "It only takes a minute: open it, read it, then sign with your finger or mouse."].filter(Boolean),
+      button: "Read and sign", url: HUB + "team/#docs", push: { title: "A document to sign ✍️", body: title }
+    });
+    return { id: ref.id };
+  }
+
+  if (d.kind === "company") {
+    const ref = d.replaceId ? db.doc(`companyDocs/${d.replaceId}`) : db.collection("companyDocs").doc();
+    const old = d.replaceId ? await ref.get() : null;
+    if (d.replaceId && !old.exists) throw new HttpsError("not-found", "Can't find that document.");
+    const version = old ? (old.data().version || 1) + 1 : 1, path = `company/${ref.id}/v${version}.pdf`;
+    await bucket().file(path).save(buf, { contentType: "application/pdf", resumable: false });
+    await ref.set({
+      title, category: String(d.category || "").slice(0, 60) || (old && old.data().category) || "Policies",
+      note: String(d.note || "").slice(0, 500) || null, mustRead: d.mustRead !== false, version, file: { path, ...file },
+      archived: false, publishedAt: FV.serverTimestamp(), publishedBy: me.pid, publishedByName: byName,
+      source: d.source || null, updatedBy: me.uid, updatedAt: FV.serverTimestamp(), ...(old ? {} : { createdAt: FV.serverTimestamp() })
+    }, { merge: true });
+    if (d.notify) {
+      const staff = (await db.collection("people").where("status", "in", ["current", "leaving"]).get()).docs.map(x => x.id);
+      for (const id of staff) await notify(id, {
+        subject: `${version > 1 ? "Updated" : "New"}: ${title}`, heading: version > 1 ? "A document has been updated" : "A new document to read",
+        lines: [`<b>${esc(title)}</b> ${version > 1 ? "has been updated" : "has been added to SAADI Team"}. Please read it and tick “I've read and understood”.`, d.note ? `“${esc(d.note)}”` : ""].filter(Boolean),
+        button: "Read it", url: HUB + "team/#docs", push: { title: version > 1 ? "Document updated 📄" : "New document to read 📄", body: title }
+      });
+    }
+    return { id: ref.id, version };
+  }
+  throw new HttpsError("invalid-argument", "Unknown kind.");
+});
+
+// open a PDF (returned as base64). Signing documents: the person or a manager. Company documents: any member of staff.
+exports.docGet = onCall({ memory: "512MiB" }, async req => {
+  const me = who(req), d = req.data || {};
+  let path;
+  if (d.kind === "sign") {
+    const ref = db.doc(`signDocs/${d.id}`), s = await ref.get();
+    if (!s.exists) throw new HttpsError("not-found", "Not found.");
+    const x = s.data();
+    if (x.personId !== me.pid && !me.mgr) throw new HttpsError("permission-denied", "That isn't yours.");
+    path = d.which === "signed" && x.final ? x.final.path : x.original.path;
+    if (x.personId === me.pid && !x.viewedAt) await ref.update({ viewedAt: FV.serverTimestamp(), updatedBy: me.uid });
+    if (x.personId !== me.pid) await audit({ kind: "view", action: "view", actor: me.uid, actorPid: me.pid, what: `signDoc ${d.id}`, personId: x.personId });
+  } else if (d.kind === "company") {
+    const s = await db.doc(`companyDocs/${d.id}`).get();
+    if (!s.exists || (s.data().archived && !me.mgr)) throw new HttpsError("not-found", "Not found.");
+    path = s.data().file.path;
+  } else throw new HttpsError("invalid-argument", "Unknown kind.");
+  const [buf] = await bucket().file(path).download();
+  return { pdf: buf.toString("base64") };
+});
+
+// sign: the member of staff first, then the counter-signer (an owner or manager). Seals the PDF when done.
+const winAnsi = s => String(s == null ? "" : s).replace(/[^\x20-\x7E -ÿ–—‘’“”•]/g, "?");
+async function sealPdf(orig, x, id) {
+  const { PDFDocument, StandardFonts, rgb } = require("pdf-lib");
+  const pdf = await PDFDocument.load(orig, { ignoreEncryption: true });
+  const font = await pdf.embedFont(StandardFonts.Helvetica), bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const grey = rgb(0.4, 0.4, 0.42), ink = rgb(0.11, 0.11, 0.12), red = rgb(0.776, 0.082, 0.18);
+  const n = pdf.getPageCount();
+  pdf.getPages().forEach((pg, i) => pg.drawText(winAnsi(`Signed electronically in SAADI Team · ref ${id} · page ${i + 1} of ${n + 1}`), { x: 24, y: 10, size: 7, font, color: grey }));
+  const pg = pdf.addPage([595.28, 841.89]);
+  let y = 790;
+  const line = (t, o = {}) => { pg.drawText(winAnsi(t), { x: o.x || 50, y, size: o.size || 10, font: o.bold ? bold : font, color: o.color || ink }); y -= o.gap || (o.size || 10) + 6; };
+  const wrap = (t, w, o = {}) => { const words = winAnsi(t).split(" "); let cur = ""; words.forEach(wd => { const tryT = cur ? cur + " " + wd : wd; if (font.widthOfTextAtSize(tryT, o.size || 10) > w) { line(cur, o); cur = wd; } else cur = tryT; }); if (cur) line(cur, o); };
+  pg.drawRectangle({ x: 0, y: 826, width: 595.28, height: 16, color: red });
+  line("SIGNING CERTIFICATE", { size: 20, bold: true, gap: 26 });
+  line(x.title, { size: 13, bold: true, gap: 18 });
+  line(`Reference: ${id}`, { color: grey });
+  line(`Original document fingerprint (SHA-256): ${x.original.sha256.slice(0, 32)}`, { color: grey, size: 8.5, gap: 11 });
+  line(x.original.sha256.slice(32), { color: grey, size: 8.5, x: 228, gap: 22 });
+  const signer = async (label, s) => {
+    line(label, { bold: true, size: 12, gap: 16 });
+    const png = await pdf.embedPng(Buffer.from(s.png.split(",")[1], "base64"));
+    const sc = Math.min(220 / png.width, 70 / png.height);
+    pg.drawRectangle({ x: 50, y: y - 78, width: 240, height: 84, borderColor: rgb(0.85, 0.85, 0.87), borderWidth: 1 });
+    pg.drawImage(png, { x: 60, y: y - 74, width: png.width * sc, height: png.height * sc });
+    const yy = y; y -= 2;
+    [["Name typed", s.name], ["Signed", londonTime(s.at) + " (UK time)"], ["Email", s.email || ""], ["IP address", s.ip || "not recorded"]].forEach(([k, v]) => {
+      pg.drawText(winAnsi(k), { x: 305, y, size: 8.5, font, color: grey }); pg.drawText(winAnsi(v), { x: 370, y, size: 9, font, color: ink }); y -= 14; });
+    pg.drawText(winAnsi("Device"), { x: 305, y, size: 8.5, font, color: grey });
+    const ua = winAnsi(s.ua || ""); pg.drawText(ua.slice(0, 48), { x: 370, y, size: 7, font, color: grey }); y -= 9; pg.drawText(ua.slice(48, 96), { x: 370, y, size: 7, font, color: grey });
+    y = Math.min(y, yy - 84) - 22;
+  };
+  await signer(`Signed by ${x.personName}`, x.signed);
+  if (x.counter) await signer(`Counter-signed for SAADI Gymnastics by ${x.counter.name}`, x.counter);
+  line("History", { bold: true, size: 12, gap: 16 });
+  const ev = [[x.sentAt, `Sent for signing by ${x.sentByName || "SAADI"}`], [x.viewedAt, `First opened by ${x.personName}`], [x.signed && x.signed.at, `Signed by ${x.signed && x.signed.name}`], [x.counter && x.counter.at, `Counter-signed by ${x.counter && x.counter.name}`]];
+  ev.filter(e => e[0]).forEach(([t, w]) => line(`${londonTime(t && t.toDate ? t.toDate() : t)}   ${w}`, { size: 9.5 }));
+  y -= 10;
+  wrap("This certificate is part of the document. Both people agreed to sign electronically, which has the same effect as signing on paper (Electronic Communications Act 2000). The fingerprint above proves the document wasn't changed after it was sent for signing: the server checked it before each signature.", 495, { size: 8.5, color: grey, gap: 12 });
+  return Buffer.from(await pdf.save());
+}
+exports.signDoc = onCall({ secrets: [BREVO_API_KEY], memory: "1GiB", timeoutSeconds: 120 }, async req => {
+  const me = who(req), d = req.data || {};
+  const name = String(d.name || "").trim().replace(/\s+/g, " ");
+  if (!d.consent) throw new HttpsError("failed-precondition", "Tick the box to agree to sign electronically.");
+  if (name.length < 3 || name.length > 80) throw new HttpsError("invalid-argument", "Type your full name.");
+  if (!/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(String(d.png || "")) || d.png.length > 400000) throw new HttpsError("invalid-argument", "Draw your signature first.");
+  const ref = db.doc(`signDocs/${d.id}`), s = await ref.get();
+  if (!s.exists) throw new HttpsError("not-found", "Not found.");
+  const x = s.data();
+  let stage;
+  if (x.status === "sent" && x.personId === me.pid) stage = "signed";
+  else if (x.status === "signed" && me.mgr && (!x.counterBy || x.counterBy === me.pid)) stage = "counter";
+  else throw new HttpsError("failed-precondition", x.status === "complete" ? "This is already signed." : x.status === "withdrawn" ? "This document was withdrawn." : "It isn't your turn to sign this.");
+  // the file must be exactly what was sent
+  const [orig] = await bucket().file(x.original.path).download();
+  if (sha256(orig) !== x.original.sha256) { logger.error("signDoc hash mismatch", d.id); throw new HttpsError("data-loss", "The document has changed since it was sent. Ask for it to be sent again."); }
+  const ps = await db.doc(`people/${me.pid}`).get();
+  const rec = { pid: me.pid, name, png: d.png, email: ps.exists ? ps.data().email || null : null, at: new Date().toISOString(), ...clientInfo(req) };
+  const after = { ...x, [stage]: rec };
+  const upd = { [stage]: rec, updatedBy: me.uid, updatedAt: FV.serverTimestamp() };
+  if (stage === "counter" || !x.needsCounter) {
+    const sealed = await sealPdf(orig, after, d.id), path = `sign/${d.id}/signed.pdf`;
+    await bucket().file(path).save(sealed, { contentType: "application/pdf", resumable: false });
+    Object.assign(upd, { status: "complete", final: { path, sha256: sha256(sealed), bytes: sealed.length }, completedAt: FV.serverTimestamp() });
+  } else upd.status = "signed";
+  await ref.update(upd);
+  await audit({ kind: "sign", action: stage, actor: me.uid, actorPid: me.pid, personId: x.personId, what: `signDoc ${d.id}` });
+
+  if (upd.status === "signed") {
+    const to = x.counterBy ? [x.counterBy] : (await db.collection("people").where("role", "==", "owner").get()).docs.filter(p => p.data().status !== "leaver").map(p => p.id);
+    await Promise.all(to.map(id => notify(id, {
+      subject: `${x.personName} has signed: ${x.title}`, heading: "Ready to counter-sign",
+      lines: [`<b>${esc(x.personName)}</b> has signed <b>${esc(x.title)}</b>. It needs your signature to finish it.`],
+      button: "Counter-sign", url: HUB + "documents.html", push: { title: "Ready to counter-sign ✍️", body: `${x.personName}: ${x.title}` }
+    })));
+  } else {
+    await Promise.all([...new Set([x.personId, x.counter ? x.counter.pid : null, stage === "counter" ? me.pid : null, x.sentBy].filter(Boolean))].map(id => notify(id, {
+      subject: `Signed: ${x.title}`, heading: "All signed",
+      lines: [`<b>${esc(x.title)}</b> is now signed by everyone. The signed copy, with its signing certificate, is in SAADI Team to download and keep.`],
+      button: "Open SAADI Team", url: id === x.personId ? HUB + "team/#docs" : HUB + "documents.html", push: { title: "All signed ✅", body: x.title }
+    })));
+  }
+  return { status: upd.status };
+});
+
+exports.auditSignDocs = auditTrigger("signDocs/{id}", "sign-doc");
+exports.auditCompanyDocs = auditTrigger("companyDocs/{id}", "company-doc");
+
+// gentle chasers at 10am: unsigned after 3 days (every 2 days, 3 times max); counter-signature waiting 2 days
+exports.docReminders = onSchedule({ schedule: "0 10 * * *", timeZone: "Europe/London", secrets: [BREVO_API_KEY] }, async () => {
+  const now = Date.now(), day = 864e5;
+  const q = await db.collection("signDocs").where("status", "in", ["sent", "signed"]).get();
+  for (const s of q.docs) {
+    const x = s.data(), sent = x.sentAt && x.sentAt.toMillis(), last = x.lastReminder ? x.lastReminder.toMillis() : 0;
+    if ((x.reminders || 0) >= 3 || now - last < 2 * day) continue;
+    if (x.status === "sent" && sent && now - sent > 3 * day) {
+      await notify(x.personId, { subject: `Reminder: please sign ${x.title}`, heading: "Still to sign",
+        lines: [`<b>${esc(x.title)}</b> is waiting for your signature in SAADI Team.`], button: "Read and sign", url: HUB + "team/#docs",
+        push: { title: "Still to sign ✍️", body: x.title } });
+    } else if (x.status === "signed" && x.signed && now - Date.parse(x.signed.at) > 2 * day) {
+      const to = x.counterBy ? [x.counterBy] : [x.sentBy];
+      await Promise.all(to.map(id => notify(id, { subject: `Reminder: counter-sign ${x.title} (${x.personName})`, heading: "Waiting for you",
+        lines: [`<b>${esc(x.personName)}</b> signed <b>${esc(x.title)}</b>. It needs your signature to finish.`], button: "Counter-sign", url: HUB + "documents.html",
+        push: { title: "Waiting for your signature", body: `${x.personName}: ${x.title}` } })));
+    } else continue;
+    await s.ref.update({ reminders: FV.increment(1), lastReminder: FV.serverTimestamp(), updatedBy: "reminder" });
+  }
+  // company documents: one weekly nudge (Mondays) listing what each person hasn't read, if switched on
+  const cfg = (await db.doc("hrConfig/companyDocs").get()).data() || {};
+  if (!cfg.weeklyReminder || new Date().toLocaleDateString("en-GB", { timeZone: "Europe/London", weekday: "long" }) !== "Monday") return;
+  const docs = (await db.collection("companyDocs").where("archived", "==", false).get()).docs.filter(d => d.data().mustRead);
+  const acks = {};
+  for (const d of docs) (await d.ref.collection("acks").get()).docs.forEach(a => { if (a.data().version === d.data().version) (acks[a.id] = acks[a.id] || new Set()).add(d.id); });
+  const staff = (await db.collection("people").where("status", "in", ["current", "leaving"]).get()).docs;
+  for (const p of staff) {
+    const todo = docs.filter(d => !(acks[p.id] && acks[p.id].has(d.id)));
+    if (!todo.length) continue;
+    await notify(p.id, { subject: `${todo.length} SAADI document${todo.length > 1 ? "s" : ""} to read`, heading: "Documents to read",
+      lines: ["Please read these in SAADI Team and tick “I've read and understood”:", todo.slice(0, 12).map(d => `• ${esc(d.data().title)}`).join("<br>")],
+      button: "Read them", url: HUB + "team/#docs", push: { title: "Documents to read 📄", body: `${todo.length} waiting for you` } });
+  }
+});
+
 /* ------------------------------------------------------------------ Breathe copy */
 async function breathe(path, key) {
   for (let i = 0; i < 8; i++) {

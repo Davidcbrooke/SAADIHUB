@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f20779">
+<meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>SAADI Documents</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="hub.css">
+<script src="hub-shell.js?v=8" defer></script>
+<style>
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+table.t{width:100%;border-collapse:collapse;font-size:14px}
+table.t th,table.t td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+table.t th{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+table.t td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill{font-size:12px;font-weight:700;border-radius:99px;padding:3px 10px;white-space:nowrap;display:inline-block}
+.s-sent{background:#fff4d6;color:#8a6200}.s-signed{background:#e6efff;color:#1f4fb0}.s-complete{background:#e3f5e8;color:#1e7a3a}.s-withdrawn{background:#eee;color:#666}
+.acts{display:flex;gap:6px;flex-wrap:wrap}
+button.go{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.meter{height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden;min-width:90px}.meter i{display:block;height:100%;background:#1e7a3a}
+dialog{border:0;border-radius:16px;padding:0;max-width:600px;width:calc(100% - 24px);max-height:calc(100vh - 32px);box-shadow:0 20px 60px rgba(0,0,0,.3)}
+dialog form{padding:18px 20px;display:flex;flex-direction:column;gap:10px}
+dialog h2{margin:0}
+dialog label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600}
+.pad{width:100%;height:160px;border:2px dashed #cfcfd4;border-radius:12px;background:#fff}
+.who{max-height:360px;overflow:auto;columns:2;font-size:14px}.who div{break-inside:avoid;padding:2px 0}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:10px 18px;border-radius:99px;font-weight:600;z-index:60}
+.small{font-size:13px}.bad{color:#7d0b1c}
+.tabs2{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:2px}
+.tabs2 button{border:0;background:none;border-radius:8px;padding:7px 14px;font-weight:600}.tabs2 button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="index.html"><img src="saadi-logo-white.png" alt="SAADI Gymnastics" width="64" height="61">
+      <div><div class="eyebrow">SAADI Gymnastics</div><h1>Documents</h1></div></a>
+    <div class="head-right"><button type="button" class="needs-auth" id="signOut">Sign out</button></div>
+  </header>
+  <section class="panel auth" id="authPanel" hidden></section>
+  <section class="panel" id="notManager" hidden><h2>This page is for managers</h2><p class="muted">Your own documents are in the <a href="team/">SAADI Team app</a>.</p></section>
+
+  <main class="wrap needs-auth" id="main" hidden>
+    <div class="bar"><div class="tabs2" role="group"><button type="button" data-tab="sign" aria-pressed="true">Contracts to sign</button><button type="button" data-tab="company" aria-pressed="false">Company documents</button></div></div>
+
+    <section class="panel" id="pSign">
+      <div class="bar" style="justify-content:space-between"><h2 style="margin:0">Contracts and documents to sign</h2><button type="button" class="go" id="bSend">+ Send a document to sign</button></div>
+      <p class="small muted">Upload a PDF for one member of staff. They read and sign it on their phone in SAADI Team, then you counter-sign. The finished PDF has a signing certificate (names, signatures, times, IP addresses and a fingerprint proving it wasn't changed).</p>
+      <div style="overflow-x:auto"><table class="t"><thead><tr><th>Person</th><th>Document</th><th>Status</th><th>Sent</th><th></th></tr></thead><tbody id="signRows"></tbody></table></div>
+      <label class="small" style="display:flex;gap:6px;align-items:center;margin-top:8px"><input type="checkbox" id="showDone"> Show finished and withdrawn</label>
+    </section>
+
+    <section class="panel" id="pCompany" hidden>
+      <div class="bar" style="justify-content:space-between"><h2 style="margin:0">Company documents</h2><button type="button" class="go" id="bUpload">+ Upload a document</button></div>
+      <p class="small muted">Everyone on the staff list can see these in SAADI Team and ticks "I've read and understood". Uploading a new version asks everyone to read it again.</p>
+      <div style="overflow-x:auto"><table class="t"><thead><tr><th>Document</th><th>Type</th><th>Version</th><th>Read</th><th></th></tr></thead><tbody id="coRows"></tbody></table></div>
+      <label class="small" style="display:flex;gap:6px;align-items:center;margin-top:8px" id="weeklyWrap"><input type="checkbox" id="weekly"> Every Monday, email each person a list of what they still haven't read (owners can change this)</label>
+      <label class="small" style="display:flex;gap:6px;align-items:center;margin-top:4px"><input type="checkbox" id="showArch"> Show archived</label>
+    </section>
+  </main>
+</div>
+
+<dialog id="dSend"><form method="dialog">
+  <h2>Send a document to sign</h2>
+  <label class="f">Who <select id="sWho" required></select></label>
+  <label class="f">Title <input id="sTitle" placeholder="e.g. Contract of employment 2027" required maxlength="120"></label>
+  <label class="f">PDF <input type="file" id="sFile" accept="application/pdf" required></label>
+  <label class="f">Note for them (optional) <input id="sNote" maxlength="300" placeholder="e.g. Your new contract from 1 January"></label>
+  <label class="small" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="sCounter" checked> SAADI counter-signs it after them</label>
+  <label class="f" id="sByWrap">Counter-signed by <select id="sBy"></select></label>
+  <div class="acts" style="margin-top:6px"><button type="button" class="go" id="sGo">Send</button><span style="flex:1"></span><span class="small bad" id="sMsg"></span><button value="cancel">Cancel</button></div>
+</form></dialog>
+
+<dialog id="dCounter"><form method="dialog">
+  <h2>Counter-sign</h2><p class="small muted" id="cSub" style="margin:0"></p>
+  <button type="button" id="cView">Open the document</button>
+  <label class="f">Your full name <input id="cName" autocomplete="name"></label>
+  <div><div class="bar" style="justify-content:space-between"><b class="small">Sign here</b><button type="button" id="cClear">Clear</button></div><canvas class="pad" id="cPad"></canvas></div>
+  <label class="small" style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="cOk"> I've read this document and agree to sign it electronically for SAADI Gymnastics. This has the same effect as signing on paper.</label>
+  <div class="acts"><button type="button" class="go" id="cGo">Sign</button><span style="flex:1"></span><span class="small bad" id="cMsg"></span><button value="cancel">Cancel</button></div>
+</form></dialog>
+
+<dialog id="dUpload"><form method="dialog">
+  <h2 id="uTitleH">Upload a company document</h2>
+  <label class="f">Title <input id="uTitle" required maxlength="120" placeholder="e.g. Safeguarding policy"></label>
+  <label class="f">Type <input id="uCat" list="cats" placeholder="Policies"><datalist id="cats"><option value="Policies"><option value="Risk assessments"><option value="Handbook"><option value="Health and safety"><option value="Coaching"><option value="Forms"></datalist></label>
+  <label class="f">PDF <input type="file" id="uFile" accept="application/pdf" required></label>
+  <label class="f">Note (optional) <input id="uNote" maxlength="300" placeholder="e.g. Updated after the fire drill"></label>
+  <label class="small" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="uMust" checked> Everyone must read it (they tick "I've read and understood")</label>
+  <label class="small" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="uNotify" checked> Tell all staff now (email + phone notification)</label>
+  <div class="acts" style="margin-top:6px"><button type="button" class="go" id="uGo">Upload</button><span style="flex:1"></span><span class="small bad" id="uMsg"></span><button value="cancel">Cancel</button></div>
+</form></dialog>
+
+<dialog id="dWho"><form method="dialog">
+  <h2 id="wTitle"></h2><p class="small muted" id="wSub" style="margin:0"></p>
+  <h3 style="margin:8px 0 0;font-size:15px">Not read yet</h3><div class="who" id="wNo"></div>
+  <h3 style="margin:8px 0 0;font-size:15px">Read</h3><div class="who" id="wYes"></div>
+  <div class="acts"><span style="flex:1"></span><button value="cancel">Close</button></div>
+</form></dialog>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="team-auth.js?v=4"></script>
+<script src="sign-pad.js?v=1"></script>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const toast=t=>{const d=document.createElement("div");d.className="toast";d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),3000)};
+const when=ts=>ts&&ts.toDate?ts.toDate().toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}):(ts?new Date(ts).toLocaleDateString("en-GB",{day:"numeric",month:"short"}):"");
+const FV=()=>firebase.firestore.FieldValue.serverTimestamp();
+let db,fn,UID,PID,ROLE,PEOPLE={},SIGN=[],CO=[],ACKS={},CFG={};
+const nm=pid=>{const p=PEOPLE[pid];return p?`${p.knownAs||p.firstName} ${p.lastName}`:""};
+const STATUS={sent:["s-sent","Waiting for them"],signed:["s-signed","Signed: needs counter-signing"],complete:["s-complete","Complete"],withdrawn:["s-withdrawn","Withdrawn"]};
+
+TeamAuth.start({need:["manager","owner"],onReady:x=>{db=x.db;fn=x.fn;UID=x.uid;PID=x.pid;ROLE=x.role;
+  db.collection("people").onSnapshot(s=>{PEOPLE={};s.docs.forEach(d=>PEOPLE[d.id]={id:d.id,...d.data()});renderSign();renderCo()});
+  db.collection("signDocs").onSnapshot(s=>{SIGN=s.docs.map(d=>({id:d.id,...d.data()}));renderSign()});
+  db.collection("companyDocs").onSnapshot(s=>{CO=s.docs.map(d=>({id:d.id,...d.data()}));CO.forEach(c=>{if(!ACKS[c.id]){ACKS[c.id]={};db.collection(`companyDocs/${c.id}/acks`).onSnapshot(a=>{ACKS[c.id]={};a.docs.forEach(d=>ACKS[c.id][d.id]=d.data());renderCo()})}});renderCo()});
+  db.doc("hrConfig/companyDocs").onSnapshot(d=>{CFG=d.data()||{};$("weekly").checked=!!CFG.weeklyReminder});
+  $("weekly").disabled=ROLE!=="owner";
+  const q=new URLSearchParams(location.search);
+  if(q.get("tab")==="company")tab("company");
+  if(q.get("send"))setTimeout(()=>openSend(q.get("send")),800);
+}});
+function tab(t){document.querySelectorAll("[data-tab]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.tab===t)));$("pSign").hidden=t!=="sign";$("pCompany").hidden=t!=="company"}
+document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>tab(b.dataset.tab));
+const call=(name,data)=>fn.httpsCallable(name,{timeout:180000})(data).then(r=>r.data);
+
+/* ---------- documents to sign ---------- */
+$("showDone").onchange=renderSign;
+function renderSign(){
+  const rows=SIGN.filter(d=>$("showDone").checked||["sent","signed"].includes(d.status))
+    .sort((a,b)=>(["signed","sent","complete","withdrawn"].indexOf(a.status)-["signed","sent","complete","withdrawn"].indexOf(b.status))||((b.sentAt&&b.sentAt.seconds||0)-(a.sentAt&&a.sentAt.seconds||0)));
+  $("signRows").innerHTML=rows.length?rows.map(d=>{const [c,t]=STATUS[d.status]||["",d.status];
+    const mine=d.status==="signed"&&(!d.counterBy||d.counterBy===PID);
+    const detail=d.status==="sent"?(d.viewedAt?"opened "+when(d.viewedAt):"not opened yet"):d.status==="signed"?`by ${esc(nm(d.counterBy)||"an owner")}`:d.status==="complete"?when(d.completedAt):"";
+    return `<tr><td><b>${esc(d.personName)}</b></td><td>${esc(d.title)}${d.note?`<div class="small muted">${esc(d.note)}</div>`:""}</td><td><span class="pill ${c}">${t}</span><div class="small muted">${detail}</div></td><td class="small">${when(d.sentAt)}<div class="muted">${esc(d.sentByName||"")}</div></td>
+      <td><div class="acts">${mine?`<button type="button" class="go" data-counter="${d.id}">Counter-sign</button>`:""}${d.status==="complete"?`<button type="button" data-dl="${d.id}">Signed copy</button>`:`<button type="button" data-view="${d.id}">View</button>`}${["sent","signed"].includes(d.status)?`<button type="button" data-withdraw="${d.id}">Withdraw</button>`:""}</div></td></tr>`}).join("")
+    :'<tr><td colspan="5" class="muted">Nothing waiting. Use "Send a document to sign" to send someone their contract.</td></tr>';
+}
+function openSend(pid){
+  const staff=Object.values(PEOPLE).filter(p=>p.status!=="leaver").sort((a,b)=>nm(a.id).localeCompare(nm(b.id)));
+  $("sWho").innerHTML=`<option value="">Choose…</option>`+staff.map(p=>`<option value="${p.id}" ${p.id===pid?"selected":""}>${esc(nm(p.id))}${p.jobTitle?" · "+esc(p.jobTitle):""}</option>`).join("");
+  const signers=staff.filter(p=>["owner","manager"].includes(p.role));
+  $("sBy").innerHTML=signers.map(p=>`<option value="${p.id}" ${p.id===PID?"selected":""}>${esc(nm(p.id))}</option>`).join("");
+  ["sTitle","sNote","sFile"].forEach(i=>$(i).value="");$("sMsg").textContent="";$("sCounter").checked=true;$("sByWrap").hidden=false;$("dSend").showModal();
+}
+$("bSend").onclick=()=>openSend("");
+$("sCounter").onchange=()=>$("sByWrap").hidden=!$("sCounter").checked;
+$("sGo").onclick=async()=>{
+  const f=$("sFile").files[0];
+  if(!$("sWho").value||!$("sTitle").value.trim()||!f)return $("sMsg").textContent="Choose who, a title and the PDF.";
+  if(f.size>7*1024*1024)return $("sMsg").textContent="That PDF is over 7 MB.";
+  $("sGo").disabled=true;$("sMsg").textContent="Uploading…";
+  try{await call("docUpload",{kind:"sign",personId:$("sWho").value,title:$("sTitle").value.trim(),note:$("sNote").value.trim(),needsCounter:$("sCounter").checked,counterBy:$("sCounter").checked?$("sBy").value:null,pdf:await PdfFile.toB64(f),fileName:f.name});
+    $("dSend").close();toast(`Sent to ${nm($("sWho").value)}. They've been told.`)}
+  catch(e){$("sMsg").textContent=e.message}
+  $("sGo").disabled=false};
+document.addEventListener("click",async e=>{
+  const v=e.target.closest("[data-view]"),dl=e.target.closest("[data-dl]"),w=e.target.closest("[data-withdraw]"),c=e.target.closest("[data-counter]");
+  const cv=e.target.closest("[data-coview]"),cw=e.target.closest("[data-cowho]"),cr=e.target.closest("[data-coreplace]"),ca=e.target.closest("[data-coarch]");
+  try{
+    if(v){v.disabled=true;PdfFile.open((await call("docGet",{kind:"sign",id:v.dataset.view})).pdf);v.disabled=false}
+    if(dl){dl.disabled=true;const d=SIGN.find(x=>x.id===dl.dataset.dl);PdfFile.download((await call("docGet",{kind:"sign",id:d.id,which:"signed"})).pdf,PdfFile.safeName(`${d.personName} - ${d.title} - signed`)+".pdf");dl.disabled=false}
+    if(w){if(!w.dataset.sure){w.dataset.sure=1;w.textContent="Sure?";setTimeout(()=>{delete w.dataset.sure;w.textContent="Withdraw"},4000);return}
+      await db.doc("signDocs/"+w.dataset.withdraw).update({status:"withdrawn",withdrawnAt:FV(),updatedBy:UID,updatedAt:FV()});toast("Withdrawn")}
+    if(c)openCounter(c.dataset.counter);
+    if(cv){cv.disabled=true;PdfFile.open((await call("docGet",{kind:"company",id:cv.dataset.coview})).pdf);cv.disabled=false}
+    if(cw)openWho(cw.dataset.cowho);
+    if(cr)openUpload(cr.dataset.coreplace);
+    if(ca){const d=CO.find(x=>x.id===ca.dataset.coarch);await db.doc("companyDocs/"+d.id).update({archived:!d.archived,updatedBy:UID,updatedAt:FV()});toast(d.archived?"Back on the list":"Archived: staff won't see it")}
+  }catch(err){toast(err.message);document.querySelectorAll("button:disabled").forEach(b=>{if(b.closest("td"))b.disabled=false})}
+});
+let CS=null,pad=null;
+function openCounter(id){
+  CS=SIGN.find(x=>x.id===id);$("cSub").textContent=`${CS.title} · signed by ${CS.personName} on ${new Date(CS.signed.at).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}`;
+  const me=PEOPLE[PID]||{};$("cName").value=`${me.firstName||""} ${me.lastName||""}`.trim();$("cOk").checked=false;$("cMsg").textContent="";
+  $("dCounter").showModal();pad=pad||SignPad($("cPad"));pad.clear();
+}
+$("cClear").onclick=()=>pad.clear();
+$("cView").onclick=async()=>{$("cView").disabled=true;try{PdfFile.open((await call("docGet",{kind:"sign",id:CS.id})).pdf)}catch(e){toast(e.message)}$("cView").disabled=false};
+$("cGo").onclick=async()=>{
+  if(!$("cOk").checked)return $("cMsg").textContent="Tick the box first.";
+  if(pad.empty())return $("cMsg").textContent="Draw your signature.";
+  $("cGo").disabled=true;$("cMsg").textContent="Signing and sealing…";
+  try{await call("signDoc",{id:CS.id,name:$("cName").value,png:pad.png(),consent:true});$("dCounter").close();toast("Signed. Everyone has the finished copy.")}
+  catch(e){$("cMsg").textContent=e.message}
+  $("cGo").disabled=false};
+
+/* ---------- company documents ---------- */
+$("showArch").onchange=renderCo;
+$("weekly").onchange=async()=>{try{await db.doc("hrConfig/companyDocs").set({weeklyReminder:$("weekly").checked,updatedBy:UID,updatedAt:FV()},{merge:true});toast($("weekly").checked?"Weekly reminders on":"Weekly reminders off")}catch(e){toast(e.message)}};
+const staffNow=()=>Object.values(PEOPLE).filter(p=>["current","leaving"].includes(p.status||"current"));
+const readBy=d=>Object.entries(ACKS[d.id]||{}).filter(([,a])=>a.version===d.version).map(([p])=>p);
+function renderCo(){
+  const all=staffNow(),ids=new Set(all.map(p=>p.id));
+  const rows=CO.filter(d=>$("showArch").checked||!d.archived).sort((a,b)=>(a.category||"").localeCompare(b.category||"")||a.title.localeCompare(b.title));
+  $("coRows").innerHTML=rows.length?rows.map(d=>{const r=readBy(d).filter(p=>ids.has(p)).length,pc=all.length?Math.round(r/all.length*100):0;
+    return `<tr style="${d.archived?"opacity:.5":""}"><td><b>${esc(d.title)}</b>${d.note?`<div class="small muted">${esc(d.note)}</div>`:""}</td><td class="small">${esc(d.category||"")}</td><td class="small">v${d.version} · ${when(d.publishedAt)}</td>
+      <td>${d.mustRead?`<div class="meter" title="${r} of ${all.length}"><i style="width:${pc}%"></i></div><div class="small muted">${r} of ${all.length}</div>`:'<span class="small muted">For reference</span>'}</td>
+      <td><div class="acts"><button type="button" data-coview="${d.id}">View</button>${d.mustRead?`<button type="button" data-cowho="${d.id}">Who's read it</button>`:""}<button type="button" data-coreplace="${d.id}">New version</button><button type="button" data-coarch="${d.id}">${d.archived?"Restore":"Archive"}</button></div></td></tr>`}).join("")
+    :'<tr><td colspan="5" class="muted">No documents yet.</td></tr>';
+}
+let UP=null;
+function openUpload(replaceId){
+  UP=replaceId?CO.find(x=>x.id===replaceId):null;
+  $("uTitleH").textContent=UP?`New version of ${UP.title}`:"Upload a company document";
+  $("uTitle").value=UP?UP.title:"";$("uCat").value=UP?UP.category||"":"";$("uNote").value="";$("uFile").value="";$("uMust").checked=UP?UP.mustRead!==false:true;$("uNotify").checked=true;$("uMsg").textContent="";
+  $("dUpload").showModal();
+}
+$("bUpload").onclick=()=>openUpload(null);
+$("uGo").onclick=async()=>{
+  const f=$("uFile").files[0];
+  if(!$("uTitle").value.trim()||!f)return $("uMsg").textContent="Give it a title and choose the PDF.";
+  if(f.size>7*1024*1024)return $("uMsg").textContent="That PDF is over 7 MB.";
+  $("uGo").disabled=true;$("uMsg").textContent=$("uNotify").checked?"Uploading and telling everyone (about a minute)…":"Uploading…";
+  try{await call("docUpload",{kind:"company",replaceId:UP?UP.id:null,title:$("uTitle").value.trim(),category:$("uCat").value.trim()||"Policies",note:$("uNote").value.trim(),mustRead:$("uMust").checked,notify:$("uNotify").checked,pdf:await PdfFile.toB64(f),fileName:f.name});
+    $("dUpload").close();toast(UP?"New version up: everyone will be asked to read it again":"Uploaded")}
+  catch(e){$("uMsg").textContent=e.message}
+  $("uGo").disabled=false};
+function openWho(id){
+  const d=CO.find(x=>x.id===id),r=new Set(readBy(d)),all=staffNow().sort((a,b)=>nm(a.id).localeCompare(nm(b.id)));
+  $("wTitle").textContent=d.title;$("wSub").textContent=`Version ${d.version} · ${[...r].filter(p=>all.some(a=>a.id===p)).length} of ${all.length} have read it`;
+  $("wNo").innerHTML=all.filter(p=>!r.has(p.id)).map(p=>`<div>${esc(nm(p.id))}</div>`).join("")||'<div class="muted">Everyone has read it 🎉</div>';
+  $("wYes").innerHTML=all.filter(p=>r.has(p.id)).map(p=>{const a=ACKS[id][p.id];return `<div>${esc(nm(p.id))} <span class="muted small">${a&&a.at?when(a.at):""}</span></div>`}).join("")||'<div class="muted">Nobody yet</div>';
+  $("dWho").showModal();
+}
+</script>
+</body>
+</html>

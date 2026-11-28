@@ -96,6 +96,26 @@ service cloud.firestore {
             && request.resource.data.applicants.diff(resource.data.applicants).affectedKeys().hasOnly([request.auth.token.pid])));
       allow delete: if false;
     }
+    // documents to sign: the person and managers can see them; the server does all signing.
+    // Managers can only withdraw one that isn't finished.
+    match /signDocs/{id} {
+      allow read: if tManager() || (tSignedIn() && resource.data.personId == request.auth.token.pid);
+      allow update: if tStamped() && tManager() && resource.data.status in ['sent', 'signed']
+        && request.resource.data.status == 'withdrawn' && tOnly(['status', 'updatedBy', 'updatedAt', 'withdrawnAt']);
+      allow create, delete: if false;
+    }
+    // company documents: everyone signed in can see the list; managers edit details/archive; files go via the server
+    match /companyDocs/{id} {
+      allow read: if tSignedIn();
+      allow update: if tStamped() && tManager() && tOnly(['title', 'category', 'note', 'mustRead', 'archived', 'updatedBy', 'updatedAt']);
+      allow create, delete: if false;
+      // "I've read and understood": each person ticks their own
+      match /acks/{pid} {
+        allow read: if tManager() || tMe(pid);
+        allow create, update: if tMe(pid) && tStamped() && request.resource.data.version is int;
+        allow delete: if false;
+      }
+    }
     match /patterns/{id} { allow read: if tSignedIn(); allow write: if tStamped() && tManager(); }
     match /allowances/{id} { allow read: if tSignedIn(); allow write: if tStamped() && tManager(); }
     match /hrConfig/{id} { allow read: if tManager(); allow write: if tStamped() && tOwner(); }

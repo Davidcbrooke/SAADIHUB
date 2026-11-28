@@ -55,7 +55,7 @@ button.go{background:var(--accent);border-color:var(--accent);color:var(--accent
         <button type="button" id="mNext" aria-label="Next month">›</button>
         <span class="small muted" id="mRange"></span>
         <span style="flex:1"></span>
-        <button type="button" id="bCsv">⬇ Summary (CSV)</button>
+        <button type="button" class="go" id="bQb">⬇ For QuickBooks (CSV)</button><button type="button" id="bCsv">⬇ Summary (CSV)</button>
         <button type="button" id="bShifts">⬇ Every shift (CSV)</button>
         <button type="button" class="go" id="bLock">Mark as sent to payroll</button>
       </div>
@@ -74,7 +74,7 @@ button.go{background:var(--accent);border-color:var(--accent);color:var(--accent
     <section class="panel">
       <div class="bar" style="justify-content:space-between"><h2 style="margin:0">Everyone</h2>
         <div class="bar"><label class="small"><input type="checkbox" id="onlyFlags"> Only ones to check</label><input type="search" id="q" placeholder="Search" style="max-width:200px"></div></div>
-      <div style="overflow-x:auto;max-height:70vh"><table class="t"><thead><tr><th>Name</th><th class="n">Rota hours</th><th class="n">Extra</th><th class="n">Worked</th><th class="n">Holiday</th><th class="n">Holiday left</th><th class="n">Sick days</th><th class="n">Other leave</th><th>Check</th></tr></thead><tbody id="rows"><tr><td colspan="9" class="muted">Working it out…</td></tr></tbody></table></div>
+      <div style="overflow-x:auto;max-height:70vh"><table class="t"><thead><tr><th>Name</th><th class="n">Rota hours</th><th class="n">Extra</th><th class="n">Worked</th><th class="n">Holiday</th><th class="n" title="Worked + extra + holiday (in hours): how SAADI pays hourly staff, e.g. Alicia October 24h + 4h holiday = 28h paid">Hours to pay</th><th class="n">Holiday left</th><th class="n">Sick days</th><th class="n">Other leave</th><th>Check</th></tr></thead><tbody id="rows"><tr><td colspan="10" class="muted">Working it out…</td></tr></tbody></table></div>
       <p class="small muted">Click a row to see their month day by day and add extra hours that aren't on the rota (training, events, admin).</p>
     </section>
 
@@ -197,7 +197,8 @@ function calc(){
     if(p.status==="leaving"||(p.leavingDate&&p.leavingDate<=P.end))flags.push(["f-amb","leaving: final pay"]);
     if(p.joinDate&&p.joinDate>=P.start&&p.joinDate<=P.end)flags.push(["f-blue","new starter"]);
     if(extra)flags.push(["f-blue",`+${fh(extra)}h extra`]);
-    return {p,name:`${p.knownAs||p.firstName} ${p.lastName}`,days,rot:h1(rotMins),worked:h1(workMins)+extra,extra,hol:Math.round(hol*100)/100,oth:Math.round(oth*100)/100,units,used,left,al,sickDays,flags};
+    const workedH=h1(workMins)+extra;
+    return {pay:Math.round((workedH+(units==="days"?0:hol))*100)/100,p,name:`${p.knownAs||p.firstName} ${p.lastName}`,days,rot:h1(rotMins),worked:h1(workMins)+extra,extra,hol:Math.round(hol*100)/100,oth:Math.round(oth*100)/100,units,used,left,al,sickDays,flags};
   }).filter(r=>r.rot||r.hol||r.oth||r.sickDays.length||r.extra).sort((a,b)=>a.name.localeCompare(b.name));
   window.__SHIFTS=shiftsBy;
 }
@@ -210,10 +211,10 @@ function render(){
   const u=r=>r.units==="days"?"d":"h";
   $("rows").innerHTML=list.length?list.map(r=>`<tr data-p="${r.p.id}" class="${SEL===r.p.id?"sel":""}"><td><b>${esc(r.name)}</b>${RC.bandLetter(r.p.band)?` <span class="small muted">Band ${RC.bandLetter(r.p.band)}</span>`:""}<div class="small muted">${esc(r.p.jobTitle||"")}</div></td>
     <td class="n">${fh(r.rot)}</td><td class="n">${r.extra?fh(r.extra):"–"}</td><td class="n"><b>${fh(r.worked)}</b></td>
-    <td class="n">${r.hol?fh(r.hol)+u(r):"–"}</td><td class="n">${r.left==null?'<span class="muted">no allowance</span>':`<span class="${r.left<0?"bad":""}">${r.left?fh(r.left):"0"}${u(r)}</span>`}</td>
+    <td class="n">${r.hol?fh(r.hol)+u(r):"–"}</td><td class="n"><b>${fh(r.pay)}</b></td><td class="n">${r.left==null?'<span class="muted">no allowance</span>':`<span class="${r.left<0?"bad":""}">${r.left?fh(r.left):"0"}${u(r)}</span>`}</td>
     <td class="n">${r.sickDays.length||"–"}</td><td class="n">${r.oth?fh(r.oth)+u(r):"–"}</td>
     <td>${r.flags.map(f=>`<span class="flag ${f[0]}">${esc(f[1])}</span>`).join("")}</td></tr>`).join("")
-    :'<tr><td colspan="9" class="muted">Nobody to show for this period.</td></tr>';
+    :'<tr><td colspan="10" class="muted">Nobody to show for this period.</td></tr>';
   const L=SNAP.lockedAt;
   $("lockLine").innerHTML=L?`<span class="locked">✓ Sent to payroll by ${esc(SNAP.lockedByName||"")} on ${L.toDate().toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}. Totals then: ${SNAP.totals?`${SNAP.totals.people} people, ${SNAP.totals.hours} hours`:""}</span>`:"";
   $("bLock").textContent=L?"Sent ✓ (click to un-mark)":"Mark as sent to payroll";
@@ -239,9 +240,14 @@ $("dSave").onclick=async()=>{if(!SEL)return;if(SNAP.lockedAt)return toast("Un-ma
 const csvCell=v=>{v=v==null?"":String(v);return /[",\n]/.test(v)?`"${v.replace(/"/g,'""')}"`:v};
 function dl(name,rows){const b=new Blob(["﻿"+rows.map(r=>r.map(csvCell).join(",")).join("\r\n")],{type:"text/csv"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},3000)}
 $("bCsv").onclick=()=>{const P=period(MONTH);
-  dl(`SAADI payroll ${MONTH}.csv`,[["First name","Last name","Email","Job","Band","Rota hours","Extra hours","Extra note","Hours worked","Holiday","Holiday units","Holiday left","Sick days (SSP)","Sick dates","Other leave","Notes"],
-    ...R.map(r=>[r.p.firstName,r.p.lastName,r.p.email||"",r.p.jobTitle||"",RC.bandLetter(r.p.band),r.rot,r.extra||"",((SNAP.adjust||{})[r.p.id]||{}).note||"",r.worked,r.hol||"",r.hol?r.units:"",r.left==null?"":Math.round(r.left*100)/100,r.sickDays.length||"",r.sickDays.join(" "),r.oth||"",r.flags.map(f=>f[1]).join("; ")]),
+  dl(`SAADI payroll ${MONTH}.csv`,[["First name","Last name","Email","Job","Band","Rota hours","Extra hours","Extra note","Hours worked","Holiday","Holiday units","Hours to pay","Holiday left","Sick days (SSP)","Sick dates","Other leave","Notes"],
+    ...R.map(r=>[r.p.firstName,r.p.lastName,r.p.email||"",r.p.jobTitle||"",RC.bandLetter(r.p.band),r.rot,r.extra||"",((SNAP.adjust||{})[r.p.id]||{}).note||"",r.worked,r.hol||"",r.hol?r.units:"",r.pay,r.left==null?"":Math.round(r.left*100)/100,r.sickDays.length||"",r.sickDays.join(" "),r.oth||"",r.flags.map(f=>f[1]).join("; ")]),
     [],["Period",P.start,P.end],["Made",new Date().toLocaleString("en-GB")]])};
+// one "Hourly Pay" line per person, like the lines in the QuickBooks Advanced Payroll pay run
+$("bQb").onclick=()=>{
+  dl(`SAADI for QuickBooks ${MONTH}.csv`,[["Employee","First name","Last name","Email","Pay Category","Location","Hours","Notes"],
+    ...R.filter(r=>r.pay>0).map(r=>[`${r.p.firstName} ${r.p.lastName}`,r.p.firstName,r.p.lastName,r.p.email||"","Hourly Pay","Saadi Gymnastics Ltd",r.pay,
+      [r.hol&&r.units!=="days"?`incl. ${r.hol}h holiday`:"",r.hol&&r.units==="days"?`plus ${r.hol} days holiday`:"",r.extra?`incl. ${r.extra}h extra`:"",r.sickDays.length?`SSP: ${r.sickDays.length} sick days (${r.sickDays.join(", ")})`:"",r.oth?`other leave ${r.oth}${r.units==="days"?" days":"h"}`:""].filter(Boolean).join("; ")])])};
 $("bShifts").onclick=()=>{const rows=[["First name","Last name","Email","Date","Start","End","Hours","Classes"]];
   R.forEach(r=>r.days.forEach(x=>{if(!x.worked)return;(window.__SHIFTS[r.p.id]||[]).filter(s=>s.date===x.d).forEach(s=>rows.push([r.p.firstName,r.p.lastName,r.p.email||"",x.d,s.start,s.end,x.half?h1(s.mins)/2:h1(s.mins),[...new Set(s.items.map(i=>i.cls))].join("; ")]))}));
   dl(`SAADI shifts ${MONTH}.csv`,rows)};

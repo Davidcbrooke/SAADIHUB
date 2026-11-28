@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f20779">
+<meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>SAADI Shift offers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="hub.css">
+<script src="hub-shell.js?v=10" defer></script>
+<style>
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.kpi .v{font-family:var(--display);font-size:34px;font-weight:700;line-height:1}
+.offer{border:1px solid var(--line);border-left:6px solid #e0a100;border-radius:12px;background:var(--surface);padding:12px 14px;margin-bottom:10px}
+.offer.has{border-left-color:#c6152e}.offer.done{border-left-color:#3aa655;opacity:.85}.offer.off{border-left-color:#bbb;opacity:.7}
+.offer h3{margin:0;font-size:17px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}.offer h3 small{font-weight:500;color:var(--muted);font-size:13px}
+.items{font-size:13.5px;margin:6px 0}.items span{display:inline-block;margin-right:12px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+.ap{display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line);flex-wrap:wrap}
+.ap .who{margin-right:auto}.ap .who small{display:block;color:var(--muted)}
+.ap.dec{opacity:.5}
+button.ok{background:#1e7a3a;border-color:#1e7a3a;color:#fff}button.no{background:#fff;color:#7d0b1c;border-color:#e3b3bb}
+.pill{font-size:12px;font-weight:700;border-radius:99px;padding:2px 9px;white-space:nowrap}
+.p-wait{background:#fff4d6;color:#7a5600}.p-has{background:#fde4e8;color:#7d0b1c}.p-done{background:#e3f5e8;color:#1e7a3a}.p-off{background:#eee;color:#666}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:10px 18px;border-radius:99px;font-weight:600;z-index:60}
+.small{font-size:13px}.bad{color:#7d0b1c}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="index.html"><img src="saadi-logo-white.png" alt="SAADI Gymnastics" width="64" height="61">
+      <div><div class="eyebrow">SAADI Gymnastics</div><h1>Shift offers</h1></div></a>
+    <div class="head-right"><button type="button" class="needs-auth" id="signOut">Sign out</button></div>
+  </header>
+  <section class="panel auth" id="authPanel" hidden></section>
+  <section class="panel" id="notManager" hidden><h2>This page is for managers</h2><p class="muted">Shifts you can pick up are in the <a href="team/">SAADI Team app</a>.</p></section>
+
+  <main class="wrap needs-auth" id="main" hidden>
+    <div class="kpis">
+      <div class="kpi bad"><span class="v" id="kHas">–</span><span class="s">waiting for you to choose</span></div>
+      <div class="kpi"><span class="v" id="kWait">–</span><span class="s">offered, nobody yet</span></div>
+      <div class="kpi good"><span class="v" id="kDone">–</span><span class="s">covered in the last 30 days</span></div>
+    </div>
+    <section class="panel">
+      <h2 style="margin-top:0">Open offers</h2>
+      <p class="small muted">Staff who say "I can do this" in SAADI Team appear here. Give the shift to one person and the rota updates straight away; everyone is told. To offer a new shift, click a red shift on the <a href="rota.html">Rota</a>.</p>
+      <div id="open"></div>
+    </section>
+    <section class="panel">
+      <h2 style="margin-top:0">Decided</h2>
+      <div id="done"></div>
+    </section>
+  </main>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="team-auth.js?v=4"></script>
+<script src="rota-core.js?v=2"></script>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const toast=t=>{const d=document.createElement("div");d.className="toast";d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),3000)};
+const FV=firebase.firestore.FieldValue;
+const TODAY=RC.iso(new Date());
+const fmt=s=>new Date(s+"T12:00:00").toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"});
+let db,UID,PEOPLE={},OPEN=[],LEAVE=[],SICK=[],ROTA={}; // ROTA[termId] = {term, slots, weeks}
+const nm=pid=>{const p=PEOPLE[pid];return p?`${p.knownAs||p.firstName} ${p.lastName}`:"(unknown)"};
+function offWhy(pid,date){
+  const l=LEAVE.find(l=>l.personId===pid&&["approved","pending"].includes(l.status)&&l.start<=date&&(l.end||l.start)>=date);
+  if(l)return l.status==="pending"?"has asked for time off":l.type==="holiday"?"on holiday":"on leave";
+  return SICK.find(s=>s.personId===pid&&s.start<=date&&((s.end||(s.status==="open"?"9999":s.start))>=date))?"off sick":"";
+}
+TeamAuth.start({need:["manager","owner"],onReady:x=>{db=x.db;UID=x.uid;
+  db.collection("people").onSnapshot(s=>{PEOPLE={};s.docs.forEach(d=>PEOPLE[d.id]={id:d.id,...d.data()});render()});
+  db.collection("leave").where("end",">=",RC.addDays(TODAY,-40)).onSnapshot(s=>{LEAVE=s.docs.map(d=>d.data());render()});
+  db.collection("sickness").onSnapshot(s=>{SICK=s.docs.map(d=>d.data());render()});
+  db.collection("openShifts").onSnapshot(async s=>{OPEN=s.docs.map(d=>({id:d.id,...d.data()}));
+    // load the rota for any term with an open offer (for hours and to update it)
+    for(const t of [...new Set(OPEN.filter(o=>o.status==="open").map(o=>o.term))])if(!ROTA[t])await loadTerm(t);
+    render()});
+}});
+async function loadTerm(tid){const t=await db.doc("rotaTerms/"+tid).get();const r=await RC.load(db,tid);ROTA[tid]={term:{id:tid,...t.data()},...r};
+  db.collection("rotaWeeks").where("term","==",tid).onSnapshot(s=>{ROTA[tid].weeks={};s.docs.forEach(d=>ROTA[tid].weeks[d.id]={id:d.id,...d.data()});render()})}
+const apps=o=>Object.entries(o.applicants||{}).sort((a,b)=>((a[1]&&a[1].at&&a[1].at.seconds)||0)-((b[1]&&b[1].at&&b[1].at.seconds)||0));
+const live=o=>apps(o).filter(([,a])=>!(a&&a.declined));
+function card(o){
+  const R=ROTA[o.term],week=R&&R.weeks[RC.weekId(o.term,o.monday)],tot=R?RC.weekHours(R.term,R.slots,week,o.monday):{};
+  const n=live(o).length,cls=o.status==="filled"?"done":o.status==="cancelled"?"off":n?"has":"";
+  const pill=o.status==="filled"?`<span class="pill p-done">✓ ${esc(nm(o.filledBy))} covering</span>`:o.status==="cancelled"?'<span class="pill p-off">Withdrawn</span>':n?`<span class="pill p-has">🙋 ${n} can do it</span>`:`<span class="pill p-wait">Waiting: sent to ${o.pids.length}</span>`;
+  const head=`<h3>${fmt(o.date)}, ${RC.nice(o.start)}–${RC.nice(o.end)} ${pill}<small>${o.mode==="same"?"same band":o.mode==="below"?"one band down":"one person"}${o.band!=null?" · Band "+RC.bandLetter(o.band):""}</small></h3>
+    <div class="items">${(o.items||[]).map(i=>`<span><i class="dot" style="background:${esc(i.colour||"#999")}"></i>${RC.nice(i.start)} <b>${esc(i.cls)}</b> · ${esc(i.role)}</span>`).join("")}</div>${o.note?`<div class="small muted">“${esc(o.note)}”</div>`:""}`;
+  if(o.status!=="open")return `<div class="offer ${cls}">${head}</div>`;
+  const list=apps(o).map(([p,a])=>{const pp=PEOPLE[p]||{},off=offWhy(p,o.date),dec=a&&a.declined;
+    return `<div class="ap ${dec?"dec":""}"><div class="who"><b>${esc(nm(p))}</b>${RC.bandLetter(pp.band)?` · Band ${RC.bandLetter(pp.band)}`:""}<small>${esc(pp.jobTitle||"")} · ${RC.hours(tot[p]||0)} on the rota that week${off?` · <span class="bad">${off}</span>`:""}${a&&a.at?" · offered "+a.at.toDate().toLocaleString("en-GB",{weekday:"short",hour:"2-digit",minute:"2-digit"}):""}</small></div>
+      ${dec?'<span class="small muted">Not this time</span>':`<button type="button" class="ok" data-give="${o.id}|${p}">Give them the shift</button><button type="button" class="no" data-decline="${o.id}|${p}">Not this time</button>`}</div>`}).join("");
+  return `<div class="offer ${cls}">${head}${list||`<p class="small muted" style="margin:8px 0 0">Nobody has said yes yet. Sent to: ${esc(o.pids.map(nm).join(", "))}.</p>`}
+    <div style="margin-top:8px"><button type="button" data-withdraw="${o.id}">Withdraw the offer</button></div></div>`;
+}
+function render(){
+  const open=OPEN.filter(o=>o.status==="open").sort((a,b)=>(live(b).length>0)-(live(a).length>0)||(a.date+a.start).localeCompare(b.date+b.start));
+  const past=OPEN.filter(o=>o.status!=="open"&&o.date>=RC.addDays(TODAY,-30)).sort((a,b)=>(b.date+b.start).localeCompare(a.date+a.start));
+  $("kHas").textContent=open.filter(o=>live(o).length).length;$("kWait").textContent=open.filter(o=>!live(o).length).length;$("kDone").textContent=past.filter(o=>o.status==="filled").length;
+  $("open").innerHTML=open.map(card).join("")||'<p class="muted">No open offers. 👍</p>';
+  $("done").innerHTML=past.map(card).join("")||'<p class="muted">Nothing in the last 30 days.</p>';
+}
+document.addEventListener("click",async e=>{
+  const g=e.target.closest("[data-give]"),d=e.target.closest("[data-decline]"),w=e.target.closest("[data-withdraw]");
+  try{
+    if(g){const [id,pid]=g.dataset.give.split("|"),o=OPEN.find(x=>x.id===id);g.disabled=true;
+      if(!ROTA[o.term])await loadTerm(o.term);
+      const R=ROTA[o.term],week=R.weeks[RC.weekId(o.term,o.monday)],changes={};
+      // on each slot: take off whoever is away that day, put the chosen person on
+      o.slotIds.forEach(sid=>{const s=R.slots.find(x=>x.id===sid);if(!s)return;const on=RC.on(s,week);
+        const ppl=on.people.filter(p=>!offWhy(p,o.date));if(!ppl.includes(pid))ppl.push(pid);changes[sid]={people:ppl,text:on.text||null}});
+      const b=db.batch();
+      b.set(db.doc("rotaWeeks/"+RC.weekId(o.term,o.monday)),{term:o.term,monday:o.monday,changes,updatedBy:UID,updatedAt:FV.serverTimestamp()},{merge:true});
+      b.update(db.doc("openShifts/"+id),{status:"filled",filledBy:pid,filledAt:FV.serverTimestamp(),updatedBy:UID,updatedAt:FV.serverTimestamp()});
+      await b.commit();toast(`${nm(pid)} is covering. The rota is updated and everyone's been told.`)}
+    if(d){const [id,pid]=d.dataset.decline.split("|");d.disabled=true;
+      await db.doc("openShifts/"+id).update({["applicants."+pid+".declined"]:true,updatedBy:UID,updatedAt:FV.serverTimestamp()});toast(`Told ${nm(pid)}: not this time`)}
+    if(w){if(!w.dataset.sure){w.dataset.sure=1;w.textContent="Sure? Withdraw it";setTimeout(()=>{delete w.dataset.sure;w.textContent="Withdraw the offer"},4000);return}
+      await db.doc("openShifts/"+w.dataset.withdraw).update({status:"cancelled",updatedBy:UID,updatedAt:FV.serverTimestamp()});toast("Offer withdrawn")}
+  }catch(err){toast("Couldn't save: "+err.message);document.querySelectorAll("button:disabled").forEach(b=>b.disabled=false)}
+});
+</script>
+</body>
+</html>

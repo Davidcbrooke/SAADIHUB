@@ -18,11 +18,11 @@ const PAGES = [
     {href: "business-plan.html", name: "Business Plan", desc: "Every objective with its owner, due date and progress.", icon: "target"},
     {href: "calendar.html", name: "Club Calendar", desc: "Term dates, assessments and competitions, with clashes flagged.", icon: "calendar"}]},
   {group: "Team", items: [
-    {href: "rota.html", name: "Rota", desc: "Calendar of everyone's shifts. Red = needs cover: offer it to the same band, one band down or one person, and pick who gets it.", icon: "calendar"},
+    {href: "rota.html", name: "Rota", desc: "Calendar of everyone's shifts. Red = needs cover: offer it to the same band, one band down or one person.", icon: "calendar"},
+    {href: "shifts.html", name: "Shift offers", desc: "Staff who've offered to cover a shift: give it to one person and the rota updates.", icon: "repeat"},
+    {href: "people.html", name: "People", desc: "Everything about each member of staff: details, contract, band, working days, groups, holiday. Approve time off.", icon: "people"},
     {href: "documents.html", name: "Documents", desc: "Contracts to sign and company documents everyone must read: who's signed, who's read, and reminders.", icon: "doc"},
-    {href: "payroll.html", name: "Payroll", desc: "Month-end hours, holiday and sickness (SSP) for everyone, ready for QuickBooks payroll.", icon: "chart"},
-    {href: "people.html", name: "People", desc: "Approve holiday, see who's off and who's sick, and manage staff records. Sign in as yourself.", icon: "people"},
-    {href: "staffing.html", name: "Staffing", desc: "Who's off, who's covering, and offering spare shifts to the people who can do them.", icon: "people"}]}
+    {href: "payroll.html", name: "Payroll", desc: "Month-end hours, holiday and sickness (SSP) for everyone, ready for QuickBooks payroll.", icon: "chart"}]}
 ];
 const ICONS = {
   home: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',
@@ -41,7 +41,7 @@ const ICONS = {
 const icon = (k, cls) => `<svg class="${cls || "ic"}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k]}</svg>`;
 const here = (location.pathname.split("/").pop() || "index.html").toLowerCase();
 const all = PAGES.flatMap(g => g.items);
-const page = all.find(p => p.href === here) || all[0];
+const page = all.find(p => p.href === here) || (here === "staffing.html" ? {href: here, name: "Staffing", desc: "The old cover page and the pay scale (Wages)."} : all[0]);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
 
 function build(){

@@ -306,10 +306,20 @@ exports.coverNotify = onDocumentWritten({ document: "openShifts/{id}", secrets: 
       await notify(after.createdByPid, {
         subject: `${who} can cover ${when}`, heading: "Cover offered",
         lines: [`<b>${esc(who)}</b> can do <b>${esc(when)}</b> (${esc(what)}).`, "Open the rota to choose who gets it."],
-        button: "Choose on the rota", url: HUB + "rota.html",
+        button: "Choose who gets it", url: HUB + "shifts.html",
         push: { title: "Cover offered 🙋", body: `${who}: ${when}` }
       });
     }
+  }
+  // a manager said "not this time" to someone → let them know kindly
+  if (after.status === "open") {
+    const declined = Object.keys(after.applicants || {}).filter(k => after.applicants[k] && after.applicants[k].declined && !((before.applicants || {})[k] || {}).declined);
+    await Promise.all(declined.map(id => notify(id, {
+      subject: `Not this time: ${when}`, heading: "Thanks for offering",
+      lines: [`Thanks for offering to cover <b>${esc(when)}</b>. We've gone with someone else this time, but it really helps that you offered.`],
+      button: "Open SAADI Team", url: HUB + "team/",
+      push: { title: "Thanks for offering", body: `${when}: we've gone with someone else this time.` }
+    })));
   }
   // filled → tell the person who got it, and thank the others
   if (before.status === "open" && after.status === "filled" && after.filledBy) {
@@ -319,7 +329,7 @@ exports.coverNotify = onDocumentWritten({ document: "openShifts/{id}", secrets: 
       button: "My shifts", url: HUB + "team/",
       push: { title: "Shift confirmed ✅", body: `${when}: ${what}`.slice(0, 180) }
     });
-    await Promise.all(Object.keys(after.applicants || {}).filter(k => k !== after.filledBy).map(id => notify(id, {
+    await Promise.all(Object.keys(after.applicants || {}).filter(k => k !== after.filledBy && !(after.applicants[k] || {}).declined).map(id => notify(id, {
       subject: `Covered: ${when}`, heading: "Thanks for offering",
       lines: [`The shift on <b>${esc(when)}</b> has been given to someone else this time. Thank you for offering: it really helps.`],
       button: "Open SAADI Team", url: HUB + "team/",

@@ -282,8 +282,9 @@ function renderOpen(){
   $("tOpen").hidden=!n;$("nOpen").textContent=n;
   $("openWrap").hidden=!live.length;$("myShiftsH").hidden=!!live.length;
   $("openList").innerHTML=live.map(o=>{
-    const st=o.status==="filled"?(o.filledBy===PID?'<span class="pill p-approved">It\'s yours ✅</span>':'<span class="pill p-closed">Given to someone else</span>'):mine(o)?'<span class="pill p-pending">You\'ve offered</span>':"";
-    const btn=o.status!=="open"?"":mine(o)?`<button class="btn ghost" data-unapply="${o.id}">Take my name off</button>`:`<button class="btn" data-apply="${o.id}">🙋 I can do this</button>`;
+    const dec=mine(o)&&o.applicants[PID].declined;
+    const st=dec?'<span class="pill p-closed">Not this time</span>':o.status==="filled"?(o.filledBy===PID?'<span class="pill p-approved">It\'s yours ✅</span>':'<span class="pill p-closed">Given to someone else</span>'):mine(o)?'<span class="pill p-pending">You\'ve offered</span>':"";
+    const btn=o.status!=="open"||dec?"":mine(o)?`<button class="btn ghost" data-unapply="${o.id}">Take my name off</button>`:`<button class="btn" data-apply="${o.id}">🙋 I can do this</button>`;
     return `<div class="card" style="border:2px solid var(--orange)"><div style="display:flex;align-items:baseline;gap:10px"><b style="font-size:17px">${fmt(o.date)}</b><span style="font-weight:700">${RC.nice(o.start)} – ${RC.nice(o.end)}</span>${st}</div>
       ${(o.items||[]).map(x=>`<div class="row" style="padding:8px 0"><span class="dot" style="background:${esc(x.colour||"#ccc")}"></span><div><b>${esc(x.cls)}</b><div class="small muted">${RC.nice(x.start)}–${RC.nice(x.end)} · ${esc(x.role)}</div></div></div>`).join("")}
       ${o.note?`<p class="small" style="margin:6px 0 0">“${esc(o.note)}”</p>`:""}${btn}</div>`}).join("");

@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="hub.css">
-<script src="hub-shell.js?v=9" defer></script>
+<script src="hub-shell.js?v=10" defer></script>
 <style>
 .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 @media (max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -113,8 +113,8 @@ button.go{background:var(--accent);border-color:var(--accent);color:var(--accent
 
     <section class="panel">
       <div class="row" style="justify-content:space-between"><h2 style="margin:0">Staff</h2><div class="row"><input type="search" id="q" placeholder="Search" style="max-width:220px"><button type="button" class="go" id="bAdd">+ Add member of staff</button></div></div>
-      <div style="overflow-x:auto"><table class="ppl"><thead><tr><th>Name</th><th>Job</th><th>Department</th><th>Started</th><th>Band</th><th>App</th><th title="What they can see: staff = their own things; manager = rota and People; owner = everything, including sickness details">Access</th></tr></thead><tbody id="ppl"></tbody></table></div>
-      <p class="small muted">Click a name to see or change their details, working days and classes. "App" shows who has signed in to SAADI Team. Only owners can change roles. Owner = everything incl. health details; Manager = time off, sickness dates and records; Staff = their own.</p>
+      <div style="overflow-x:auto"><table class="ppl"><thead><tr><th>Name</th><th>Band</th><th>Contract</th><th title="Usual hours a week on the rota">Hrs/wk</th><th>Groups they coach</th><th title="Holiday left this year (from 1 January)">Holiday left</th><th>App</th><th title="What they can see: staff = their own things; manager = rota and People; owner = everything, including sickness details">Access</th></tr></thead><tbody id="ppl"></tbody></table></div>
+      <p class="small muted">Click a name to see or change everything about them: details, contract, working days, classes and holiday. Pay rates: <a href="staffing.html">pay scale (Wages)</a>. "App" shows who has signed in to SAADI Team. Only owners can change roles. Owner = everything incl. health details; Manager = time off, sickness dates and records; Staff = their own.</p>
     </section>
 
     <section class="panel" id="syncPanel" hidden>
@@ -132,11 +132,13 @@ button.go{background:var(--accent);border-color:var(--accent);color:var(--accent
   <div class="g2" style="margin-top:10px"><label class="f">Work email * (they sign in with this) <input type="email" id="pEmail" required></label><label class="f">Mobile <input type="tel" id="pMob"></label></div>
   <div class="g3" style="margin-top:10px"><label class="f">Job title <input id="pJob" list="jobList" placeholder="e.g. Coach"></label><label class="f">Department <input id="pDept" list="deptList" placeholder="e.g. Coach"></label><label class="f">Start date * <input type="date" id="pStart" required></label></div>
   <datalist id="jobList"></datalist><datalist id="deptList"></datalist>
-  <div class="g2" style="margin-top:10px"><label class="f">Band <select id="pBand"></select></label><label class="f" id="pRoleWrap">Access <select id="pRole"><option value="staff">Staff: their own shifts, holiday, sickness</option><option value="manager">Manager: rota and People</option><option value="owner">Owner: everything</option></select></label></div>
+  <div class="g3" style="margin-top:10px"><label class="f">Contract <select id="pWeeks"><option value="">Not set</option><option value="40">Term time (40 weeks)</option><option value="52">All year (52 weeks)</option></select></label><label class="f">Band <select id="pBand"></select></label><label class="f" id="pRoleWrap">Access <select id="pRole"><option value="staff">Staff: their own shifts, holiday, sickness</option><option value="manager">Manager: rota and People</option><option value="owner">Owner: everything</option></select></label></div>
   <p class="small muted" id="pBreathe" hidden style="margin:8px 0 0">Name, email, job, department and start date come from Breathe every night until we switch over, so change those in Breathe for now.</p>
   <h3>Personal details <span class="small muted" style="font-weight:400">(only managers and the person can see these)</span></h3>
   <div class="g3"><label class="f">Date of birth <input type="date" id="pDob"></label><label class="f">Personal email <input type="email" id="pPEmail"></label><label class="f">Address <input id="pAddr"></label></div>
   <div class="g2" style="margin-top:10px"><label class="f">Emergency contact name <input id="pEmName"></label><label class="f">Emergency contact phone <input type="tel" id="pEmPhone"></label></div>
+  <h3>Holiday</h3>
+  <div id="pHol" class="small"></div>
   <h3>Working days</h3>
   <div id="pDays"></div>
   <h3>On the rota <span class="small muted" style="font-weight:400" id="pTermLine"></span></h3>
@@ -191,12 +193,45 @@ auth.onAuthStateChanged(async u=>{
 /* ---- data ---- */
 function start(){
   db.collection("people").onSnapshot(s=>{PEOPLE={};s.docs.forEach(d=>PEOPLE[d.id]={id:d.id,...d.data()});renderPeople();renderAll()});
-  db.collection("patterns").get().then(s=>s.docs.forEach(d=>PATTERNS[d.id]=d.data()));
+  db.collection("patterns").get().then(s=>{s.docs.forEach(d=>PATTERNS[d.id]=d.data());renderPeople()});
+  db.collection("allowances").get().then(s=>{s.docs.forEach(d=>ALLOW[d.id]=d.data());renderPeople()});
+  db.collection("leave").where("start",">=",YEAR0).onSnapshot(s=>{YLEAVE=s.docs.map(d=>({id:d.id,...d.data()}));renderPeople()});
+  loadUsual();
   // last 60 days onwards is enough for approvals and the calendar
   const from=iso(new Date(Date.now()-60*864e5));
   db.collection("leave").where("end",">=",from).onSnapshot(s=>{LEAVE=s.docs.map(d=>({id:d.id,...d.data()}));renderAll()});
   db.collection("sickness").where("status","==","open").onSnapshot(s=>{SICK=s.docs.map(d=>({id:d.id,...d.data()}));renderAll()});
   if(ROLE==="owner")db.doc("hrConfig/breatheSync").onSnapshot(d=>{const x=d.data();$("syncLine").textContent=x&&x.lastRun?`Last copied ${x.lastRun.toDate().toLocaleString("en-GB")}: ${x.people} people, ${x.leave} holiday/leave records, ${x.sickness} sickness records (${x.changed} changed). Runs every night at 2:30am while Breathe is still in use.`:"Not copied yet."});
+}
+let ALLOW={},YLEAVE=[],USUAL={hrs:{},groups:{}};
+const YEAR0=TODAY.slice(0,4)+"-01-01";
+// the usual week on the current (or next) term's rota: hours and groups per person
+async function loadUsual(){
+  const ts=(await db.collection("rotaTerms").get()).docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.start.localeCompare(b.start));
+  const t=RC.termFor(ts,TODAY)||ts.find(x=>x.start>TODAY)||ts[ts.length-1];if(!t)return;
+  const r=await RC.load(db,t.id),mon=t.weeks[0].monday,hrs=RC.weekHours(t,r.slots,null,mon),groups={};
+  r.slots.forEach(s=>(s.usual||[]).forEach(p=>{(groups[p]=groups[p]||new Set()).add(s.cls)}));
+  USUAL={hrs,groups,term:t.name};renderPeople();
+}
+// holiday this year in the person's allowance units (Breathe allowances are mostly in hours)
+function holidayOf(pid){
+  const p=PEOPLE[pid]||{},al=ALLOW[p.allowanceId],units=(al&&al.units)||"days";
+  const mine=YLEAVE.filter(l=>l.personId===pid&&l.type==="holiday"&&l.start.slice(0,4)===TODAY.slice(0,4));
+  const used=mine.filter(l=>l.status==="approved"&&l.start<=TODAY).reduce((t,l)=>t+(+l.deducted||0),0);
+  const booked=mine.filter(l=>l.status==="approved"&&l.start>TODAY).reduce((t,l)=>t+(+l.deducted||0),0);
+  const waiting=mine.filter(l=>l.status==="pending").length;
+  return {al,units,u:units==="hours"?"h":"d",used,booked,waiting,left:al&&al.amount!=null?al.amount-used-booked:null};
+}
+// how much a holiday request takes off: hours (their Breathe pattern's hours that day, else their usual rota hours) or days
+const DAYK2=["sun","mon","tue","wed","thu","fri","sat"];
+function deductFor(l){
+  const p=PEOPLE[l.personId]||{},al=ALLOW[p.allowanceId],pat=PATTERNS[p.patternId];
+  if(!al||al.units!=="hours")return workDays(l.personId,l.start,l.end||l.start);
+  let h=0;for(let d=new Date(l.start+"T12:00:00");iso(d)<=(l.end||l.start);d.setDate(d.getDate()+1)){
+    const k=DAYK2[d.getDay()],pd=pat&&pat.days&&pat.days[k];
+    if(pd&&pd.on&&pd.hours)h+=+pd.hours;
+    else if(!pat&&p.workDays&&p.workDays[(d.getDay()+6)%7]){const w=p.workDays[(d.getDay()+6)%7];if(w.start&&w.end)h+=(RC.mins(w.end)-RC.mins(w.start))/60}}
+  if(l.halfStart)h-=0;return Math.round(h*100)/100;
 }
 const name=pid=>{const p=PEOPLE[pid];return p?(p.knownAs||p.firstName||"")+" "+(p.lastName||""):"Unknown"};
 
@@ -227,7 +262,7 @@ function renderAll(){
 document.addEventListener("click",async e=>{
   const ok=e.target.closest("[data-ok]"),no=e.target.closest("[data-no]"),back=e.target.closest("[data-back]");
   if(ok){const l=LEAVE.find(x=>x.id===ok.dataset.ok);ok.disabled=true;
-    await db.doc("leave/"+l.id).update({status:"approved",deducted:l.type==="holiday"?workDays(l.personId,l.start,l.end||l.start):null,decidedBy:UID,decidedAt:FV(),updatedBy:UID,updatedAt:FV()});toast("Approved")}
+    await db.doc("leave/"+l.id).update({status:"approved",deducted:l.type==="holiday"?deductFor(l):null,decidedBy:UID,decidedAt:FV(),updatedBy:UID,updatedAt:FV()});toast("Approved")}
   if(no){if(!no.dataset.sure){no.dataset.sure=1;no.textContent="Sure?";setTimeout(()=>{delete no.dataset.sure;no.textContent="Decline"},3000);return}
     await db.doc("leave/"+no.dataset.no).update({status:"declined",decidedBy:UID,decidedAt:FV(),updatedBy:UID,updatedAt:FV()});toast("Declined")}
   if(back){await db.doc("sickness/"+back.dataset.back).update({status:"closed",end:TODAY,updatedBy:UID,updatedAt:FV()});toast("Marked as back")}
@@ -252,12 +287,19 @@ function renderPeople(){
   const q=$("q").value.trim().toLowerCase();
   const rows=Object.values(PEOPLE).filter(p=>p.status!=="leaver").filter(p=>!q||`${p.firstName} ${p.lastName} ${p.jobTitle} ${p.department}`.toLowerCase().includes(q))
     .sort((a,b)=>(a.lastName||"").localeCompare(b.lastName||""));
-  $("ppl").innerHTML=rows.map(p=>`<tr><td><a class="pn" data-person="${p.id}"><b>${esc((p.knownAs||p.firstName)+" "+p.lastName)}</b></a>${p.source==="team"?' <span class="tag on">new</span>':""}${p.status==="leaving"?' <span class="tag">leaving</span>':""}</td><td>${esc(p.jobTitle||"")}</td><td>${esc(p.department||"")}</td><td>${fmt(p.joinDate,{month:"short",year:"numeric"})}</td>
+  $("ppl").innerHTML=rows.map(p=>{const H=holidayOf(p.id),g=[...(USUAL.groups[p.id]||[])],hw=USUAL.hrs[p.id];
+    return `<tr><td><a class="pn" data-person="${p.id}"><b>${esc((p.knownAs||p.firstName)+" "+p.lastName)}</b></a>${p.source==="team"?' <span class="tag on">new</span>':""}${p.status==="leaving"?' <span class="tag">leaving</span>':""}<div class="small muted">${esc(p.jobTitle||"")}</div></td>
     <td><select data-band="${p.id}" aria-label="Pay band"><option value="">–</option>${RC.BANDS.map((b,i)=>`<option value="${i}" ${p.band!==undefined&&p.band!==null&&p.band!==""&&+p.band===i?"selected":""}>${RC.bandLetter(i)}: ${esc(b)}</option>`).join("")}</select></td>
+    <td><select data-weeks="${p.id}" aria-label="Contract"><option value="">–</option><option value="40" ${+p.contractWeeks===40?"selected":""}>Term time (40 wks)</option><option value="52" ${+p.contractWeeks===52?"selected":""}>All year (52 wks)</option></select></td>
+    <td class="small" style="text-align:right">${hw?RC.hours(hw):"–"}</td>
+    <td class="small">${g.slice(0,3).map(esc).join(", ")}${g.length>3?` +${g.length-3}`:""}</td>
+    <td class="small" style="text-align:right">${H.left==null?'<span class="muted">–</span>':`<span class="${H.left<0?"bad":""}">${Math.round(H.left*100)/100}${H.u}</span>`}</td>
     <td>${p.uid?'<span class="tag on">Signed in</span>':'<span class="tag">Not yet</span>'}</td>
-    <td>${ROLE==="owner"?`<select data-role="${p.id}">${["staff","manager","owner"].map(r=>`<option ${p.role===r?"selected":""}>${r}</option>`).join("")}</select>`:esc(p.role||"staff")}</td></tr>`).join("");
+    <td>${ROLE==="owner"?`<select data-role="${p.id}">${["staff","manager","owner"].map(r=>`<option ${p.role===r?"selected":""}>${r}</option>`).join("")}</select>`:esc(p.role||"staff")}</td></tr>`}).join("");
 }
 document.addEventListener("change",async e=>{
+  const wk=e.target.closest("[data-weeks]");
+  if(wk){await db.doc("people/"+wk.dataset.weeks).update({contractWeeks:wk.value===""?null:+wk.value,updatedBy:UID,updatedAt:FV()});toast("Contract saved");return}
   const bd=e.target.closest("[data-band]");
   if(bd){await db.doc("people/"+bd.dataset.band).update({band:bd.value===""?null:+bd.value,updatedBy:UID,updatedAt:FV()});toast(bd.value===""?"Band cleared":"Band "+RC.bandLetter(+bd.value)+" saved");return}
   const s=e.target.closest("[data-role]");if(!s)return;
@@ -287,6 +329,11 @@ async function openPerson(pid){
   ["pFirst","pLast","pKnown","pEmail","pJob","pDept","pStart"].forEach(id=>$(id).disabled=fromBreathe||(!!p&&id==="pEmail"));$("pBreathe").hidden=!fromBreathe;
   $("pBand").innerHTML=`<option value="">No band (not on the coaching scale)</option>`+RC.BANDS.map((b,i)=>`<option value="${i}">${RC.bandLetter(i)}: ${esc(b)}</option>`).join("");
   $("pBand").value=p&&hasB(p.band)?String(p.band):"";
+  $("pWeeks").value=p&&p.contractWeeks?String(p.contractWeeks):"";
+  if(p){const H=holidayOf(pid),hw=USUAL.hrs[pid];
+    $("pHol").innerHTML=(H.al?`<b>Allowance ${H.al.amount}${H.u}</b> (${esc(H.al.name||"")}) · used ${Math.round(H.used*100)/100}${H.u} · booked ahead ${Math.round(H.booked*100)/100}${H.u} · <b class="${H.left<0?"bad":""}">${Math.round(H.left*100)/100}${H.u} left</b>${H.waiting?` · ${H.waiting} waiting for approval`:""}`:"No holiday allowance set in Breathe.")+
+      `<div class="muted" style="margin-top:4px">${hw?`Usual week on the rota: ${RC.hours(hw)}. `:""}Guide: all-year staff get 5.6 weeks of their usual hours a year${hw?` (about ${Math.round(5.6*hw/60)}h)`:""}; term-time and irregular-hours staff build up 12.07% of the hours they work. Check with payroll before changing an allowance.</div>`}
+  else $("pHol").innerHTML='<span class="muted">Set in Breathe for now (until the switch-over).</span>';
   $("pRole").value=p?p.role||"staff":"staff";$("pRoleWrap").hidden=!!p||ROLE!=="owner";
   $("pWelcomeWrap").hidden=!!p;$("pSendDoc").hidden=!p;if(p)$("pSendDoc").href="documents.html?send="+encodeURIComponent(pid);$("pWelcome").checked=true;$("pMsg").textContent="";
   $("jobList").innerHTML=[...new Set(Object.values(PEOPLE).map(x=>x.jobTitle).filter(Boolean))].sort().map(v=>`<option value="${esc(v)}">`).join("");
@@ -344,7 +391,7 @@ $("pSave").onclick=async()=>{
   $("pSave").disabled=true;$("pMsg").textContent="Saving…";
   try{
     const pid=PE.pid||("n"+Date.now().toString(36)+Math.random().toString(36).slice(2,5));
-    const base={band:$("pBand").value===""?null:+$("pBand").value,workDays:wd,updatedBy:UID,updatedAt:FV()};
+    const base={band:$("pBand").value===""?null:+$("pBand").value,contractWeeks:$("pWeeks").value===""?null:+$("pWeeks").value,workDays:wd,updatedBy:UID,updatedAt:FV()};
     if(isNew)await db.doc("people/"+pid).set({...base,firstName:g("pFirst"),lastName:g("pLast"),knownAs:g("pKnown")||null,email:g("pEmail"),emailLower:email,
       jobTitle:g("pJob")||null,department:g("pDept")||null,joinDate:g("pStart"),status:"current",role:ROLE==="owner"?$("pRole").value:"staff",
       source:"team",welcome:$("pWelcome").checked,createdAt:FV()});

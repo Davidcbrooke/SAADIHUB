@@ -50,6 +50,11 @@ service cloud.firestore {
         allow read: if tMe(pid) || tManager();
         allow write: if tStamped() && tManager();
       }
+      // phones a person has switched notifications on for (their own only)
+      match /devices/{dev} {
+        allow read, delete: if tMe(pid);
+        allow create, update: if tMe(pid) && request.resource.data.token is string && request.resource.data.token.size() < 400;
+      }
     }
     match /leave/{id} {
       allow read: if tManager() || (tSignedIn() && resource.data.personId == request.auth.token.pid);

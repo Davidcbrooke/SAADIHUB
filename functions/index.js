@@ -166,6 +166,104 @@ exports.verifyCode = onCall(async req => {
   return { token: await admin.auth().createCustomToken(uid) };
 });
 
+/* ------------------------------------------------------------------ notifications
+   Email (Brevo, from reception@) + phone push (FCM) to a person. Never includes health details. */
+const HUB = "https://hub.saadigymnastics.co.uk/";
+const fmtDay = s => s ? new Date(s + "T12:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) : "";
+const dates = (a, b) => !b || a === b ? fmtDay(a) : `${fmtDay(a)} – ${fmtDay(b)}`;
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const mailHtml = (first, heading, lines, button, url) => `<div style="font-family:Roboto,Arial,sans-serif;max-width:520px;margin:auto;color:#1d1d1f">
+  <div style="height:6px;background:linear-gradient(90deg,#e94d8b 0 14.3%,#f6d32d 0 28.6%,#f39200 0 42.9%,#2f6fde 0 57.2%,#0f9d9a 0 71.5%,#3aa655 0 85.8%,#7c4bc4 0)"></div>
+  <h1 style="font-family:'Roboto Condensed',Arial,sans-serif;font-weight:900;text-transform:uppercase;font-size:22px;margin:24px 0 10px">${esc(heading)}</h1>
+  <p>Hi ${esc(first || "there")},</p>${lines.map(l => `<p>${l}</p>`).join("")}
+  <p style="margin:24px 0"><a href="${url}" style="background:#c6152e;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:99px;display:inline-block">${esc(button)}</a></p>
+  <p style="color:#888;font-size:12px">SAADI Team · SAADI Gymnastics, Redbourn</p></div>`;
+const personName = p => `${p.knownAs || p.firstName || ""} ${p.lastName || ""}`.trim();
+
+async function notify(pid, { subject, heading, lines, button, url, push }) {
+  const snap = await db.doc(`people/${pid}`).get();
+  if (!snap.exists) return;
+  const p = snap.data();
+  if (p.status === "leaver") return;
+  if (p.email) {
+    try { await sendMail(p.email, personName(p), subject, mailHtml(p.knownAs || p.firstName, heading, lines, button, url)); }
+    catch (e) { logger.warn("mail", pid, e.message); }
+  }
+  const devs = await db.collection(`people/${pid}/devices`).get();
+  if (devs.empty) return;
+  const res = await admin.messaging().sendEachForMulticast({
+    tokens: devs.docs.map(d => d.data().token),
+    notification: { title: push.title, body: push.body },
+    webpush: { fcmOptions: { link: url }, notification: { icon: HUB + "icon-192.png", badge: HUB + "favicon-32.png" } },
+    data: { url }
+  });
+  // tidy away phones that have uninstalled or switched notifications off
+  await Promise.all(res.responses.map((r, i) => !r.success && /registration-token-not-registered|invalid-argument|invalid-registration/.test((r.error && r.error.code) || "")
+    ? devs.docs[i].ref.delete() : null));
+}
+async function managers() {
+  const q = await db.collection("people").where("role", "in", ["manager", "owner"]).get();
+  return q.docs.filter(d => d.data().status !== "leaver").map(d => d.id);
+}
+
+exports.leaveNotify = onDocumentWritten({ document: "leave/{id}", secrets: [BREVO_API_KEY] }, async ev => {
+  const before = ev.data.before.exists ? ev.data.before.data() : null;
+  const after = ev.data.after.exists ? ev.data.after.data() : null;
+  if (!after || after.source === "breathe" || after.updatedBy === "breathe-sync") return;
+  const ps = await db.doc(`people/${after.personId}`).get();
+  const who = ps.exists ? personName(ps.data()) : "Someone";
+  const what = after.type === "holiday" ? "holiday" : "leave";
+  const when = dates(after.start, after.end);
+
+  if (!before && after.status === "pending") {
+    // new request: tell the managers (not the person asking, if they're a manager themselves)
+    const ids = (await managers()).filter(id => id !== after.personId);
+    await Promise.all(ids.map(id => notify(id, {
+      subject: `${who} has asked for ${what}: ${when}`, heading: "Time off to approve",
+      lines: [`<b>${esc(who)}</b> has asked for ${what}: <b>${esc(when)}</b>.`, after.notes ? `Their note: “${esc(after.notes)}”` : ""].filter(Boolean),
+      button: "Approve or decline", url: HUB + "people.html",
+      push: { title: "Time off to approve", body: `${who}: ${what}, ${when}` }
+    })));
+    return;
+  }
+  if (before && before.status === "pending" && ["approved", "declined"].includes(after.status)) {
+    const ok = after.status === "approved";
+    await notify(after.personId, {
+      subject: ok ? `Your ${what} is approved: ${when}` : `Your ${what} request wasn't approved: ${when}`,
+      heading: ok ? "Approved" : "Not approved",
+      lines: [ok ? `Good news: your ${what} for <b>${esc(when)}</b> is approved.` : `Sorry, your ${what} request for <b>${esc(when)}</b> wasn't approved. Have a word with Mel or Dave if you'd like to talk about it.`],
+      button: "Open SAADI Team", url: HUB + "team/",
+      push: { title: ok ? "Time off approved ✅" : "Time off not approved", body: `${what[0].toUpperCase() + what.slice(1)}: ${when}` }
+    });
+    return;
+  }
+  if (before && before.status === "approved" && after.status === "cancelled") {
+    const ids = (await managers()).filter(id => id !== after.personId);
+    await Promise.all(ids.map(id => notify(id, {
+      subject: `${who} has cancelled ${what}: ${when}`, heading: "Time off cancelled",
+      lines: [`<b>${esc(who)}</b> has cancelled their ${what} for <b>${esc(when)}</b>, so they're available again.`],
+      button: "Open People", url: HUB + "people.html",
+      push: { title: "Time off cancelled", body: `${who}: ${when}` }
+    })));
+  }
+});
+
+exports.sicknessNotify = onDocumentWritten({ document: "sickness/{id}", secrets: [BREVO_API_KEY] }, async ev => {
+  const before = ev.data.before.exists ? ev.data.before.data() : null;
+  const after = ev.data.after.exists ? ev.data.after.data() : null;
+  if (before || !after || after.source !== "team") return; // only new reports made in the app
+  const ps = await db.doc(`people/${after.personId}`).get();
+  const who = ps.exists ? personName(ps.data()) : "Someone";
+  const ids = (await managers()).filter(id => id !== after.personId);
+  // dates only: what's wrong stays in sicknessDetail for owners
+  await Promise.all(ids.map(id => notify(id, {
+    subject: `${who} is off sick from ${fmtDay(after.start)}`, heading: "Off sick",
+    lines: [`<b>${esc(who)}</b> has let us know they're not well and won't be in from <b>${esc(fmtDay(after.start))}</b>${after.end ? `, expecting to be back ${esc(fmtDay(after.end))}` : ""}.`, "Their shifts will need cover."],
+    button: "Open People", url: HUB + "people.html",
+    push: { title: "Off sick 🤒", body: `${who} from ${fmtDay(after.start)}. Shifts need cover.` }
+  })));
+});
+
 /* ------------------------------------------------------------------ Breathe copy */
 async function breathe(path, key) {
   for (let i = 0; i < 8; i++) {

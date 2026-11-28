@@ -272,8 +272,8 @@ function fits(role,band,job){
   if(/desk|reception|morning|afternoon|evening|open|welcome/i.test(role))return /recep|desk|duty|customer|admin/i.test(job||"");
   if(!hasB(band))return false;band=+band;
   if(band<=0)return /young|demo|yl\b/i.test(role);
-  if(band<=2)return /assist|warm ?up|wu\b|young/i.test(role);
-  return /lead|coach|set ?up|senior|squad/i.test(role);
+  if(band<=2)return /assist/i.test(role);
+  return /lead|senior|squad/i.test(role);
 }
 async function termsList(){if(!TERMS)TERMS=(await db.collection("rotaTerms").get()).docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.start.localeCompare(b.start));return TERMS}
 function pickTerm(from){return TERMS.find(t=>t.weeks.some(w=>w.monday===RC.monday(from)))||TERMS.find(t=>t.start>from)||null}

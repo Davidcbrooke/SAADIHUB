@@ -21,7 +21,8 @@ RC.weekId = (tid, monday) => `${tid}_${monday}`;
 RC.BANDS = ["Demonstrator / Young Leader", "Trainee Coach", "Assistant Coach", "Lead Coach", "Lead Coach + L1", "Lead Coach + L2", "Senior Coach + L3", "Senior Coach"];
 RC.bandLetter = n => (n === null || n === undefined || n === "") ? "" : "ABCDEFGH"[+n] || "";
 RC.bandName = n => RC.bandLetter(n) ? `Band ${RC.bandLetter(n)}: ${RC.BANDS[+n]}` : "No band";
-RC.termFor = (terms, iso) => terms.find(t => t.weeks && t.weeks.some(w => w.monday === RC.monday(iso))) || null;
+// the term (or holiday period) a date belongs to: exact dates when the term has them, else its weeks
+RC.termFor = (terms, iso) => terms.find(t => t.startDate ? (t.startDate <= iso && iso <= t.endDate) : (t.weeks && t.weeks.some(w => w.monday === RC.monday(iso)))) || null;
 
 /* who's on a slot in a given week: the week's change if there is one, else the usual people */
 RC.on = (slot, week) => {
@@ -38,8 +39,9 @@ RC.shiftsFor = (pid, slots, weeks, terms, from, n) => {
     const date = RC.addDays(from, i), term = RC.termFor(terms, date);
     if (!term) continue;
     const day = RC.dayIdx(date), week = weeks[RC.weekId(term.id, RC.monday(date))];
-    if (RC.closed(week, day)) continue;
-    const mine = slots.filter(s => s.term === term.id && s.day === day && s.start && s.end && RC.on(s, week).people.includes(pid))
+    // closed days (half term, breaks): classes don't run, but shifts that aren't a class (holiday camp, desk, admin) still do
+    const shut = RC.closed(week, day);
+    const mine = slots.filter(s => s.term === term.id && s.day === day && (!shut || s.session === "Extra") && s.start && s.end && RC.on(s, week).people.includes(pid))
       .map(s => ({ s, a: RC.mins(s.start), b: RC.mins(s.end), note: RC.on(s, week).text }))
       .sort((x, y) => x.a - y.a || x.b - y.b);
     const blocks = [];

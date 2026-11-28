@@ -159,7 +159,7 @@ button.go{background:var(--accent);border-color:var(--accent);color:var(--accent
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="firebase-config.js"></script>
-<script src="rota-core.js?v=2"></script>
+<script src="rota-core.js?v=3"></script>
 <script>
 "use strict";
 const $=id=>document.getElementById(id);
@@ -215,7 +215,9 @@ const YEAR0=TODAY.slice(0,4)+"-01-01";
 async function loadUsual(){
   const ts=(await db.collection("rotaTerms").get()).docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.start.localeCompare(b.start));
   const t=RC.termFor(ts,TODAY)||ts.find(x=>x.start>TODAY)||ts[ts.length-1];if(!t)return;
-  const r=await RC.load(db,t.id),mon=t.weeks[0].monday,hrs=RC.weekHours(t,r.slots,null,mon),groups={};
+  // a full week inside the term's dates (the first week may start mid-week)
+  const full=t.weeks.find(w=>!t.startDate||(w.monday>=t.startDate&&RC.addDays(w.monday,6)<=t.endDate))||t.weeks[0];
+  const r=await RC.load(db,t.id),mon=full.monday,hrs=RC.weekHours(t,r.slots,null,mon),groups={};
   r.slots.forEach(s=>(s.usual||[]).forEach(p=>{(groups[p]=groups[p]||new Set()).add(s.cls)}));
   USUAL={hrs,groups,term:t.name};renderPeople();
 }

@@ -111,7 +111,7 @@ tr.needs td{background:#fff7f8}tr.needs td.nm{color:#7d0b1c}
         <button type="button" id="wkToday">This week</button>
         <span style="flex:1"></span>
         <div class="seg" role="group" aria-label="View"><button type="button" data-view="cal">Calendar</button><button type="button" data-view="cls">By class</button></div>
-        <button type="button" id="bNewTerm">New term…</button>
+        <button type="button" id="bNewTerm">New term or holidays…</button>
       </div>
       <div class="days" id="days" style="margin-top:12px"></div>
     </div>
@@ -178,12 +178,15 @@ tr.needs td{background:#fff7f8}tr.needs td.nm{color:#7d0b1c}
 </form></dialog>
 
 <dialog id="dlgTerm"><form method="dialog" class="in">
-  <h2>New term</h2>
-  <p class="small muted">Copies every class, role and time from <b id="ntFrom"></b>, with the same usual people, into a new term. You then change only what's different.</p>
+  <h2>New term or holiday period</h2>
+  <label class="f">From the website (fills in the dates) <select id="ntPreset"><option value="">Choose…</option></select></label>
+  <div class="bar"><label class="small"><input type="radio" name="ntKind" value="term" checked> Term: copies every class, role, time and usual coach from <b id="ntFrom"></b></label>
+    <label class="small"><input type="radio" name="ntKind" value="holiday"> Holiday period: no classes, for holiday camps and all-year staff</label></div>
   <label class="f">Name <input id="ntName" placeholder="Spring Term 2027" required></label>
-  <div class="bar"><label class="f">First Monday <input type="date" id="ntStart" required></label><label class="f">Weeks <input type="number" id="ntWeeks" min="1" max="20" value="12" style="width:80px"></label></div>
-  <label class="f">Half-term week (Monday, optional) <input type="date" id="ntHalf"></label>
-  <div class="acts"><button type="button" class="go" id="ntGo">Create term</button><span style="flex:1"></span><button value="cancel">Cancel</button></div>
+  <div class="bar"><label class="f">First day <input type="date" id="ntStart" required></label><label class="f">Last day <input type="date" id="ntEnd" required></label></div>
+  <label class="f">Breaks inside it (one per line: a date, or "from to") <textarea id="ntBreaks" rows="3" placeholder="2027-02-07&#10;2027-02-15 2027-02-20"></textarea></label>
+  <p class="small muted" id="ntPreview" style="margin:0"></p>
+  <div class="acts"><button type="button" class="go" id="ntGo">Create</button><span style="flex:1"></span><button value="cancel">Cancel</button></div>
   <p class="small" id="ntMsg"></p>
 </form></dialog>
 
@@ -193,7 +196,7 @@ tr.needs td{background:#fff7f8}tr.needs td.nm{color:#7d0b1c}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="team-auth.js?v=4"></script>
-<script src="rota-core.js?v=2"></script>
+<script src="rota-core.js?v=3"></script>
 <script>
 "use strict";
 const $=id=>document.getElementById(id);
@@ -261,7 +264,7 @@ function render(){
   document.body.classList.toggle("cal",VIEW==="cal");
   document.querySelectorAll("[data-view]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.view===VIEW)));
   if(VIEW==="cal")renderCal(week);
-  else if(closed){$("grid").innerHTML=`<div class="panel"><h2 style="margin:0">${RC.DAYS[DAY]} ${fmt(date,{day:"numeric",month:"long"})} is closed</h2><p class="muted">${esc(closed)}. Nobody is rostered. Use "Open ${RC.DAYS[DAY]} again" if that's wrong.</p></div>`}
+  else if(closed){$("grid").innerHTML=`<div class="panel"><h2 style="margin:0">${RC.DAYS[DAY]} ${fmt(date,{day:"numeric",month:"long"})} is closed</h2><p class="muted">${esc(closed)}: classes don't run. Holiday shifts (camps, desk, admin) can still be added in the Calendar view: click the day in someone's row. Use "Open ${RC.DAYS[DAY]} again" if that's wrong.</p></div>`}
   else{
     let html="",last="";
     sl.forEach(s=>{
@@ -323,7 +326,7 @@ function renderCal(week){
   // shifts that need cover this week (rostered but off), plus offers already made
   NEEDS=[];pids.forEach(p=>sh[p].forEach(b=>{const o=b.date>=TODAY&&offWhy(p,b.date);if(o)NEEDS.push({p,b,o})}));
   const filled=OPEN.filter(o=>o.monday===MON&&o.status==="filled");
-  const head=`<tr><th>Person</th>${dates.map((d,i)=>`<th class="${d===TODAY?"today":""}">${RC.DAYS[i].slice(0,3)} ${new Date(d+"T12:00:00").getDate()}</th>`).join("")}</tr>`;
+  const head=`<tr><th>Person</th>${dates.map((d,i)=>`<th class="${d===TODAY?"today":""}">${RC.DAYS[i].slice(0,3)} ${new Date(d+"T12:00:00").getDate()}${RC.closed(week,i)?`<div class="small muted" style="font-weight:400">${esc(RC.closed(week,i))}</div>`:""}</th>`).join("")}</tr>`;
   const needRow=`<tr class="needs"><td class="nm">⚠ Needs cover<small>${NEEDS.filter(n=>!openFor(n.b.date,n.b)).length} to sort · ${filled.length} covered</small></td>${dates.map((d,i)=>{
     if(RC.closed(week,i))return `<td class="shut">${esc(RC.closed(week,i))}</td>`;
     const here=NEEDS.filter(n=>n.b.date===d).map(n=>blockHtml(n.p,n.b,n.o).replace("<small>",`<small><b style="display:inline">${esc(nm(n.p))}</b> · `)).join("");
@@ -333,12 +336,11 @@ function renderCal(week){
   const rows=[...pids].filter(p=>PEOPLE[p]).sort((a,b)=>fullNm(a).localeCompare(fullNm(b))).map(p=>{const pp=PEOPLE[p],pat=PATTERNS[pp.patternId],c=pat&&pat.totalHours?pat.totalHours*60:null;
     const flag=c&&Math.abs((tot[p]||0)-c)>60?` <span class="warn" title="Working pattern in Breathe: ${RC.hours(c)}">≠ ${RC.hours(c)}</span>`:"";
     return `<tr><td class="nm">${esc(fullNm(p))}${RC.bandLetter(pp.band)?`<span class="bt" title="${esc(RC.bandName(pp.band))}">${RC.bandLetter(pp.band)}</span>`:""}<small>${RC.hours(tot[p]||0)}${flag}</small></td>${dates.map((d,i)=>{
-      if(RC.closed(week,i))return `<td class="shut"></td>`;
       const off=offWhy(p,d),bl=sh[p].filter(b=>b.date===d);
-      return `<td class="add" data-addto="${p}|${d}" title="Click to add a shift for ${esc(fullNm(p))}">${bl.map(b=>blockHtml(p,b,off)).join("")}${off&&!bl.length?`<div class="lv ${off==="off sick"?"sick":""}">${esc(off)}</div>`:""}</td>`}).join("")}</tr>`}).join("");
+      return `<td class="add ${RC.closed(week,i)?"shut":""}" data-addto="${p}|${d}" title="Click to add a shift for ${esc(fullNm(p))}">${bl.map(b=>blockHtml(p,b,off)).join("")}${off&&!bl.length?`<div class="lv ${off==="off sick"?"sick":""}">${esc(off)}</div>`:""}</td>`}).join("")}</tr>`}).join("");
   // a last row to add a shift for someone with nothing on the rota this week
   const others=Object.values(PEOPLE).filter(p=>p.status!=="leaver"&&!pids.has(p.id)).sort((a,b)=>fullNm(a.id).localeCompare(fullNm(b.id)));
-  const otherRow=`<tr><td class="nm"><select id="addWho" style="max-width:160px"><option value="">Someone else…</option>${others.map(p=>`<option value="${p.id}">${esc(fullNm(p.id))}</option>`).join("")}</select><small>pick, then click a day</small></td>${dates.map((d,i)=>RC.closed(week,i)?'<td class="shut"></td>':`<td class="add" data-addto="?|${d}"></td>`).join("")}</tr>`;
+  const otherRow=`<tr><td class="nm"><select id="addWho" style="max-width:160px"><option value="">Someone else…</option>${others.map(p=>`<option value="${p.id}">${esc(fullNm(p.id))}</option>`).join("")}</select><small>pick, then click a day</small></td>${dates.map((d,i)=>`<td class="add ${RC.closed(week,i)?"shut":""}" data-addto="?|${d}"></td>`).join("")}</tr>`;
   const unknown=SLOTS.filter(s=>{const on=RC.on(s,week);return !on.people.length&&on.text&&on.text.trim()}).length;
   $("grid").innerHTML=`<div class="calwrap"><table class="cal"><colgroup><col class="nmc">${"<col>".repeat(7)}</colgroup><thead>${head}</thead><tbody>${needRow}${rows}${otherRow}</tbody></table></div>
     <div class="legend"><span><i style="background:#fde4e8;border-left:3px solid #c6152e"></i>Needs cover: click to find someone</span><span><i style="background:#fff4d6;border-left:3px solid #e0a100"></i>Offered to staff: click to choose</span><span><i style="background:#e3f5e8;border-left:3px solid #3aa655"></i>Covered</span><span>Click a shift to see that day's classes. Click an empty part of a day to add a shift for that person. Letters = pay band.</span>${unknown?`<span class="warn">${unknown} slots have a name that isn't matched to anyone (see By class)</span>`:""}</div>`;
@@ -355,8 +357,9 @@ function openAdd(pid,date){
   const day=RC.dayIdx(date),week=WEEKS[RC.weekId(TERM.id,RC.monday(date))],off=offWhy(pid,date);
   AD={pid,date,day,monday:RC.monday(date),ticks:new Set()};
   $("adTitle").textContent=`Add a shift: ${fullNm(pid)}`;
-  $("adSub").textContent=`${fmt(date,{weekday:"long",day:"numeric",month:"long"})}${off?` · note: they're ${off} that day`:""}`;
-  const sl=SLOTS.filter(s=>s.day===day).sort((a,b)=>(a.start||"99").localeCompare(b.start||"99")||a.order-b.order);
+  $("adSub").textContent=`${fmt(date,{weekday:"long",day:"numeric",month:"long"})}${off?` · note: they're ${off} that day`:""}${RC.closed(week,day)?` · ${RC.closed(week,day)}: no classes, add a holiday shift below`:""}`;
+  const shut=RC.closed(week,day);
+  const sl=SLOTS.filter(s=>s.day===day&&(!shut||s.session==="Extra")).sort((a,b)=>(a.start||"99").localeCompare(b.start||"99")||a.order-b.order);
   $("adSlots").innerHTML=sl.length?sl.map(s=>{const on=RC.on(s,week),mine=on.people.includes(pid),others=on.people.filter(x=>x!==pid).map(nm);
     return `<label class="${mine?"on":""}"><input type="checkbox" data-ad="${s.id}" ${mine?"checked disabled":""}><span>${s.start?RC.nice(s.start)+"–"+RC.nice(s.end):"no time"}</span><span><span class="dot" style="background:${esc(s.colour||"#999")};margin:0 5px 0 0"></span><b>${esc(s.cls)}</b> · ${esc(s.role)}<small>${mine?"Already on this":others.length?"With "+esc(others.join(", ")):"Nobody on it"}</small></span></label>`}).join("")
     :'<p class="small muted" style="padding:8px 10px">No classes on this day.</p>';
@@ -525,19 +528,48 @@ $("bCloseDay").onclick=async()=>{const wk=WEEKS[RC.weekId(TERM.id,MON)],cl=RC.cl
   else await weekRef(MON).set({term:TERM.id,monday:MON,closed:{[String(DAY)]:"Closed"},...stamp()},{merge:true});
   toast(cl?"Open again":"Closed")};
 
-/* ---------- new term: copy the classes and usual people ---------- */
-$("bNewTerm").onclick=()=>{$("ntFrom").textContent=TERM.name;$("ntMsg").textContent="";$("dlgTerm").showModal()};
+/* ---------- new term or holiday period: exact dates and breaks ---------- */
+// From saadigymnastics.co.uk/term-dates (read 28 Nov 2026). Holiday periods are the gaps between terms.
+const PRESETS=[
+  {name:"Christmas holidays 2026",kind:"holiday",start:"2026-12-21",end:"2027-01-01",breaks:[]},
+  {name:"Spring Term 2027",kind:"term",start:"2027-01-02",end:"2027-03-25",breaks:[["2027-02-07","2027-02-07","Break"],["2027-02-15","2027-02-20","Half term"]]},
+  {name:"Easter holidays 2027",kind:"holiday",start:"2027-03-26",end:"2027-04-11",breaks:[]},
+  {name:"Summer Term 2027",kind:"term",start:"2027-04-12",end:"2027-07-25",breaks:[["2027-05-31","2027-06-06","Half term"]],note:"Pre-school ends Sun 18 Jul: close those classes in the last week."}
+];
+$("ntPreset").innerHTML='<option value="">Choose…</option>'+PRESETS.map((x,i)=>`<option value="${i}">${esc(x.name)} (${fmt(x.start,{day:"numeric",month:"short"})} – ${fmt(x.end,{day:"numeric",month:"short",year:"numeric"})})</option>`).join("");
+$("ntPreset").onchange=()=>{const x=PRESETS[+$("ntPreset").value];if(!x)return;
+  $("ntName").value=x.name;$("ntStart").value=x.start;$("ntEnd").value=x.end;document.querySelector(`[name=ntKind][value=${x.kind}]`).checked=true;
+  $("ntBreaks").value=x.breaks.map(b=>b[0]===b[1]?b[0]:`${b[0]} ${b[1]}`).join("\n");ntPreview();if(x.note)$("ntMsg").textContent=x.note};
+const ntKind=()=>document.querySelector("[name=ntKind]:checked").value;
+function ntBreaks(){return $("ntBreaks").value.split("\n").map(l=>l.match(/\d{4}-\d{2}-\d{2}/g)).filter(Boolean).map(m=>{const a=m[0],b=m[1]||m[0];return [a,b,(new Date(b)-new Date(a))/864e5>=4?"Half term":"Break"]})}
+// weeks Monday to Monday, with days outside the dates or in a break closed
+function ntPlan(){
+  const s=$("ntStart").value,e=$("ntEnd").value;if(!s||!e||e<s)return null;
+  const br=ntBreaks(),weeks=[],closed={};let n=0;
+  for(let m=RC.monday(s);m<=e;m=RC.addDays(m,7)){
+    const cl={};for(let d=0;d<7;d++){const dt=RC.addDays(m,d);
+      if(dt<s||dt>e)cl[String(d)]=dt<s?"Before term":"After term";
+      else{const b=br.find(x=>x[0]<=dt&&dt<=x[1]);if(b)cl[String(d)]=b[2]}}
+    const open=7-Object.keys(cl).length;if(open)n++;
+    weeks.push({monday:m,label:ntKind()==="holiday"?"":open?`Week ${n}`:"Half term",note:""});if(Object.keys(cl).length)closed[m]=cl}
+  return {start:s,end:e,weeks,closed,teaching:n};
+}
+function ntPreview(){const P=ntPlan();$("ntPreview").textContent=P?`${P.weeks.length} weeks on the rota${ntKind()==="term"?`, ${P.teaching} with classes`:""}. Days outside the dates and in breaks are closed: classes don't run, but holiday shifts can still be added.`:""}
+["ntStart","ntEnd","ntBreaks"].forEach(id=>$(id).addEventListener("input",ntPreview));document.querySelectorAll("[name=ntKind]").forEach(r=>r.onchange=ntPreview);
+$("bNewTerm").onclick=()=>{$("ntFrom").textContent=TERM.name;$("ntMsg").textContent="";$("ntPreset").value="";ntPreview();$("dlgTerm").showModal()};
 $("ntGo").onclick=async()=>{
-  const name=$("ntName").value.trim(),start=$("ntStart").value,n=Math.max(1,Math.min(20,+$("ntWeeks").value||12)),half=$("ntHalf").value?RC.monday($("ntHalf").value):"";
-  if(!name||!start)return $("ntMsg").textContent="Give it a name and a first Monday.";
-  const first=RC.monday(start),tid=name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
-  if(TERMS.some(t=>t.id===tid))return $("ntMsg").textContent="There's already a term with that name.";
-  const weeks=[];for(let i=0,m=first;weeks.length<n+(half?1:0);i++,m=RC.addDays(m,7))weeks.push({monday:m,label:m===half?"Half term":"",note:""});
-  $("ntGo").disabled=true;$("ntMsg").textContent="Copying…";
+  const name=$("ntName").value.trim(),P=ntPlan(),kind=ntKind();
+  if(!name||!P)return $("ntMsg").textContent="Give it a name, a first day and a last day.";
+  const tid=name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+  if(TERMS.some(t=>t.id===tid))return $("ntMsg").textContent="There's already one with that name.";
+  const clash=TERMS.find(t=>t.startDate&&t.startDate<=P.end&&P.start<=t.endDate);
+  if(clash)return $("ntMsg").textContent=`Those dates overlap ${clash.name}.`;
+  $("ntGo").disabled=true;$("ntMsg").textContent="Creating…";
   try{
-    const docs=[[db.doc("rotaTerms/"+tid),{name,weeks,start:weeks[0].monday,end:weeks[weeks.length-1].monday,copiedFrom:TERM.id,...stamp()}]];
-    SLOTS.forEach(s=>{const {id,...rest}=s;docs.push([db.doc(`rotaSlots/${tid}-${s.day}-${String(s.order).padStart(3,"0")}`),{...rest,term:tid,source:"copy",...stamp()}])});
-    if(half){const cl={};for(let d=0;d<7;d++)cl[String(d)]="Half term";docs.push([db.doc("rotaWeeks/"+RC.weekId(tid,half)),{term:tid,monday:half,changes:{},closed:cl,...stamp()}])}
+    const weeks=P.weeks;
+    const docs=[[db.doc("rotaTerms/"+tid),{name,kind,weeks,start:weeks[0].monday,end:weeks[weeks.length-1].monday,startDate:P.start,endDate:P.end,copiedFrom:kind==="term"?TERM.id:null,...stamp()}]];
+    if(kind==="term")SLOTS.filter(s=>s.session!=="Extra").forEach(s=>{const {id,...rest}=s;docs.push([db.doc(`rotaSlots/${tid}-${s.day}-${String(s.order).padStart(3,"0")}`),{...rest,term:tid,source:"copy",...stamp()}])});
+    Object.entries(P.closed).forEach(([m,cl])=>docs.push([db.doc("rotaWeeks/"+RC.weekId(tid,m)),{term:tid,monday:m,changes:{},closed:cl,...stamp()}]));
     for(let i=0;i<docs.length;i+=400){const b=db.batch();docs.slice(i,i+400).forEach(([r,d])=>b.set(r,d));await b.commit()}
     $("dlgTerm").close();toast(`${name} created`);openTerm(tid,weeks[0].monday);
   }catch(err){$("ntMsg").textContent="Couldn't create it: "+err.message}

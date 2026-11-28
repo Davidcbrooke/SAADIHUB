@@ -20,6 +20,7 @@ const PAGES = [
   {group: "Team", items: [
     {href: "rota.html", name: "Rota", desc: "Calendar of everyone's shifts. Red = needs cover: offer it to the same band, one band down or one person, and pick who gets it.", icon: "calendar"},
     {href: "documents.html", name: "Documents", desc: "Contracts to sign and company documents everyone must read: who's signed, who's read, and reminders.", icon: "doc"},
+    {href: "payroll.html", name: "Payroll", desc: "Month-end hours, holiday and sickness (SSP) for everyone, ready for QuickBooks payroll.", icon: "chart"},
     {href: "people.html", name: "People", desc: "Approve holiday, see who's off and who's sick, and manage staff records. Sign in as yourself.", icon: "people"},
     {href: "staffing.html", name: "Staffing", desc: "Who's off, who's covering, and offering spare shifts to the people who can do them.", icon: "people"}]}
 ];

@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f20779">
+<meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>SAADI Payroll</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="hub.css">
+<script src="hub-shell.js?v=9" defer></script>
+<style>
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+@media (max-width:860px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi .v{font-family:var(--display);font-size:32px;font-weight:700;line-height:1}
+table.t{width:100%;border-collapse:collapse;font-size:13.5px}
+table.t th,table.t td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+table.t th{font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);position:sticky;top:0;background:var(--surface)}
+table.t td.n,table.t th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+table.t tr.sel td{background:#fff5fa}
+table.t tbody tr{cursor:pointer}
+.flag{display:inline-block;font-size:11.5px;font-weight:700;border-radius:99px;padding:1px 8px;margin:1px 3px 1px 0;white-space:nowrap}
+.f-red{background:#fde4e8;color:#7d0b1c}.f-amb{background:#fff4d6;color:#7a5600}.f-blue{background:#e6efff;color:#1f4fb0}.f-grey{background:#eee;color:#555}
+.days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;font-size:12px}
+.days div{border:1px solid var(--line);border-radius:8px;padding:4px 5px;min-height:54px;background:var(--surface)}
+.days div b{display:block;font-size:11px;color:var(--muted);font-weight:600}
+.days .w{background:#eef7f0}.days .h{background:#e6efff}.days .s{background:#fde4e8}.days .o{background:#f1eafb}.days .x{opacity:.35}
+button.go{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:10px 18px;border-radius:99px;font-weight:600;z-index:60}
+.small{font-size:13px}.locked{background:#e3f5e8;color:#1e7a3a;border-radius:10px;padding:8px 12px;font-weight:600}
+.adj{width:70px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="index.html"><img src="saadi-logo-white.png" alt="SAADI Gymnastics" width="64" height="61">
+      <div><div class="eyebrow">SAADI Gymnastics</div><h1>Payroll</h1></div></a>
+    <div class="head-right"><button type="button" class="needs-auth" id="signOut">Sign out</button></div>
+  </header>
+  <section class="panel auth" id="authPanel" hidden></section>
+  <section class="panel" id="notManager" hidden><h2>This page is for managers</h2><p class="muted">Your own shifts and holiday are in the <a href="team/">SAADI Team app</a>.</p></section>
+
+  <main class="wrap needs-auth" id="main" hidden>
+    <div class="panel">
+      <div class="bar">
+        <button type="button" id="mPrev" aria-label="Previous month">‹</button>
+        <b id="mLabel" style="font-size:18px"></b>
+        <button type="button" id="mNext" aria-label="Next month">›</button>
+        <span class="small muted" id="mRange"></span>
+        <span style="flex:1"></span>
+        <button type="button" id="bCsv">⬇ Summary (CSV)</button>
+        <button type="button" id="bShifts">⬇ Every shift (CSV)</button>
+        <button type="button" class="go" id="bLock">Mark as sent to payroll</button>
+      </div>
+      <p class="small muted" style="margin:10px 0 0">Hours worked come from the rota (after every change and cover), less any day they were on holiday, on leave or off sick. Holiday is what Breathe deducted, split across months, checked against their allowance. Sickness lists the days they were due to work, for SSP. QuickBooks Advanced Payroll applies the pay rates and works out SSP.</p>
+      <div id="lockLine" style="margin-top:10px"></div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi"><span class="v" id="kPeople">–</span><span class="s">people to pay</span></div>
+      <div class="kpi"><span class="v" id="kHours">–</span><span class="s">hours worked</span></div>
+      <div class="kpi"><span class="v" id="kHol">–</span><span class="s">holiday (hours)</span></div>
+      <div class="kpi bad"><span class="v" id="kSick">–</span><span class="s">sick days (SSP)</span></div>
+      <div class="kpi"><span class="v" id="kFlags">–</span><span class="s">things to check</span></div>
+    </div>
+
+    <section class="panel">
+      <div class="bar" style="justify-content:space-between"><h2 style="margin:0">Everyone</h2>
+        <div class="bar"><label class="small"><input type="checkbox" id="onlyFlags"> Only ones to check</label><input type="search" id="q" placeholder="Search" style="max-width:200px"></div></div>
+      <div style="overflow-x:auto;max-height:70vh"><table class="t"><thead><tr><th>Name</th><th class="n">Rota hours</th><th class="n">Extra</th><th class="n">Worked</th><th class="n">Holiday</th><th class="n">Holiday left</th><th class="n">Sick days</th><th class="n">Other leave</th><th>Check</th></tr></thead><tbody id="rows"><tr><td colspan="9" class="muted">Working it out…</td></tr></tbody></table></div>
+      <p class="small muted">Click a row to see their month day by day and add extra hours that aren't on the rota (training, events, admin).</p>
+    </section>
+
+    <section class="panel" id="detail" hidden>
+      <div class="bar" style="justify-content:space-between"><h2 style="margin:0" id="dName"></h2><span class="small muted" id="dSub"></span></div>
+      <div class="days" id="dDays" style="margin-top:10px"></div>
+      <div class="bar" style="margin-top:12px">
+        <label class="small">Extra hours <input type="number" step="0.25" class="adj" id="dAdj"></label>
+        <input id="dNote" placeholder="What for (e.g. staff training 2h)" style="flex:1;min-width:200px" maxlength="140">
+        <button type="button" class="go" id="dSave">Save</button>
+      </div>
+      <p class="small muted">Green worked · blue holiday · red sick · purple other leave. Faded = nothing on the rota that day.</p>
+    </section>
+
+    <section class="panel">
+      <h2 style="margin-top:0">Settings</h2>
+      <div class="bar">
+        <label class="small">Pay period starts on day <input type="number" id="sDay" min="1" max="28" style="width:64px"></label>
+        <label class="small">Holiday year starts in <select id="sYear"></select></label>
+        <button type="button" id="sSave">Save settings</button>
+      </div>
+      <p class="small muted">E.g. day 1 = calendar month; day 26 = 26th to 25th. Owners can change these.</p>
+    </section>
+  </main>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="team-auth.js?v=4"></script>
+<script src="rota-core.js?v=2"></script>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const toast=t=>{const d=document.createElement("div");d.className="toast";d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),3000)};
+const FV=()=>firebase.firestore.FieldValue.serverTimestamp();
+const TODAY=RC.iso(new Date());
+const h1=m=>Math.round(m/60*100)/100; // minutes -> hours (2dp)
+const fh=v=>v?(+v).toFixed(2).replace(/\.00$/,""):"–";
+const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
+let db,UID,PID,ROLE,PEOPLE={},PATTERNS={},ALLOW={},LEAVE=[],SICK=[],TERMS=[],ROTA=null,CFG={startDay:1,yearStart:1},MONTH=null,SNAP={},R=[],SEL=null;
+
+TeamAuth.start({need:["manager","owner"],onReady:async x=>{db=x.db;UID=x.uid;PID=x.pid;ROLE=x.role;
+  const [p,pa,al,lv,sk,tm,cf]=await Promise.all([db.collection("people").get(),db.collection("patterns").get(),db.collection("allowances").get(),
+    db.collection("leave").where("end",">=",RC.addDays(TODAY,-500)).get(),db.collection("sickness").get(),db.collection("rotaTerms").get(),db.doc("hrConfig/payroll").get()]);
+  p.docs.forEach(d=>PEOPLE[d.id]={id:d.id,...d.data()});pa.docs.forEach(d=>PATTERNS[d.id]=d.data());al.docs.forEach(d=>ALLOW[d.id]=d.data());
+  LEAVE=lv.docs.map(d=>({id:d.id,...d.data()}));SICK=sk.docs.map(d=>({id:d.id,...d.data()}));TERMS=tm.docs.map(d=>({id:d.id,...d.data()}));
+  CFG=Object.assign(CFG,cf.data()||{});
+  $("sDay").value=CFG.startDay;$("sYear").innerHTML=MONTHS.map((m,i)=>`<option value="${i+1}" ${CFG.yearStart===i+1?"selected":""}>${m}</option>`).join("");
+  $("sDay").disabled=$("sYear").disabled=$("sSave").disabled=ROLE!=="owner";
+  // default: last month until the 10th, then this month
+  const d=new Date();if(d.getDate()<=10)d.setMonth(d.getMonth()-1);MONTH=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+  go();
+}});
+
+/* ---------- the period ---------- */
+function period(m){const [y,mo]=m.split("-").map(Number),sd=+CFG.startDay||1;
+  const start=sd===1?`${m}-01`:RC.iso(new Date(y,mo-2,sd)),end=sd===1?RC.iso(new Date(y,mo,0)):RC.iso(new Date(y,mo-1,sd-1));return {start,end}}
+function dates(a,b){const o=[];for(let d=a;d<=b;d=RC.addDays(d,1))o.push(d);return o}
+$("mPrev").onclick=()=>{const [y,m]=MONTH.split("-").map(Number),d=new Date(y,m-2,1);MONTH=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");go()};
+$("mNext").onclick=()=>{const [y,m]=MONTH.split("-").map(Number),d=new Date(y,m,1);MONTH=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");go()};
+
+/* ---------- load the rota for the period ---------- */
+async function loadRota(P){
+  const need=TERMS.filter(t=>t.weeks&&t.weeks.some(w=>w.monday<=P.end&&RC.addDays(w.monday,6)>=P.start));
+  let slots=[],weeks={};for(const t of need){const r=await RC.load(db,t.id);slots=slots.concat(r.slots);Object.assign(weeks,r.weeks)}
+  return {terms:need,slots,weeks};
+}
+let unsubSnap=null;
+async function go(){
+  const P=period(MONTH),[y,m]=MONTH.split("-").map(Number);
+  $("mLabel").textContent=`${MONTHS[m-1]} ${y}`;$("mRange").textContent=`${new Date(P.start+"T12:00").toLocaleDateString("en-GB",{day:"numeric",month:"short"})} – ${new Date(P.end+"T12:00").toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}`;
+  $("rows").innerHTML='<tr><td colspan="9" class="muted">Working it out…</td></tr>';$("detail").hidden=true;SEL=null;
+  ROTA=await loadRota(P);
+  if(unsubSnap)unsubSnap();
+  unsubSnap=db.doc("payrollMonths/"+MONTH).onSnapshot(d=>{SNAP=d.data()||{};calc();render()});
+}
+
+/* ---------- the sums ---------- */
+const DAYK=["sun","mon","tue","wed","thu","fri","sat"];
+function patternDay(p,iso){const pat=PATTERNS[p.patternId];if(!pat||!pat.days)return null;const k=DAYK[new Date(iso+"T12:00").getDay()];return !!(pat.days[k]&&pat.days[k].on)}
+function leaveOn(pid,iso){return LEAVE.find(l=>l.personId===pid&&l.status==="approved"&&l.start<=iso&&(l.end||l.start)>=iso)}
+function sickOn(pid,iso){return SICK.find(s=>s.personId===pid&&s.start<=iso&&((s.end||(s.status==="open"?"9999":s.start))>=iso))}
+// working days of a leave request (their pattern, else every day), so a request's deducted amount can be split across months
+function leaveDays(l,p){const all=dates(l.start,l.end||l.start);const w=all.filter(d=>patternDay(p,d)!==false);return w.length?w:all}
+function holidayYear(iso){const ys=+CFG.yearStart||1,[y,m]=iso.split("-").map(Number);const sy=m>=ys?y:y-1;return {start:`${sy}-${String(ys).padStart(2,"0")}-01`,end:RC.addDays(`${sy+1}-${String(ys).padStart(2,"0")}-01`,-1)}}
+function calc(){
+  const P=period(MONTH),D=dates(P.start,P.end),adj=SNAP.adjust||{};
+  const shiftsBy={};
+  R=Object.values(PEOPLE).filter(p=>p.status!=="leaver"||(p.leavingDate&&p.leavingDate>=P.start)).map(p=>{
+    const sh=ROTA.terms.length?RC.shiftsFor(p.id,ROTA.slots,ROTA.weeks,ROTA.terms,P.start,D.length):[];
+    shiftsBy[p.id]=sh;
+    const days=D.map(d=>{const rot=sh.filter(s=>s.date===d).reduce((t,s)=>t+s.mins,0),sk=sickOn(p.id,d),lv=!sk&&leaveOn(p.id,d);
+      const half=lv&&((lv.start===d&&lv.halfStart)||((lv.end||lv.start)===d&&lv.halfEnd));
+      const kind=sk?"s":lv?(lv.type==="holiday"?"h":"o"):rot?"w":"";
+      return {d,rot,kind,half,worked:sk?0:lv?(half?rot/2:0):rot}});
+    const rotMins=days.reduce((t,x)=>t+x.rot,0),workMins=days.reduce((t,x)=>t+x.worked,0);
+    // holiday / other leave: Breathe's deducted amount, shared over the request's working days, counting the ones in this period
+    const units=(ALLOW[p.allowanceId]||{}).units||"hours";
+    let hol=0,oth=0;
+    LEAVE.filter(l=>l.personId===p.id&&l.status==="approved"&&l.start<=P.end&&(l.end||l.start)>=P.start).forEach(l=>{
+      const ld=leaveDays(l,p),inP=ld.filter(d=>d>=P.start&&d<=P.end).length,share=l.deducted!=null&&ld.length?l.deducted*inP/ld.length:0;
+      if(l.type==="holiday")hol+=share;else oth+=share});
+    // holiday year so far (to the end of this period) against their allowance
+    const HY=holidayYear(P.end),al=ALLOW[p.allowanceId];
+    const used=LEAVE.filter(l=>l.personId===p.id&&l.type==="holiday"&&l.status==="approved"&&l.start>=HY.start&&l.start<=HY.end).reduce((t,l)=>t+(+l.deducted||0),0);
+    const left=al&&al.amount!=null?al.amount-used:null;
+    const sickDays=days.filter(x=>x.kind==="s"&&(x.rot||patternDay(p,x.d))).map(x=>x.d);
+    const extra=+((adj[p.id]||{}).hours)||0;
+    const flags=[];
+    if(left!=null&&left<0)flags.push(["f-red",`${fh(-left)} ${units==="days"?"days":"h"} over holiday allowance`]);
+    if(sickDays.length)flags.push(["f-red",`SSP: ${sickDays.length} day${sickDays.length>1?"s":""}`]);
+    const pend=LEAVE.filter(l=>l.personId===p.id&&l.status==="pending"&&l.start<=P.end&&(l.end||l.start)>=P.start).length;
+    if(pend)flags.push(["f-amb",`${pend} holiday request${pend>1?"s":""} not decided`]);
+    const rosteredOff=days.filter(x=>x.rot&&(x.kind==="h"||x.kind==="o")).length;
+    if(hol&&!rosteredOff&&units!=="days")flags.push(["f-grey","holiday on days not on the rota"]);
+    if(p.status==="leaving"||(p.leavingDate&&p.leavingDate<=P.end))flags.push(["f-amb","leaving: final pay"]);
+    if(p.joinDate&&p.joinDate>=P.start&&p.joinDate<=P.end)flags.push(["f-blue","new starter"]);
+    if(extra)flags.push(["f-blue",`+${fh(extra)}h extra`]);
+    return {p,name:`${p.knownAs||p.firstName} ${p.lastName}`,days,rot:h1(rotMins),worked:h1(workMins)+extra,extra,hol:Math.round(hol*100)/100,oth:Math.round(oth*100)/100,units,used,left,al,sickDays,flags};
+  }).filter(r=>r.rot||r.hol||r.oth||r.sickDays.length||r.extra).sort((a,b)=>a.name.localeCompare(b.name));
+  window.__SHIFTS=shiftsBy;
+}
+function render(){
+  const q=$("q").value.trim().toLowerCase(),only=$("onlyFlags").checked;
+  const list=R.filter(r=>(!q||r.name.toLowerCase().includes(q))&&(!only||r.flags.some(f=>f[0]!=="f-blue")));
+  $("kPeople").textContent=R.length;$("kHours").textContent=Math.round(R.reduce((t,r)=>t+r.worked,0));
+  $("kHol").textContent=Math.round(R.filter(r=>r.units!=="days").reduce((t,r)=>t+r.hol,0));
+  $("kSick").textContent=R.reduce((t,r)=>t+r.sickDays.length,0);$("kFlags").textContent=R.filter(r=>r.flags.some(f=>f[0]==="f-red"||f[0]==="f-amb")).length;
+  const u=r=>r.units==="days"?"d":"h";
+  $("rows").innerHTML=list.length?list.map(r=>`<tr data-p="${r.p.id}" class="${SEL===r.p.id?"sel":""}"><td><b>${esc(r.name)}</b>${RC.bandLetter(r.p.band)?` <span class="small muted">Band ${RC.bandLetter(r.p.band)}</span>`:""}<div class="small muted">${esc(r.p.jobTitle||"")}</div></td>
+    <td class="n">${fh(r.rot)}</td><td class="n">${r.extra?fh(r.extra):"–"}</td><td class="n"><b>${fh(r.worked)}</b></td>
+    <td class="n">${r.hol?fh(r.hol)+u(r):"–"}</td><td class="n">${r.left==null?'<span class="muted">no allowance</span>':`<span class="${r.left<0?"bad":""}">${fh(r.left)||"0"}${u(r)}</span>`}</td>
+    <td class="n">${r.sickDays.length||"–"}</td><td class="n">${r.oth?fh(r.oth)+u(r):"–"}</td>
+    <td>${r.flags.map(f=>`<span class="flag ${f[0]}">${esc(f[1])}</span>`).join("")}</td></tr>`).join("")
+    :'<tr><td colspan="9" class="muted">Nobody to show for this period.</td></tr>';
+  const L=SNAP.lockedAt;
+  $("lockLine").innerHTML=L?`<span class="locked">✓ Sent to payroll by ${esc(SNAP.lockedByName||"")} on ${L.toDate().toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}. Totals then: ${SNAP.totals?`${SNAP.totals.people} people, ${SNAP.totals.hours} hours`:""}</span>`:"";
+  $("bLock").textContent=L?"Sent ✓ (click to un-mark)":"Mark as sent to payroll";
+  if(SEL)showDetail(SEL);
+}
+$("q").oninput=render;$("onlyFlags").onchange=render;
+$("rows").addEventListener("click",e=>{const tr=e.target.closest("[data-p]");if(!tr)return;SEL=tr.dataset.p;render();$("detail").scrollIntoView({behavior:"smooth",block:"start"})});
+function showDetail(pid){
+  const r=R.find(x=>x.p.id===pid);if(!r){$("detail").hidden=true;return}
+  $("detail").hidden=false;$("dName").textContent=r.name;
+  $("dSub").textContent=`${fh(r.worked)}h worked${r.hol?` · ${fh(r.hol)}${r.units==="days"?" days":"h"} holiday`:""}${r.sickDays.length?` · ${r.sickDays.length} sick days`:""}${r.al?` · allowance ${fh(r.al.amount)}${r.units==="days"?" days":"h"}, used ${fh(r.used)} this holiday year`:""}`;
+  const first=r.days[0]?RC.dayIdx(r.days[0].d):0;
+  $("dDays").innerHTML=RC.DAYS.map(d=>`<b style="text-align:center;font-size:11px;color:var(--muted)">${d.slice(0,3)}</b>`).join("")+"<span></span>".repeat(first)+r.days.map(x=>{
+    const sh=(window.__SHIFTS[pid]||[]).filter(s=>s.date===x.d);
+    return `<div class="${x.kind||""} ${!x.rot&&!x.kind?"x":""}"><b>${+x.d.slice(8)}</b>${x.kind==="s"?"Sick":x.kind==="h"?(x.half?"½ holiday":"Holiday"):x.kind==="o"?"Leave":""}${sh.map(s=>`<div>${RC.nice(s.start)}–${RC.nice(s.end)}</div>`).join("")}</div>`}).join("");
+  const a=(SNAP.adjust||{})[pid]||{};$("dAdj").value=a.hours||"";$("dNote").value=a.note||"";
+}
+$("dSave").onclick=async()=>{if(!SEL)return;if(SNAP.lockedAt)return toast("Un-mark 'sent to payroll' first");
+  const h=parseFloat($("dAdj").value)||0;
+  await db.doc("payrollMonths/"+MONTH).set({adjust:{[SEL]:{hours:h,note:$("dNote").value.trim()||null,by:PID}},updatedBy:UID,updatedAt:FV()},{merge:true});toast("Saved")};
+
+/* ---------- exports ---------- */
+const csvCell=v=>{v=v==null?"":String(v);return /[",\n]/.test(v)?`"${v.replace(/"/g,'""')}"`:v};
+function dl(name,rows){const b=new Blob(["﻿"+rows.map(r=>r.map(csvCell).join(",")).join("\r\n")],{type:"text/csv"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},3000)}
+$("bCsv").onclick=()=>{const P=period(MONTH);
+  dl(`SAADI payroll ${MONTH}.csv`,[["First name","Last name","Email","Job","Band","Rota hours","Extra hours","Extra note","Hours worked","Holiday","Holiday units","Holiday left","Sick days (SSP)","Sick dates","Other leave","Notes"],
+    ...R.map(r=>[r.p.firstName,r.p.lastName,r.p.email||"",r.p.jobTitle||"",RC.bandLetter(r.p.band),r.rot,r.extra||"",((SNAP.adjust||{})[r.p.id]||{}).note||"",r.worked,r.hol||"",r.hol?r.units:"",r.left==null?"":Math.round(r.left*100)/100,r.sickDays.length||"",r.sickDays.join(" "),r.oth||"",r.flags.map(f=>f[1]).join("; ")]),
+    [],["Period",P.start,P.end],["Made",new Date().toLocaleString("en-GB")]])};
+$("bShifts").onclick=()=>{const rows=[["First name","Last name","Email","Date","Start","End","Hours","Classes"]];
+  R.forEach(r=>r.days.forEach(x=>{if(!x.worked)return;(window.__SHIFTS[r.p.id]||[]).filter(s=>s.date===x.d).forEach(s=>rows.push([r.p.firstName,r.p.lastName,r.p.email||"",x.d,s.start,s.end,x.half?h1(s.mins)/2:h1(s.mins),[...new Set(s.items.map(i=>i.cls))].join("; ")]))}));
+  dl(`SAADI shifts ${MONTH}.csv`,rows)};
+$("bLock").onclick=async()=>{
+  if(SNAP.lockedAt){await db.doc("payrollMonths/"+MONTH).set({lockedAt:null,lockedBy:null,lockedByName:null,updatedBy:UID,updatedAt:FV()},{merge:true});return toast("Un-marked")}
+  const me=PEOPLE[PID]||{};
+  await db.doc("payrollMonths/"+MONTH).set({lockedAt:FV(),lockedBy:PID,lockedByName:`${me.firstName||""} ${me.lastName||""}`.trim(),
+    totals:{people:R.length,hours:Math.round(R.reduce((t,r)=>t+r.worked,0)*100)/100,sickDays:R.reduce((t,r)=>t+r.sickDays.length,0)},updatedBy:UID,updatedAt:FV()},{merge:true});
+  toast("Marked as sent to payroll")};
+$("sSave").onclick=async()=>{CFG.startDay=Math.max(1,Math.min(28,+$("sDay").value||1));CFG.yearStart=+$("sYear").value||1;
+  try{await db.doc("hrConfig/payroll").set({startDay:CFG.startDay,yearStart:CFG.yearStart,updatedBy:UID,updatedAt:FV()},{merge:true});toast("Saved");go()}catch(e){toast(e.message)}};
+</script>
+</body>
+</html>

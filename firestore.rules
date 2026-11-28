@@ -116,6 +116,8 @@ service cloud.firestore {
         allow delete: if false;
       }
     }
+    // month-end payroll: extra hours and "sent to payroll" marks (managers only)
+    match /payrollMonths/{id} { allow read: if tManager(); allow write: if tStamped() && tManager(); }
     match /patterns/{id} { allow read: if tSignedIn(); allow write: if tStamped() && tManager(); }
     match /allowances/{id} { allow read: if tSignedIn(); allow write: if tStamped() && tManager(); }
     match /hrConfig/{id} { allow read: if tManager(); allow write: if tStamped() && tOwner(); }

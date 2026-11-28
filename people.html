@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f20779">
+<meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>SAADI People</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="hub.css">
+<script src="hub-shell.js?v=4" defer></script>
+<style>
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi .v{font-family:var(--display);font-size:38px;font-weight:700;line-height:1}
+.req{border:1px solid var(--line);border-left:6px solid #2f6fde;border-radius:10px;padding:12px 14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--surface)}
+.req.other{border-left-color:#7c4bc4}.req.sick{border-left-color:#c6152e}
+.req .who{margin-right:auto;min-width:0}.req .who b{font-size:16px}.req .who small{display:block;color:var(--muted);font-size:13px}
+.req .days{font-family:var(--display);font-size:22px;font-weight:700;white-space:nowrap}
+.list{display:flex;flex-direction:column;gap:8px}
+button.ok{background:#1e7a3a;border-color:#1e7a3a;color:#fff}button.no{background:#fff;color:#7d0b1c;border-color:#e3b3bb}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+@media (max-width:760px){.cal{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.day{border:1px solid var(--line);border-radius:10px;padding:8px;min-height:92px;background:var(--surface)}
+.day.today{outline:2px solid var(--accent)}.day h4{margin:0 0 6px;font-size:13px;color:var(--muted);font-weight:600}
+.chip{display:block;font-size:12.5px;border-radius:6px;padding:2px 6px;margin-bottom:3px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.c-holiday{background:#2f6fde}.c-other{background:#7c4bc4}.c-sick{background:#c6152e}.c-pending{background:#fff;color:#8a6200;border:1px dashed #d4a72c}
+table.ppl{width:100%;border-collapse:collapse;font-size:14px}
+table.ppl th,table.ppl td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+table.ppl th{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+.tag{font-size:12px;border-radius:99px;padding:2px 8px;background:var(--surface-2)}.tag.on{background:#e3f5e8;color:#1e7a3a}
+.code{letter-spacing:8px;font-size:24px;text-align:center;font-weight:700;max-width:220px}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:10px 18px;border-radius:99px;font-weight:600;z-index:60}
+.small{font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="index.html">
+      <img src="saadi-logo-white.png" alt="SAADI Gymnastics" width="64" height="61">
+      <div><div class="eyebrow">SAADI Gymnastics</div><h1>People</h1></div>
+    </a>
+    <div class="head-right">
+      <span class="muted small needs-auth" id="meLine"></span>
+      <button type="button" class="needs-auth" id="signOut">Sign out</button>
+    </div>
+  </header>
+
+  <div id="statusNote" class="notice" hidden></div>
+
+  <!-- People has its own sign-in: each manager signs in as themselves (6-digit code), never the shared Hub password -->
+  <section class="panel auth" id="authPanel" hidden>
+    <h2>Sign in as yourself</h2>
+    <p class="muted" style="margin:0">People holds staff records, so it needs your own sign-in, not the Hub password. We'll email you a 6-digit code.</p>
+    <form id="fEmail" class="wrap" style="gap:12px;margin:0">
+      <label class="f" for="email">Your work email <input type="email" id="email" autocomplete="email" required></label>
+      <div class="row"><button class="primary" id="bSend">Email me a code</button><span id="mEmail" class="muted" aria-live="polite"></span></div>
+    </form>
+    <form id="fCode" class="wrap" style="gap:12px;margin:0" hidden>
+      <label class="f" for="code">6-digit code <input id="code" class="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required></label>
+      <div class="row"><button class="primary" id="bVerify">Sign in</button><button type="button" id="bBack">Different email</button><span id="mCode" class="muted" aria-live="polite"></span></div>
+    </form>
+  </section>
+
+  <section class="panel" id="notManager" hidden>
+    <h2>This page is for managers</h2>
+    <p class="muted">You're signed in, but People is only for Dave, Mel and Derek. Your own holiday and shifts are in the <a href="team/">SAADI Team app</a>.</p>
+  </section>
+
+  <main class="wrap needs-auth" id="main" hidden>
+    <div class="kpis">
+      <div class="kpi"><span class="v" id="kReq">–</span><span class="s">time-off requests waiting</span></div>
+      <div class="kpi"><span class="v" id="kOff">–</span><span class="s">off today</span></div>
+      <div class="kpi bad"><span class="v" id="kSick">–</span><span class="s">off sick now</span></div>
+      <div class="kpi good"><span class="v" id="kStaff">–</span><span class="s">current staff</span></div>
+    </div>
+
+    <section class="panel">
+      <h2>Waiting for you</h2>
+      <div class="list" id="reqs"></div>
+    </section>
+
+    <section class="panel">
+      <div class="row" style="justify-content:space-between"><h2 style="margin:0">Who's off</h2>
+        <div class="row"><button type="button" id="calPrev">‹</button><span id="calLabel" class="small"></span><button type="button" id="calNext">›</button></div></div>
+      <div class="cal" id="cal" style="margin-top:12px"></div>
+      <p class="small muted">Blue holiday · purple other leave · red sick · dashed = waiting for approval</p>
+    </section>
+
+    <section class="panel">
+      <div class="row" style="justify-content:space-between"><h2 style="margin:0">Staff</h2><input type="search" id="q" placeholder="Search" style="max-width:220px"></div>
+      <div style="overflow-x:auto"><table class="ppl"><thead><tr><th>Name</th><th>Job</th><th>Department</th><th>Started</th><th>App</th><th>Role</th></tr></thead><tbody id="ppl"></tbody></table></div>
+      <p class="small muted">"App" shows who has signed in to SAADI Team. Only owners can change roles. Owner = everything incl. health details; Manager = time off, sickness dates and records; Staff = their own.</p>
+    </section>
+
+    <section class="panel" id="syncPanel" hidden>
+      <h2>Copy from Breathe</h2>
+      <p class="small muted" id="syncLine">–</p>
+      <button type="button" id="bSync">Copy from Breathe now</button>
+    </section>
+  </main>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const iso=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const TODAY=iso(new Date());
+const fmt=(s,o)=>s?new Date(s+"T12:00:00").toLocaleDateString("en-GB",o||{weekday:"short",day:"numeric",month:"short"}):"";
+const range=(a,b)=>!b||a===b?fmt(a):fmt(a)+" – "+fmt(b);
+const toast=t=>{const d=document.createElement("div");d.className="toast";d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),2600)};
+const FV=()=>firebase.firestore.FieldValue.serverTimestamp();
+
+firebase.initializeApp(window.SAADI_FIREBASE_CONFIG);
+const auth=firebase.auth(), db=firebase.firestore(), fn=firebase.app().functions("europe-west2");
+let ROLE="", UID="", PEOPLE={}, PATTERNS={}, LEAVE=[], SICK=[], calStart=monday(new Date());
+
+/* ---- sign in (same 6-digit code as the staff app) ---- */
+let pendingEmail="";
+$("fEmail").onsubmit=async e=>{e.preventDefault();pendingEmail=$("email").value.trim();$("bSend").disabled=true;$("mEmail").textContent="Sending…";
+  try{await fn.httpsCallable("sendCode")({email:pendingEmail});$("fEmail").hidden=true;$("fCode").hidden=false;$("code").focus();$("mEmail").textContent=""}
+  catch(err){$("mEmail").textContent=err.message}$("bSend").disabled=false};
+$("bBack").onclick=()=>{$("fCode").hidden=true;$("fEmail").hidden=false};
+$("fCode").onsubmit=async e=>{e.preventDefault();$("bVerify").disabled=true;$("mCode").textContent="";
+  try{const r=await fn.httpsCallable("verifyCode")({email:pendingEmail,code:$("code").value});await auth.signInWithCustomToken(r.data.token)}
+  catch(err){$("mCode").textContent=err.message}$("bVerify").disabled=false};
+$("signOut").onclick=()=>auth.signOut().then(()=>location.reload());
+
+auth.onAuthStateChanged(async u=>{
+  if(!u){$("authPanel").hidden=false;$("main").hidden=true;document.body.classList.remove("signed-in");return}
+  const t=await u.getIdTokenResult(true);ROLE=t.claims.role||"";UID=u.uid;
+  $("authPanel").hidden=true;document.body.classList.add("signed-in");
+  if(!["manager","owner"].includes(ROLE)){$("notManager").hidden=false;return}
+  $("main").hidden=false;$("meLine").textContent=(ROLE==="owner"?"Owner":"Manager");
+  $("syncPanel").hidden=ROLE!=="owner";
+  start();
+});
+
+/* ---- data ---- */
+function start(){
+  db.collection("people").onSnapshot(s=>{PEOPLE={};s.docs.forEach(d=>PEOPLE[d.id]={id:d.id,...d.data()});renderPeople();renderAll()});
+  db.collection("patterns").get().then(s=>s.docs.forEach(d=>PATTERNS[d.id]=d.data()));
+  // last 60 days onwards is enough for approvals and the calendar
+  const from=iso(new Date(Date.now()-60*864e5));
+  db.collection("leave").where("end",">=",from).onSnapshot(s=>{LEAVE=s.docs.map(d=>({id:d.id,...d.data()}));renderAll()});
+  db.collection("sickness").where("status","==","open").onSnapshot(s=>{SICK=s.docs.map(d=>({id:d.id,...d.data()}));renderAll()});
+  if(ROLE==="owner")db.doc("hrConfig/breatheSync").onSnapshot(d=>{const x=d.data();$("syncLine").textContent=x&&x.lastRun?`Last copied ${x.lastRun.toDate().toLocaleString("en-GB")}: ${x.people} people, ${x.leave} holiday/leave records, ${x.sickness} sickness records (${x.changed} changed). Runs every night at 2:30am while Breathe is still in use.`:"Not copied yet."});
+}
+const name=pid=>{const p=PEOPLE[pid];return p?(p.knownAs||p.firstName||"")+" "+(p.lastName||""):"Unknown"};
+
+/* working days in a range, using the person's working pattern (falls back to Mon–Fri) */
+function workDays(pid,a,b){
+  const p=PEOPLE[pid]||{}, pat=PATTERNS[p.patternId], K=["sun","mon","tue","wed","thu","fri","sat"];
+  let n=0;for(let d=new Date(a+"T12:00:00");iso(d)<=b;d.setDate(d.getDate()+1)){const k=K[d.getDay()];n+=pat&&pat.days?(pat.days[k]&&pat.days[k].on?1:0):(d.getDay()%6?1:0)}
+  return n;
+}
+function renderAll(){
+  const pend=LEAVE.filter(l=>l.status==="pending").sort((a,b)=>a.start.localeCompare(b.start));
+  $("kReq").textContent=pend.length;
+  $("kOff").textContent=new Set(LEAVE.filter(l=>l.status==="approved"&&l.start<=TODAY&&(l.end||l.start)>=TODAY).map(l=>l.personId)).size;
+  $("kSick").textContent=SICK.length;
+  $("kStaff").textContent=Object.values(PEOPLE).filter(p=>p.status!=="leaver").length;
+  const sickOpen=SICK.map(s=>`<div class="req sick"><div class="who"><b>${esc(name(s.personId))}</b><small>Off sick since ${fmt(s.start)}${s.end?" · expects back "+fmt(s.end):""}</small></div>
+    <button type="button" data-back="${s.id}">Back at work</button></div>`);
+  const reqs=pend.map(l=>{
+    const clash=LEAVE.filter(x=>x.id!==l.id&&x.status==="approved"&&x.start<=(l.end||l.start)&&(x.end||x.start)>=l.start).length;
+    const soon=(new Date(l.start+"T12:00:00")-new Date())/864e5<21;
+    return `<div class="req ${l.type==="other"?"other":""}"><div class="who"><b>${esc(name(l.personId))}</b><small>${l.type==="holiday"?"Holiday":"Other leave"} · ${range(l.start,l.end)}${l.notes?" · “"+esc(l.notes)+"”":""}</small>
+      <small>${clash?`${clash} other${clash>1?"s":""} already off then`:"Nobody else off then"}${soon?" · within 3 weeks: cover needed":""}</small></div>
+      <span class="days">${workDays(l.personId,l.start,l.end||l.start)}d</span>
+      <button type="button" class="ok" data-ok="${l.id}">Approve</button><button type="button" class="no" data-no="${l.id}">Decline</button></div>`});
+  $("reqs").innerHTML=[...reqs,...sickOpen].join("")||'<p class="muted" style="margin:0">Nothing waiting. 🎉</p>';
+  renderCal();
+}
+document.addEventListener("click",async e=>{
+  const ok=e.target.closest("[data-ok]"),no=e.target.closest("[data-no]"),back=e.target.closest("[data-back]");
+  if(ok){const l=LEAVE.find(x=>x.id===ok.dataset.ok);ok.disabled=true;
+    await db.doc("leave/"+l.id).update({status:"approved",deducted:l.type==="holiday"?workDays(l.personId,l.start,l.end||l.start):null,decidedBy:UID,decidedAt:FV(),updatedBy:UID,updatedAt:FV()});toast("Approved")}
+  if(no){if(!no.dataset.sure){no.dataset.sure=1;no.textContent="Sure?";setTimeout(()=>{delete no.dataset.sure;no.textContent="Decline"},3000);return}
+    await db.doc("leave/"+no.dataset.no).update({status:"declined",decidedBy:UID,decidedAt:FV(),updatedBy:UID,updatedAt:FV()});toast("Declined")}
+  if(back){await db.doc("sickness/"+back.dataset.back).update({status:"closed",end:TODAY,updatedBy:UID,updatedAt:FV()});toast("Marked as back")}
+});
+
+/* ---- calendar: two weeks ---- */
+function monday(d){d=new Date(d);d.setHours(12);d.setDate(d.getDate()-((d.getDay()+6)%7));return d}
+$("calPrev").onclick=()=>{calStart.setDate(calStart.getDate()-14);renderCal()};
+$("calNext").onclick=()=>{calStart.setDate(calStart.getDate()+14);renderCal()};
+function renderCal(){
+  const days=[];for(let i=0;i<14;i++){const d=new Date(calStart);d.setDate(d.getDate()+i);days.push(iso(d))}
+  $("calLabel").textContent=range(days[0],days[13]);
+  $("cal").innerHTML=days.map(d=>{
+    const off=LEAVE.filter(l=>["approved","pending"].includes(l.status)&&l.start<=d&&(l.end||l.start)>=d);
+    const sick=SICK.filter(s=>s.start<=d&&(!s.end||s.end>=d)&&d<=TODAY);
+    return `<div class="day ${d===TODAY?"today":""}"><h4>${fmt(d)}</h4>${off.map(l=>`<span class="chip c-${l.status==="pending"?"pending":l.type}" title="${esc(name(l.personId))}">${esc(name(l.personId))}</span>`).join("")}${sick.map(s=>`<span class="chip c-sick">${esc(name(s.personId))}</span>`).join("")}</div>`}).join("");
+}
+
+/* ---- staff table and roles ---- */
+$("q").oninput=renderPeople;
+function renderPeople(){
+  const q=$("q").value.trim().toLowerCase();
+  const rows=Object.values(PEOPLE).filter(p=>p.status!=="leaver").filter(p=>!q||`${p.firstName} ${p.lastName} ${p.jobTitle} ${p.department}`.toLowerCase().includes(q))
+    .sort((a,b)=>(a.lastName||"").localeCompare(b.lastName||""));
+  $("ppl").innerHTML=rows.map(p=>`<tr><td><b>${esc((p.knownAs||p.firstName)+" "+p.lastName)}</b>${p.status==="leaving"?' <span class="tag">leaving</span>':""}</td><td>${esc(p.jobTitle||"")}</td><td>${esc(p.department||"")}</td><td>${fmt(p.joinDate,{month:"short",year:"numeric"})}</td>
+    <td>${p.uid?'<span class="tag on">Signed in</span>':'<span class="tag">Not yet</span>'}</td>
+    <td>${ROLE==="owner"?`<select data-role="${p.id}">${["staff","manager","owner"].map(r=>`<option ${p.role===r?"selected":""}>${r}</option>`).join("")}</select>`:esc(p.role||"staff")}</td></tr>`).join("");
+}
+document.addEventListener("change",async e=>{
+  const s=e.target.closest("[data-role]");if(!s)return;
+  await db.doc("people/"+s.dataset.role).update({role:s.value,updatedBy:UID,updatedAt:FV()});toast("Role updated");
+});
+$("bSync").onclick=async()=>{$("bSync").disabled=true;$("bSync").textContent="Copying… (a few minutes)";
+  try{const r=await fn.httpsCallable("breatheSyncNow",{timeout:1800000})();toast(`Copied: ${r.data.changed} changes`)}catch(err){toast(err.message)}
+  $("bSync").disabled=false;$("bSync").textContent="Copy from Breathe now"};
+</script>
+</body>
+</html>

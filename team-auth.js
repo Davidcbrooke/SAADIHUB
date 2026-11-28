@@ -31,6 +31,8 @@ TeamAuth.start = function (opts) {
   if ($("signOut")) $("signOut").onclick = out;
   const nm = $("notManager");
   if (nm) { const b = document.createElement("button"); b.type = "button"; b.className = "primary"; b.textContent = "Sign in with a different email"; b.onclick = out; nm.appendChild(b); }
+  // page.html?signout = sign out and come back clean (a way out if a button can't be seen)
+  if (/[?&]signout\b/.test(location.search)) { auth.signOut().then(() => location.replace(location.pathname)); return; }
   auth.onAuthStateChanged(async u => {
     if (!u) { panel.hidden = false; $("main").hidden = true; if (nm) nm.hidden = true; document.body.classList.remove("signed-in"); return; }
     const t = await u.getIdTokenResult(true), role = t.claims.role || "";

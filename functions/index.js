@@ -221,7 +221,7 @@ exports.leaveNotify = onDocumentWritten({ document: "leave/{id}", secrets: [BREV
     await Promise.all(ids.map(id => notify(id, {
       subject: `${who} has asked for ${what}: ${when}`, heading: "Time off to approve",
       lines: [`<b>${esc(who)}</b> has asked for ${what}: <b>${esc(when)}</b>.`, after.notes ? `Their note: “${esc(after.notes)}”` : ""].filter(Boolean),
-      button: "Approve or decline", url: HUB + "people.html",
+      button: "Approve or decline", url: HUB + "timeoff.html",
       push: { title: "Time off to approve", body: `${who}: ${what}, ${when}` }
     })));
     return;
@@ -242,7 +242,7 @@ exports.leaveNotify = onDocumentWritten({ document: "leave/{id}", secrets: [BREV
     await Promise.all(ids.map(id => notify(id, {
       subject: `${who} has cancelled ${what}: ${when}`, heading: "Time off cancelled",
       lines: [`<b>${esc(who)}</b> has cancelled their ${what} for <b>${esc(when)}</b>, so they're available again.`],
-      button: "Open People", url: HUB + "people.html",
+      button: "Open People", url: HUB + "timeoff.html",
       push: { title: "Time off cancelled", body: `${who}: ${when}` }
     })));
   }
@@ -259,7 +259,7 @@ exports.sicknessNotify = onDocumentWritten({ document: "sickness/{id}", secrets:
   await Promise.all(ids.map(id => notify(id, {
     subject: `${who} is off sick from ${fmtDay(after.start)}`, heading: "Off sick",
     lines: [`<b>${esc(who)}</b> has let us know they're not well and won't be in from <b>${esc(fmtDay(after.start))}</b>${after.end ? `, expecting to be back ${esc(fmtDay(after.end))}` : ""}.`, "Their shifts will need cover."],
-    button: "Open People", url: HUB + "people.html",
+    button: "Open People", url: HUB + "timeoff.html",
     push: { title: "Off sick 🤒", body: `${who} from ${fmtDay(after.start)}. Shifts need cover.` }
   })));
 });

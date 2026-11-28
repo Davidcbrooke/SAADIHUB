@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f20779">
+<meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>SAADI Time off</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="hub.css">
+<script src="hub-shell.js?v=12" defer></script>
+<style>
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.kpi .v{font-family:var(--display);font-size:38px;font-weight:700;line-height:1}
+.req{border:1px solid var(--line);border-left:6px solid #2f6fde;border-radius:10px;padding:12px 14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--surface)}
+.req.other{border-left-color:#7c4bc4}.req.sick{border-left-color:#c6152e}
+.req .who{margin-right:auto;min-width:0}.req .who b{font-size:16px}.req .who small{display:block;color:var(--muted);font-size:13px}
+.req .days{font-family:var(--display);font-size:22px;font-weight:700;white-space:nowrap}
+.list{display:flex;flex-direction:column;gap:8px}
+button.ok{background:#1e7a3a;border-color:#1e7a3a;color:#fff}button.no{background:#fff;color:#7d0b1c;border-color:#e3b3bb}
+button.go{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+@media (max-width:760px){.cal{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.day{border:1px solid var(--line);border-radius:10px;padding:8px;min-height:92px;background:var(--surface)}
+.day.today{outline:2px solid var(--accent)}.day h4{margin:0 0 6px;font-size:13px;color:var(--muted);font-weight:600}
+.chip{display:block;font-size:12.5px;border-radius:6px;padding:2px 6px;margin-bottom:3px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-decoration:none}
+.c-holiday{background:#2f6fde}.c-other{background:#7c4bc4}.c-sick{background:#c6152e}.c-pending{background:#fff;color:#8a6200;border:1px dashed #d4a72c}
+.g4{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px}@media (max-width:760px){.g4{grid-template-columns:1fr 1fr}}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:10px 18px;border-radius:99px;font-weight:600;z-index:60}
+.small{font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="index.html"><img src="saadi-logo-white.png" alt="SAADI Gymnastics" width="64" height="61"><div><div class="eyebrow">SAADI Gymnastics</div><h1>Time off</h1></div></a>
+    <div class="head-right"><button type="button" class="needs-auth" id="signOut">Sign out</button></div>
+  </header>
+  <section class="panel auth" id="authPanel" hidden></section>
+  <section class="panel" id="notManager" hidden><h2>This page is for managers</h2><p class="muted">Ask for holiday in the <a href="team/">SAADI Team app</a>.</p></section>
+
+  <main class="wrap needs-auth" id="main" hidden>
+    <div class="kpis">
+      <div class="kpi"><span class="v" id="kReq">–</span><span class="s">holiday requests waiting</span></div>
+      <div class="kpi"><span class="v" id="kOff">–</span><span class="s">on holiday or leave today</span></div>
+      <div class="kpi bad"><span class="v" id="kSick">–</span><span class="s">off sick now</span></div>
+    </div>
+
+    <section class="panel">
+      <h2 style="margin-top:0">Waiting for you</h2>
+      <div class="list" id="reqs"></div>
+    </section>
+
+    <section class="panel">
+      <h2 style="margin-top:0">Someone rang in? Record it</h2>
+      <div class="g4">
+        <label class="f">Who <select id="oWho"></select></label>
+        <label class="f">What <select id="oType"><option value="sick">Off sick</option><option value="holiday">Holiday</option><option value="other">Other leave</option></select></label>
+        <label class="f">From <input type="date" id="oFrom"></label>
+        <label class="f">To <span class="muted" style="font-weight:400">(blank if not known)</span><input type="date" id="oTo"></label>
+      </div>
+      <div class="row" style="margin-top:10px;gap:8px;display:flex;align-items:center"><input id="oNote" placeholder="Note (optional; no medical details)" maxlength="200" style="flex:1"><button type="button" class="go" id="oSave">Record it</button></div>
+      <p class="small" id="oMsg"></p>
+    </section>
+
+    <section class="panel">
+      <div class="row" style="justify-content:space-between;display:flex;align-items:center"><h2 style="margin:0">Who's off</h2>
+        <div class="row" style="display:flex;gap:6px;align-items:center"><button type="button" id="calPrev">‹</button><span id="calLabel" class="small"></span><button type="button" id="calNext">›</button></div></div>
+      <div class="cal" id="cal" style="margin-top:12px"></div>
+      <p class="small muted">Blue holiday · purple other leave · red sick · dashed = waiting for approval. Click a name to open their record.</p>
+    </section>
+  </main>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="team-auth.js?v=4"></script>
+<script src="rota-core.js?v=3"></script>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const iso=d=>RC.iso(d);
+const TODAY=iso(new Date());
+const fmt=(s,o)=>s?new Date(s+"T12:00:00").toLocaleDateString("en-GB",o||{weekday:"short",day:"numeric",month:"short"}):"";
+const range=(a,b)=>!b||a===b?fmt(a):fmt(a)+" – "+fmt(b);
+const toast=t=>{const d=document.createElement("div");d.className="toast";d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),2600)};
+const FV=()=>firebase.firestore.FieldValue.serverTimestamp();
+let db,UID,PEOPLE={},PATTERNS={},ALLOW={},LEAVE=[],SICK=[],calStart=RC.monday(TODAY);
+const name=pid=>{const p=PEOPLE[pid];return p?(p.knownAs||p.firstName||"")+" "+(p.lastName||""):"Unknown"};
+
+TeamAuth.start({need:["manager","owner"],onReady:x=>{db=x.db;UID=x.uid;
+  db.collection("people").onSnapshot(s=>{PEOPLE={};s.docs.forEach(d=>PEOPLE[d.id]={id:d.id,...d.data()});
+    $("oWho").innerHTML='<option value="">Choose…</option>'+Object.values(PEOPLE).filter(p=>p.status!=="leaver").sort((a,b)=>name(a.id).localeCompare(name(b.id))).map(p=>`<option value="${p.id}">${esc(name(p.id))}</option>`).join("");render()});
+  db.collection("patterns").get().then(s=>s.docs.forEach(d=>PATTERNS[d.id]=d.data()));
+  db.collection("allowances").get().then(s=>s.docs.forEach(d=>ALLOW[d.id]=d.data()));
+  db.collection("leave").where("end",">=",RC.addDays(TODAY,-60)).onSnapshot(s=>{LEAVE=s.docs.map(d=>({id:d.id,...d.data()}));render()});
+  db.collection("sickness").where("status","==","open").onSnapshot(s=>{SICK=s.docs.map(d=>({id:d.id,...d.data()}));render()});
+  $("oFrom").value=TODAY;
+}});
+
+/* working days in a range (their Breathe pattern, else Mon–Fri) and what a holiday takes off (hours if their allowance is in hours) */
+const K=["sun","mon","tue","wed","thu","fri","sat"];
+function workDays(pid,a,b){const p=PEOPLE[pid]||{},pat=PATTERNS[p.patternId];let n=0;
+  for(let d=a;d<=b;d=RC.addDays(d,1)){const k=K[new Date(d+"T12:00").getDay()];n+=pat&&pat.days?(pat.days[k]&&pat.days[k].on?1:0):(new Date(d+"T12:00").getDay()%6?1:0)}return n}
+function deductFor(l){
+  const p=PEOPLE[l.personId]||{},al=ALLOW[p.allowanceId],pat=PATTERNS[p.patternId];
+  if(!al||al.units!=="hours")return workDays(l.personId,l.start,l.end||l.start);
+  let h=0;for(let d=l.start;d<=(l.end||l.start);d=RC.addDays(d,1)){const dw=new Date(d+"T12:00").getDay(),pd=pat&&pat.days&&pat.days[K[dw]];
+    if(pd&&pd.on&&pd.hours)h+=+pd.hours;
+    else if(!pat&&p.workDays&&p.workDays[(dw+6)%7]){const w=p.workDays[(dw+6)%7];if(w.start&&w.end)h+=(RC.mins(w.end)-RC.mins(w.start))/60}}
+  return Math.round(h*100)/100;
+}
+function render(){
+  const pend=LEAVE.filter(l=>l.status==="pending").sort((a,b)=>a.start.localeCompare(b.start));
+  $("kReq").textContent=pend.length;
+  $("kOff").textContent=new Set(LEAVE.filter(l=>l.status==="approved"&&l.start<=TODAY&&(l.end||l.start)>=TODAY).map(l=>l.personId)).size;
+  $("kSick").textContent=SICK.length;
+  const reqs=pend.map(l=>{
+    const clash=LEAVE.filter(x=>x.id!==l.id&&x.status==="approved"&&x.start<=(l.end||l.start)&&(x.end||x.start)>=l.start).length;
+    const soon=(new Date(l.start+"T12:00:00")-new Date())/864e5<21;
+    return `<div class="req ${l.type==="other"?"other":""}"><div class="who"><b><a href="people.html?p=${l.personId}" style="color:inherit">${esc(name(l.personId))}</a></b><small>${l.type==="holiday"?"Holiday":"Other leave"} · ${range(l.start,l.end)}${l.notes?" · “"+esc(l.notes)+"”":""}</small>
+      <small>${clash?`${clash} other${clash>1?"s":""} already off then`:"Nobody else off then"}${soon?" · within 3 weeks: cover needed":""}</small></div>
+      <span class="days">${workDays(l.personId,l.start,l.end||l.start)}d</span>
+      <button type="button" class="ok" data-ok="${l.id}">Approve</button><button type="button" class="no" data-no="${l.id}">Decline</button></div>`});
+  const sick=SICK.map(s=>`<div class="req sick"><div class="who"><b><a href="people.html?p=${s.personId}" style="color:inherit">${esc(name(s.personId))}</a></b><small>Off sick since ${fmt(s.start)}${s.end?" · expects back "+fmt(s.end):""}</small></div><button type="button" data-back="${s.id}">Back at work</button></div>`);
+  $("reqs").innerHTML=[...reqs,...sick].join("")||'<p class="muted" style="margin:0">Nothing waiting. 🎉</p>';
+  renderCal();
+}
+document.addEventListener("click",async e=>{
+  const ok=e.target.closest("[data-ok]"),no=e.target.closest("[data-no]"),back=e.target.closest("[data-back]");
+  try{
+    if(ok){const l=LEAVE.find(x=>x.id===ok.dataset.ok);ok.disabled=true;
+      await db.doc("leave/"+l.id).update({status:"approved",deducted:l.type==="holiday"?deductFor(l):null,decidedBy:UID,decidedAt:FV(),updatedBy:UID,updatedAt:FV()});toast("Approved: they've been told")}
+    if(no){if(!no.dataset.sure){no.dataset.sure=1;no.textContent="Sure?";setTimeout(()=>{delete no.dataset.sure;no.textContent="Decline"},3000);return}
+      await db.doc("leave/"+no.dataset.no).update({status:"declined",decidedBy:UID,decidedAt:FV(),updatedBy:UID,updatedAt:FV()});toast("Declined: they've been told")}
+    if(back){await db.doc("sickness/"+back.dataset.back).update({status:"closed",end:TODAY,updatedBy:UID,updatedAt:FV()});toast("Marked as back")}
+  }catch(err){toast("Couldn't save: "+err.message)}
+});
+$("oSave").onclick=async()=>{
+  const pid=$("oWho").value,type=$("oType").value,from=$("oFrom").value,to=$("oTo").value||null;
+  if(!pid)return $("oMsg").textContent="Choose who";
+  if(!from)return $("oMsg").textContent="Pick the first day";
+  if(to&&to<from)return $("oMsg").textContent="The end is before the start";
+  if(type!=="sick"&&!to)return $("oMsg").textContent="Pick the last day";
+  $("oSave").disabled=true;
+  try{const st={updatedBy:UID,updatedAt:FV()};
+    if(type==="sick")await db.collection("sickness").add({personId:pid,start:from,end:to,status:to&&to<TODAY?"closed":"open",source:"manager",notes:$("oNote").value.trim()||null,createdAt:FV(),...st});
+    else{const l={personId:pid,type,start:from,end:to,status:"approved",notes:$("oNote").value.trim()||null,source:"manager",decidedBy:UID,decidedAt:FV(),createdAt:FV(),...st};l.deducted=type==="holiday"?deductFor(l):null;await db.collection("leave").add(l)}
+    $("oMsg").textContent=`✓ Recorded for ${name(pid)}. Any shifts they had now show red on the rota.`;$("oNote").value="";$("oTo").value="";
+  }catch(err){$("oMsg").textContent="Couldn't save: "+err.message}
+  $("oSave").disabled=false};
+$("calPrev").onclick=()=>{calStart=RC.addDays(calStart,-14);renderCal()};
+$("calNext").onclick=()=>{calStart=RC.addDays(calStart,14);renderCal()};
+function renderCal(){
+  const days=[];for(let i=0;i<14;i++)days.push(RC.addDays(calStart,i));
+  $("calLabel").textContent=range(days[0],days[13]);
+  $("cal").innerHTML=days.map(d=>{
+    const off=LEAVE.filter(l=>["approved","pending"].includes(l.status)&&l.start<=d&&(l.end||l.start)>=d);
+    const sick=SICK.filter(s=>s.start<=d&&(!s.end||s.end>=d)&&d<=TODAY);
+    return `<div class="day ${d===TODAY?"today":""}"><h4>${fmt(d)}</h4>${off.map(l=>`<a class="chip c-${l.status==="pending"?"pending":l.type}" href="people.html?p=${l.personId}" title="${esc(name(l.personId))}">${esc(name(l.personId))}</a>`).join("")}${sick.map(s=>`<a class="chip c-sick" href="people.html?p=${s.personId}">${esc(name(s.personId))}</a>`).join("")}</div>`}).join("");
+}
+</script>
+</body>
+</html>

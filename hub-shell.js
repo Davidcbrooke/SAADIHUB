@@ -19,9 +19,10 @@ const PAGES = [
     {href: "calendar.html", name: "Club Calendar", desc: "Term dates, assessments and competitions, with clashes flagged.", icon: "calendar"}]},
   {group: "Team", items: [
     {href: "guide.html", name: "How it works", desc: "Step by step: what each Team page is for, what to do each week, when something happens, at month end, and the steps for staff.", icon: "help"},
+    {href: "people.html", name: "People", desc: "Find someone or add a new person. Each person's record: personal details, job and pay, working days and classes, holiday and absence, documents.", icon: "people"},
+    {href: "timeoff.html", name: "Time off", desc: "Approve holiday, see who's off, who's off sick, and record time off when someone rings in.", icon: "sun"},
     {href: "rota.html", name: "Rota", desc: "Calendar of everyone's shifts. Red = needs cover: offer it to the same band, one band down or one person.", icon: "calendar"},
     {href: "shifts.html", name: "Shift offers", desc: "Staff who've offered to cover a shift: give it to one person and the rota updates.", icon: "repeat"},
-    {href: "people.html", name: "People", desc: "Everything about each member of staff: details, contract, band, working days, groups, holiday. Approve time off.", icon: "people"},
     {href: "documents.html", name: "Documents", desc: "Contracts to sign and company documents everyone must read: who's signed, who's read, and reminders.", icon: "doc"},
     {href: "payroll.html", name: "Payroll", desc: "Month-end hours, holiday and sickness (SSP) for everyone, ready for QuickBooks payroll.", icon: "chart"}]}
 ];
@@ -37,6 +38,7 @@ const ICONS = {
   people: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2a5 5 0 0 1 5.5 4.8"/>',
   doc: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/>',
   help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.7-2.5 2-2.5 4"/><circle cx="12" cy="17" r=".6"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
   lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'
 };

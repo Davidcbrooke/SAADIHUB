@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="hub.css">
-<script src="hub-shell.js?v=11" defer></script>
+<script src="hub-shell.js?v=12" defer></script>
 <style>
 .g{max-width:860px}
 .toc{display:flex;gap:8px;flex-wrap:wrap}
@@ -40,7 +40,8 @@ table.map th{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:v
       <h2>What each page is for</h2>
       <p class="muted">One place for each job. Everything starts from <b>People</b>: change something there and the rota, cover and payroll all follow.</p>
       <table class="map"><thead><tr><th>Page</th><th>Use it to…</th><th>Who</th></tr></thead><tbody>
-        <tr><td><span class="where">People</span></td><td>Everything about each person: details, contract (40 or 52 weeks), hourly or salaried, band, working days, the groups they coach, holiday left. Add new staff. Approve holiday. Record time off or sickness when someone rings in.</td><td>Managers</td></tr>
+        <tr><td><span class="where">People</span></td><td>Search for someone or add a new person. Each person's record, like Breathe: personal details, job and pay (contract 40/52 weeks, hourly or salaried, band), working days and classes, holiday and absence, documents.</td><td>Managers</td></tr>
+        <tr><td><span class="where">Time off</span></td><td>Approve or decline holiday requests, see who's off over the next two weeks, who's off sick ("Back at work"), and record time off when someone rings in.</td><td>Managers</td></tr>
         <tr><td><span class="where">Rota</span></td><td>See everyone's shifts as a calendar. Red = a shift that needs cover. Change who's on a class for one week or for good. Start a new term.</td><td>Managers</td></tr>
         <tr><td><span class="where">Shift offers</span></td><td>Everyone who has said "I can do this" for a shift. Pick one person; the rota updates and everyone's told.</td><td>Managers</td></tr>
         <tr><td><span class="where">Documents</span></td><td>Send a contract to sign and counter-sign it. Company documents everyone must read, and who has read them.</td><td>Managers</td></tr>
@@ -53,11 +54,11 @@ table.map th{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:v
     <section class="panel" id="setup">
       <h2>Getting started (once)</h2>
       <h3><span class="ic c1">1</span>Sign in</h3>
-      <ol><li>Open <span class="where">Team › People</span>.</li><li>Type your <b>SAADI</b> work email (Dave: admin@saadigymnastics…, not the NGL one) and click <b>Email me a code</b>.</li><li>Type the 6-digit code from the email. You stay signed in on that computer.</li></ol>
+      <ol><li>Open <span class="where">People</span> (Team menu).</li><li>Type your <b>SAADI</b> work email (Dave: admin@saadigymnastics…, not the NGL one) and click <b>Email me a code</b>.</li><li>Type the 6-digit code from the email. You stay signed in on that computer.</li></ol>
       <h3><span class="ic c2">2</span>Check each person on People</h3>
-      <ol><li>Click a name. Check <b>Contract</b> (term time 40 weeks / all year 52 weeks), <b>Pay</b> (hourly / salaried) and <b>Band</b> (A–H).</li><li>Tick their <b>Working days</b> and times.</li><li>Under <b>On the rota</b>, tick the classes they coach. Click <b>Save</b>.</li></ol>
+      <ol><li>Search for someone and click their name to open their record. Under <b>Job and pay</b> check <b>Contract</b> (term time 40 weeks / all year 52 weeks), <b>Pay</b> (hourly / salaried) and <b>Band</b> (A–H).</li><li>Under <b>Working days and classes</b>, tick their days and times, then the classes they coach. Click <b>Save</b>.</li></ol>
       <h3><span class="ic c3">3</span>Get staff onto the app</h3>
-      <ol><li>Send everyone the link <b>hub.saadigymnastics.co.uk/team</b> and the "For staff" steps below.</li><li>On People, the <b>App</b> column shows who has signed in.</li></ol>
+      <ol><li>Send everyone the link <b>hub.saadigymnastics.co.uk/team</b> and the "For staff" steps below.</li><li>Each person's record shows <b>Uses the app</b> once they've signed in.</li></ol>
       <h3><span class="ic c4">4</span>Company documents</h3>
       <ol><li>Open <span class="where">Documents › Company documents</span>. The 18 from Breathe are already there.</li><li>When the risk assessments are final, click <b>New version</b> on each and upload the final PDF.</li><li>When you're ready for staff to read them, tick <b>Every Monday, email each person…</b> at the bottom.</li></ol>
     </section>
@@ -73,7 +74,7 @@ table.map th{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:v
         <li>Each person shows their band, their hours that week and any clash. Click <b>Give them the shift</b> (or <b>Not this time</b>).</li>
         <li>The rota updates straight away, the shift turns <b>green</b>, and everyone's told. Nothing else to do.</li></ol>
       <h3><span class="ic c3">☀</span>Holiday requests</h3>
-      <ol><li>Open <span class="where">People</span>. <b>Waiting for you</b> lists requests, with who else is off and a warning if it's within 3 weeks.</li>
+      <ol><li>Open <span class="where">Time off</span>. <b>Waiting for you</b> lists requests, with who else is off and a warning if it's within 3 weeks.</li>
         <li>Click <b>Approve</b> or <b>Decline</b>. They're told on their phone. Approved holiday shows red on the rota so you can find cover.</li></ol>
       <h3><span class="ic c4">✎</span>Changing the rota</h3>
       <ol><li>On <span class="where">Rota</span>, click any shift (or switch to <b>By class</b>) and click <b>Change</b> on the slot.</li>
@@ -88,12 +89,12 @@ table.map th{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:v
     <section class="panel" id="happens">
       <h2>When something happens</h2>
       <h3><span class="ic c7">🤒</span>Someone rings in sick (or asks for time off in person)</h3>
-      <ol><li><span class="where">People</span> › click their name › <b>Add time off or sickness for them</b>.</li><li>Choose <b>Off sick</b> (leave "To" blank if you don't know), <b>Holiday</b> or <b>Other leave</b>, the dates, then <b>Add</b>.</li><li>Their shifts go red on the rota: find cover as above.</li><li>When they're back: <span class="where">People › Waiting for you</span> › <b>Back at work</b>.</li></ol>
+      <ol><li><span class="where">Time off</span> › <b>Someone rang in? Record it</b> (or their record on People › <b>Holiday and absence</b>).</li><li>Choose who, <b>Off sick</b> (leave "To" blank if you don't know), <b>Holiday</b> or <b>Other leave</b>, the dates, then <b>Add</b>.</li><li>Their shifts go red on the rota: find cover as above.</li><li>When they're back: <span class="where">Time off › Waiting for you</span> › <b>Back at work</b>.</li></ol>
       <div class="gwarn">If staff report sickness themselves in the app, you get an alert and it's on the rota already. Only Dave and Mel see what's wrong; managers see dates only. Don't type medical details in notes.</div>
       <h3><span class="ic c5">+</span>A new member of staff</h3>
-      <ol><li><span class="where">People</span> › <b>+ Add member of staff</b>.</li><li>Fill in their details, contract, pay, band, personal details and emergency contact.</li><li>Tick their working days and times. Tick the classes under <b>On the rota</b> (empty ones for their band are ticked for you).</li><li>Leave <b>Email them a welcome</b> ticked and click <b>Save</b>. They can sign in to the app straight away.</li><li>Send their contract: next step.</li></ol>
+      <ol><li><span class="where">People</span> › <b>+ Add a new person</b>.</li><li>Fill in <b>Personal</b> (including emergency contact) and <b>Job and pay</b> (contract, pay, band).</li><li>Under <b>Working days and classes</b>, tick their days and times, then their classes (empty ones for their band are ticked for you).</li><li>Leave <b>Email them a welcome</b> ticked and click <b>Save</b>. They can sign in to the app straight away.</li><li>Send their contract: next step.</li></ol>
       <h3><span class="ic c6">✍</span>A contract to sign</h3>
-      <ol><li><span class="where">Documents</span> › <b>+ Send a document to sign</b> (or People › their name › <b>Send them a document to sign</b>).</li><li>Choose the person, a title and the PDF. Leave <b>SAADI counter-signs</b> ticked and pick who. Click <b>Send</b>.</li><li>They read and sign it on their phone. You're emailed: click <b>Counter-sign</b>, open it, sign, tick and <b>Sign</b>.</li><li>Everyone gets the finished PDF with a signing certificate. Reminders go out automatically if it's not signed.</li></ol>
+      <ol><li><span class="where">Documents</span> › <b>+ Send a document to sign</b> (or their record on People › <b>Documents</b> › <b>Send them a document to sign</b>).</li><li>Choose the person, a title and the PDF. Leave <b>SAADI counter-signs</b> ticked and pick who. Click <b>Send</b>.</li><li>They read and sign it on their phone. You're emailed: click <b>Counter-sign</b>, open it, sign, tick and <b>Sign</b>.</li><li>Everyone gets the finished PDF with a signing certificate. Reminders go out automatically if it's not signed.</li></ol>
       <h3><span class="ic c3">📄</span>A new or updated policy</h3>
       <ol><li><span class="where">Documents › Company documents</span> › <b>+ Upload a document</b> (or <b>New version</b> on an existing one).</li><li>Tick <b>Tell all staff now</b>. Everyone gets an alert and ticks "I've read and understood".</li><li><b>Who's read it</b> shows who hasn't.</li></ol>
       <h3><span class="ic c2">📅</span>A new term or the holidays</h3>

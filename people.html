@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="hub.css">
-<script src="hub-shell.js?v=11" defer></script>
+<script src="hub-shell.js?v=12" defer></script>
 <style>
 .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 @media (max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -55,6 +55,27 @@ td a.pn{color:inherit;text-decoration:none;border-bottom:1px dashed var(--muted)
 .pacts{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;align-items:center}
 button.go{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .bad{color:#7d0b1c}
+.finder{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.finder input{flex:1;min-width:240px;font-size:18px;padding:14px 16px;border-radius:14px}
+.finder .go{font-size:16px;padding:13px 18px;border-radius:14px}
+.plist{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px;margin-top:14px}
+.pcard{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--surface);cursor:pointer;text-align:left;font:inherit;color:inherit}
+.pcard:hover{border-color:var(--accent)}
+.av{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:700;color:#fff;flex:none;font-size:14px}
+.pcard b{display:block}.pcard small{color:var(--muted)}
+.bl{margin-left:auto;font-size:12px;font-weight:700;border-radius:6px;padding:1px 6px;background:var(--surface-2)}
+.prof{display:grid;grid-template-columns:210px minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:860px){.prof{grid-template-columns:1fr}.pnav{position:static!important;flex-direction:row!important;flex-wrap:wrap}}
+.pnav{position:sticky;top:70px;display:flex;flex-direction:column;gap:4px}
+.pnav a{padding:9px 12px;border-radius:10px;text-decoration:none;color:inherit;font-weight:600;border:1px solid transparent}
+.pnav a:hover{background:var(--surface-2)}.pnav a.on{background:#ffe3f0;border-color:#f6b3d2}
+.phead{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.phead .av{width:56px;height:56px;font-size:20px}
+.phead h2{margin:0}
+.psec{scroll-margin-top:80px}
+.psec h3{margin:0 0 10px;font-size:17px}
+.savebar{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:10px 0;display:flex;gap:8px;align-items:center;z-index:5}
+.hist{width:100%;border-collapse:collapse;font-size:13.5px}.hist td{padding:6px 4px;border-bottom:1px solid var(--line)}
 </style>
 </head>
 <body>
@@ -92,67 +113,66 @@ button.go{background:var(--accent);border-color:var(--accent);color:var(--accent
   </section>
 
   <main class="wrap needs-auth" id="main" hidden>
-    <div class="kpis">
-      <div class="kpi"><span class="v" id="kReq">–</span><span class="s">time-off requests waiting</span></div>
-      <div class="kpi"><span class="v" id="kOff">–</span><span class="s">off today</span></div>
-      <div class="kpi bad"><span class="v" id="kSick">–</span><span class="s">off sick now</span></div>
-      <div class="kpi good"><span class="v" id="kStaff">–</span><span class="s">current staff</span></div>
-    </div>
-
-    <section class="panel">
-      <h2>Waiting for you</h2>
-      <div class="list" id="reqs"></div>
+    <section class="panel" id="listView">
+      <div class="finder"><input type="search" id="q" placeholder="Search for someone: name, job or group" autocomplete="off"><button type="button" class="go" id="bAdd">+ Add a new person</button></div>
+      <div class="small muted" id="countLine" style="margin-top:8px"></div>
+      <div class="plist" id="ppl"></div>
+      <p class="small muted" style="margin-top:14px">Holiday requests, who's off and sickness are on <a href="timeoff.html">Time off</a>. Pay rates: <a href="staffing.html">pay scale (Wages)</a>.</p>
+      <div id="syncPanel" hidden style="margin-top:14px;border-top:1px solid var(--line);padding-top:10px"><b class="small">Copy from Breathe</b> <span class="small muted" id="syncLine">–</span> <button type="button" id="bSync">Copy from Breathe now</button></div>
     </section>
 
-    <section class="panel">
-      <div class="row" style="justify-content:space-between"><h2 style="margin:0">Who's off</h2>
-        <div class="row"><button type="button" id="calPrev">‹</button><span id="calLabel" class="small"></span><button type="button" id="calNext">›</button></div></div>
-      <div class="cal" id="cal" style="margin-top:12px"></div>
-      <p class="small muted">Blue holiday · purple other leave · red sick · dashed = waiting for approval</p>
-    </section>
-
-    <section class="panel">
-      <div class="row" style="justify-content:space-between"><h2 style="margin:0">Staff</h2><div class="row"><input type="search" id="q" placeholder="Search" style="max-width:220px"><button type="button" class="go" id="bAdd">+ Add member of staff</button></div></div>
-      <div style="overflow-x:auto"><table class="ppl"><thead><tr><th>Name</th><th>Band</th><th>Contract</th><th title="Usual hours a week on the rota">Hrs/wk</th><th>Groups they coach</th><th title="Holiday left this year (from 1 January)">Holiday left</th><th>App</th><th title="What they can see: staff = their own things; manager = rota and People; owner = everything, including sickness details">Access</th></tr></thead><tbody id="ppl"></tbody></table></div>
-      <p class="small muted">Click a name to see or change everything about them: details, contract, working days, classes and holiday. Pay rates: <a href="staffing.html">pay scale (Wages)</a>. "App" shows who has signed in to SAADI Team. Only owners can change roles. Owner = everything incl. health details; Manager = time off, sickness dates and records; Staff = their own.</p>
-    </section>
-
-    <section class="panel" id="syncPanel" hidden>
-      <h2>Copy from Breathe</h2>
-      <p class="small muted" id="syncLine">–</p>
-      <button type="button" id="bSync">Copy from Breathe now</button>
-    </section>
+    <form id="pForm" onsubmit="return false" hidden>
+      <section class="panel">
+        <button type="button" id="pBackList" style="margin-bottom:10px">‹ Everyone</button>
+        <div class="phead"><span class="av" id="pAv"></span><div><h2 id="pTitle">New person</h2><div class="small muted" id="pSub"></div></div><span style="flex:1"></span><span id="pTags"></span></div>
+      </section>
+      <div class="prof">
+        <nav class="pnav" id="pNav">
+          <a href="#sPersonal" class="on">Personal</a><a href="#sJob">Job and pay</a><a href="#sWork">Working days and classes</a><a href="#sHol" data-old>Holiday and absence</a><a href="#sDocs" data-old>Documents</a>
+        </nav>
+        <div>
+          <section class="panel psec pd" id="sPersonal"><h3>Personal</h3>
+            <div class="g3"><label class="f">First name * <input id="pFirst" required></label><label class="f">Last name * <input id="pLast" required></label><label class="f">Known as <input id="pKnown" placeholder="e.g. Kay"></label></div>
+            <div class="g2" style="margin-top:10px"><label class="f">Work email * (they sign in with this) <input type="email" id="pEmail" required></label><label class="f">Mobile <input type="tel" id="pMob"></label></div>
+            <div class="g3" style="margin-top:10px"><label class="f">Date of birth <input type="date" id="pDob"></label><label class="f">Personal email <input type="email" id="pPEmail"></label><label class="f">Address <input id="pAddr"></label></div>
+            <div class="g2" style="margin-top:10px"><label class="f">Emergency contact name <input id="pEmName"></label><label class="f">Emergency contact phone <input type="tel" id="pEmPhone"></label></div>
+            <p class="small muted" style="margin:8px 0 0">Only managers and the person themselves can see these.</p>
+          </section>
+          <section class="panel psec pd" id="sJob"><h3>Job and pay</h3>
+            <div class="g3"><label class="f">Job title <input id="pJob" list="jobList" placeholder="e.g. Coach"></label><label class="f">Department <input id="pDept" list="deptList" placeholder="e.g. Coach"></label><label class="f">Start date * <input type="date" id="pStart" required></label></div>
+            <datalist id="jobList"></datalist><datalist id="deptList"></datalist>
+            <div class="g3" style="margin-top:10px"><label class="f">Contract <select id="pWeeks"><option value="">Not set</option><option value="40">Term time (40 weeks)</option><option value="52">All year (52 weeks)</option></select></label><label class="f">Pay <select id="pSal"><option value="">Hourly</option><option value="1">Salaried</option></select></label><label class="f">Band <select id="pBand"></select></label></div>
+            <div class="g2" style="margin-top:10px"><label class="f" id="pRoleWrap">Access <select id="pRole"><option value="staff">Staff: their own shifts, holiday, sickness</option><option value="manager">Manager: rota, people, time off</option><option value="owner">Owner: everything</option></select></label></div>
+            <p class="small muted" id="pBreathe" hidden style="margin:8px 0 0">Name, work email, job, department and start date come from Breathe every night until we switch over, so change those in Breathe for now.</p>
+          </section>
+          <section class="panel psec pd" id="sWork"><h3>Working days and classes</h3>
+            <div id="pDays"></div>
+            <h3 style="margin-top:16px">On the rota <span class="small muted" style="font-weight:400" id="pTermLine"></span></h3>
+            <p class="small muted" style="margin:0 0 6px">Classes running in their working hours. Tick the ones they'll do: they go on the rota every week from <b id="pFrom"></b>. Classes with nobody on that suit their band are ticked for you.</p>
+            <div class="sl" id="pSlots"></div>
+          </section>
+          <section class="panel psec pd" id="sHol"><h3>Holiday and absence</h3>
+            <div id="pHol" class="small"></div>
+            <div id="pHist" style="margin-top:10px"></div>
+            <div id="pAddOff" style="margin-top:12px;border:1px solid var(--line);border-radius:10px;padding:10px 12px">
+              <b class="small">Record time off or sickness</b> <span class="small muted">(e.g. they rang in)</span>
+              <div class="g3" style="margin-top:6px"><label class="f">What <select id="oType"><option value="sick">Off sick</option><option value="holiday">Holiday</option><option value="other">Other leave</option></select></label>
+                <label class="f">From <input type="date" id="oFrom"></label><label class="f">To <span class="muted" style="font-weight:400">(blank if not known, for sickness)</span><input type="date" id="oTo"></label></div>
+              <div style="margin-top:8px;display:flex;gap:8px;align-items:center"><input id="oNote" placeholder="Note (optional; no medical details)" maxlength="200" style="flex:1"><button type="button" id="oSave">Record it</button><span class="small" id="oMsg"></span></div>
+            </div>
+          </section>
+          <section class="panel psec pd" id="sDocs"><h3>Documents</h3>
+            <div id="pDocList" class="small"></div>
+            <p style="margin:10px 0 0"><a id="pSendDoc" href="#">Send them a document to sign →</a></p>
+          </section>
+          <div class="savebar"><button type="button" class="go" id="pSave">Save</button>
+            <label class="small" id="pWelcomeWrap" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="pWelcome" checked> Email them a welcome with how to sign in</label>
+            <span style="flex:1"></span><span class="small bad" id="pMsg"></span><button type="button" id="pCancel">Close</button></div>
+        </div>
+      </div>
+    </form>
   </main>
 </div>
-
-<dialog class="pd" id="dlgP"><form method="dialog" id="pForm">
-  <h2 id="pTitle">New member of staff</h2><p class="small muted" id="pSub" style="margin:0"></p>
-  <h3>About them</h3>
-  <div class="g3"><label class="f">First name * <input id="pFirst" required></label><label class="f">Last name * <input id="pLast" required></label><label class="f">Known as <input id="pKnown" placeholder="e.g. Kay"></label></div>
-  <div class="g2" style="margin-top:10px"><label class="f">Work email * (they sign in with this) <input type="email" id="pEmail" required></label><label class="f">Mobile <input type="tel" id="pMob"></label></div>
-  <div class="g3" style="margin-top:10px"><label class="f">Job title <input id="pJob" list="jobList" placeholder="e.g. Coach"></label><label class="f">Department <input id="pDept" list="deptList" placeholder="e.g. Coach"></label><label class="f">Start date * <input type="date" id="pStart" required></label></div>
-  <datalist id="jobList"></datalist><datalist id="deptList"></datalist>
-  <div class="g3" style="margin-top:10px"><label class="f">Contract <select id="pWeeks"><option value="">Not set</option><option value="40">Term time (40 weeks)</option><option value="52">All year (52 weeks)</option></select></label><label class="f">Pay <select id="pSal"><option value="">Hourly</option><option value="1">Salaried</option></select></label><label class="f">Band <select id="pBand"></select></label><label class="f" id="pRoleWrap">Access <select id="pRole"><option value="staff">Staff: their own shifts, holiday, sickness</option><option value="manager">Manager: rota and People</option><option value="owner">Owner: everything</option></select></label></div>
-  <p class="small muted" id="pBreathe" hidden style="margin:8px 0 0">Name, email, job, department and start date come from Breathe every night until we switch over, so change those in Breathe for now.</p>
-  <h3>Personal details <span class="small muted" style="font-weight:400">(only managers and the person can see these)</span></h3>
-  <div class="g3"><label class="f">Date of birth <input type="date" id="pDob"></label><label class="f">Personal email <input type="email" id="pPEmail"></label><label class="f">Address <input id="pAddr"></label></div>
-  <div class="g2" style="margin-top:10px"><label class="f">Emergency contact name <input id="pEmName"></label><label class="f">Emergency contact phone <input type="tel" id="pEmPhone"></label></div>
-  <h3>Holiday</h3>
-  <div id="pHol" class="small"></div>
-  <div id="pAddOff" hidden style="margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:10px 12px">
-    <b class="small">Add time off or sickness for them</b> <span class="small muted">(e.g. they rang in)</span>
-    <div class="g3" style="margin-top:6px"><label class="f">What <select id="oType"><option value="sick">Off sick</option><option value="holiday">Holiday</option><option value="other">Other leave</option></select></label>
-      <label class="f">From <input type="date" id="oFrom"></label><label class="f">To <span class="muted" style="font-weight:400">(blank if not known, for sickness)</span><input type="date" id="oTo"></label></div>
-    <div class="bar" style="margin-top:8px;display:flex;gap:8px;align-items:center"><input id="oNote" placeholder="Note (optional; don't put medical details here)" maxlength="200" style="flex:1"><button type="button" id="oSave">Add</button><span class="small" id="oMsg"></span></div>
-  </div>
-  <h3>Working days</h3>
-  <div id="pDays"></div>
-  <h3>On the rota <span class="small muted" style="font-weight:400" id="pTermLine"></span></h3>
-  <p class="small muted" style="margin:0 0 6px">Classes running in their working hours. Tick the ones they'll do: they go on the rota every week from <b id="pFrom"></b>. Classes with nobody on that suit their band are ticked for you.</p>
-  <div class="sl" id="pSlots"></div>
-  <label class="small" id="pWelcomeWrap" style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="pWelcome" checked> Email them a welcome with how to sign in to SAADI Team</label>
-  <div class="pacts"><button type="button" class="go" id="pSave">Save</button><a id="pSendDoc" href="#" hidden>Send them a document to sign →</a><span style="flex:1"></span><span class="small bad" id="pMsg"></span><button value="cancel">Cancel</button></div>
-</form></dialog>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -173,7 +193,7 @@ const FV=()=>firebase.firestore.FieldValue.serverTimestamp();
 
 firebase.initializeApp(window.SAADI_FIREBASE_CONFIG);
 const auth=firebase.auth(), db=firebase.firestore(), fn=firebase.app().functions("europe-west2");
-let ROLE="", UID="", PEOPLE={}, PATTERNS={}, LEAVE=[], SICK=[], calStart=monday(new Date());
+let ROLE="", UID="", PEOPLE={}, PATTERNS={};
 
 /* ---- sign in (same 6-digit code as the staff app) ---- */
 let pendingEmail="";
@@ -198,16 +218,14 @@ auth.onAuthStateChanged(async u=>{
 
 /* ---- data ---- */
 function start(){
-  db.collection("people").onSnapshot(s=>{PEOPLE={};s.docs.forEach(d=>PEOPLE[d.id]={id:d.id,...d.data()});renderPeople();renderAll()});
+  let first=true;
+  db.collection("people").onSnapshot(s=>{PEOPLE={};s.docs.forEach(d=>PEOPLE[d.id]={id:d.id,...d.data()});renderPeople();
+    if(first){first=false;const q=new URLSearchParams(location.search).get("p");if(q&&PEOPLE[q])openPerson(q);else if(q==="new")openPerson(null)}});
   db.collection("patterns").get().then(s=>{s.docs.forEach(d=>PATTERNS[d.id]=d.data());renderPeople()});
   db.collection("allowances").get().then(s=>{s.docs.forEach(d=>ALLOW[d.id]=d.data());renderPeople()});
   db.collection("leave").where("start",">=",YEAR0).onSnapshot(s=>{YLEAVE=s.docs.map(d=>({id:d.id,...d.data()}));renderPeople()});
   loadUsual();
-  // last 60 days onwards is enough for approvals and the calendar
-  const from=iso(new Date(Date.now()-60*864e5));
-  db.collection("leave").where("end",">=",from).onSnapshot(s=>{LEAVE=s.docs.map(d=>({id:d.id,...d.data()}));renderAll()});
-  db.collection("sickness").where("status","==","open").onSnapshot(s=>{SICK=s.docs.map(d=>({id:d.id,...d.data()}));renderAll()});
-  if(ROLE==="owner")db.doc("hrConfig/breatheSync").onSnapshot(d=>{const x=d.data();$("syncLine").textContent=x&&x.lastRun?`Last copied ${x.lastRun.toDate().toLocaleString("en-GB")}: ${x.people} people, ${x.leave} holiday/leave records, ${x.sickness} sickness records (${x.changed} changed). Runs every night at 2:30am while Breathe is still in use.`:"Not copied yet."});
+  if(ROLE==="owner")db.doc("hrConfig/breatheSync").onSnapshot(d=>{const x=d.data();$("syncLine").textContent=x&&x.lastRun?`last ${x.lastRun.toDate().toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}, every night at 2:30am while Breathe is in use.`:"not copied yet."});
 }
 let ALLOW={},YLEAVE=[],USUAL={hrs:{},groups:{}};
 const YEAR0=TODAY.slice(0,4)+"-01-01";
@@ -249,70 +267,18 @@ function workDays(pid,a,b){
   let n=0;for(let d=new Date(a+"T12:00:00");iso(d)<=b;d.setDate(d.getDate()+1)){const k=K[d.getDay()];n+=pat&&pat.days?(pat.days[k]&&pat.days[k].on?1:0):(d.getDay()%6?1:0)}
   return n;
 }
-function renderAll(){
-  const pend=LEAVE.filter(l=>l.status==="pending").sort((a,b)=>a.start.localeCompare(b.start));
-  $("kReq").textContent=pend.length;
-  $("kOff").textContent=new Set(LEAVE.filter(l=>l.status==="approved"&&l.start<=TODAY&&(l.end||l.start)>=TODAY).map(l=>l.personId)).size;
-  $("kSick").textContent=SICK.length;
-  $("kStaff").textContent=Object.values(PEOPLE).filter(p=>p.status!=="leaver").length;
-  const sickOpen=SICK.map(s=>`<div class="req sick"><div class="who"><b>${esc(name(s.personId))}</b><small>Off sick since ${fmt(s.start)}${s.end?" · expects back "+fmt(s.end):""}</small></div>
-    <button type="button" data-back="${s.id}">Back at work</button></div>`);
-  const reqs=pend.map(l=>{
-    const clash=LEAVE.filter(x=>x.id!==l.id&&x.status==="approved"&&x.start<=(l.end||l.start)&&(x.end||x.start)>=l.start).length;
-    const soon=(new Date(l.start+"T12:00:00")-new Date())/864e5<21;
-    return `<div class="req ${l.type==="other"?"other":""}"><div class="who"><b>${esc(name(l.personId))}</b><small>${l.type==="holiday"?"Holiday":"Other leave"} · ${range(l.start,l.end)}${l.notes?" · “"+esc(l.notes)+"”":""}</small>
-      <small>${clash?`${clash} other${clash>1?"s":""} already off then`:"Nobody else off then"}${soon?" · within 3 weeks: cover needed":""}</small></div>
-      <span class="days">${workDays(l.personId,l.start,l.end||l.start)}d</span>
-      <button type="button" class="ok" data-ok="${l.id}">Approve</button><button type="button" class="no" data-no="${l.id}">Decline</button></div>`});
-  $("reqs").innerHTML=[...reqs,...sickOpen].join("")||'<p class="muted" style="margin:0">Nothing waiting. 🎉</p>';
-  renderCal();
-}
-document.addEventListener("click",async e=>{
-  const ok=e.target.closest("[data-ok]"),no=e.target.closest("[data-no]"),back=e.target.closest("[data-back]");
-  if(ok){const l=LEAVE.find(x=>x.id===ok.dataset.ok);ok.disabled=true;
-    await db.doc("leave/"+l.id).update({status:"approved",deducted:l.type==="holiday"?deductFor(l):null,decidedBy:UID,decidedAt:FV(),updatedBy:UID,updatedAt:FV()});toast("Approved")}
-  if(no){if(!no.dataset.sure){no.dataset.sure=1;no.textContent="Sure?";setTimeout(()=>{delete no.dataset.sure;no.textContent="Decline"},3000);return}
-    await db.doc("leave/"+no.dataset.no).update({status:"declined",decidedBy:UID,decidedAt:FV(),updatedBy:UID,updatedAt:FV()});toast("Declined")}
-  if(back){await db.doc("sickness/"+back.dataset.back).update({status:"closed",end:TODAY,updatedBy:UID,updatedAt:FV()});toast("Marked as back")}
-});
-
-/* ---- calendar: two weeks ---- */
-function monday(d){d=new Date(d);d.setHours(12);d.setDate(d.getDate()-((d.getDay()+6)%7));return d}
-$("calPrev").onclick=()=>{calStart.setDate(calStart.getDate()-14);renderCal()};
-$("calNext").onclick=()=>{calStart.setDate(calStart.getDate()+14);renderCal()};
-function renderCal(){
-  const days=[];for(let i=0;i<14;i++){const d=new Date(calStart);d.setDate(d.getDate()+i);days.push(iso(d))}
-  $("calLabel").textContent=range(days[0],days[13]);
-  $("cal").innerHTML=days.map(d=>{
-    const off=LEAVE.filter(l=>["approved","pending"].includes(l.status)&&l.start<=d&&(l.end||l.start)>=d);
-    const sick=SICK.filter(s=>s.start<=d&&(!s.end||s.end>=d)&&d<=TODAY);
-    return `<div class="day ${d===TODAY?"today":""}"><h4>${fmt(d)}</h4>${off.map(l=>`<span class="chip c-${l.status==="pending"?"pending":l.type}" title="${esc(name(l.personId))}">${esc(name(l.personId))}</span>`).join("")}${sick.map(s=>`<span class="chip c-sick">${esc(name(s.personId))}</span>`).join("")}</div>`}).join("");
-}
-
-/* ---- staff table and roles ---- */
+/* ---- the list: search, then click someone ---- */
 $("q").oninput=renderPeople;
+const COLS=["#e94d8b","#f39200","#2f6fde","#0f9d9a","#3aa655","#7c4bc4","#c6152e"];
+const avatar=p=>`<span class="av" style="background:${COLS[((p.firstName||"?").charCodeAt(0)+(p.lastName||"?").charCodeAt(0))%7]}">${esc(((p.knownAs||p.firstName||"?")[0]||"")+((p.lastName||"")[0]||""))}</span>`;
 function renderPeople(){
   const q=$("q").value.trim().toLowerCase();
-  const rows=Object.values(PEOPLE).filter(p=>p.status!=="leaver").filter(p=>!q||`${p.firstName} ${p.lastName} ${p.jobTitle} ${p.department}`.toLowerCase().includes(q))
-    .sort((a,b)=>(a.lastName||"").localeCompare(b.lastName||""));
-  $("ppl").innerHTML=rows.map(p=>{const H=holidayOf(p.id),g=[...(USUAL.groups[p.id]||[])],hw=USUAL.hrs[p.id];
-    return `<tr><td><a class="pn" data-person="${p.id}"><b>${esc((p.knownAs||p.firstName)+" "+p.lastName)}</b></a>${p.source==="team"?' <span class="tag on">new</span>':""}${p.status==="leaving"?' <span class="tag">leaving</span>':""}<div class="small muted">${esc(p.jobTitle||"")}</div></td>
-    <td><select data-band="${p.id}" aria-label="Pay band"><option value="">–</option>${RC.BANDS.map((b,i)=>`<option value="${i}" ${p.band!==undefined&&p.band!==null&&p.band!==""&&+p.band===i?"selected":""}>${RC.bandLetter(i)}: ${esc(b)}</option>`).join("")}</select></td>
-    <td><select data-weeks="${p.id}" aria-label="Contract"><option value="">–</option><option value="40" ${+p.contractWeeks===40?"selected":""}>Term time (40 wks)</option><option value="52" ${+p.contractWeeks===52?"selected":""}>All year (52 wks)</option></select>${p.salaried?'<div class="small muted">Salaried</div>':""}</td>
-    <td class="small" style="text-align:right">${hw?RC.hours(hw):"–"}</td>
-    <td class="small">${g.slice(0,3).map(esc).join(", ")}${g.length>3?` +${g.length-3}`:""}</td>
-    <td class="small" style="text-align:right">${H.left==null?'<span class="muted">–</span>':`<span class="${H.left<0?"bad":""}">${Math.round(H.left*100)/100}${H.u}</span>`}</td>
-    <td>${p.uid?'<span class="tag on">Signed in</span>':'<span class="tag">Not yet</span>'}</td>
-    <td>${ROLE==="owner"?`<select data-role="${p.id}">${["staff","manager","owner"].map(r=>`<option ${p.role===r?"selected":""}>${r}</option>`).join("")}</select>`:esc(p.role||"staff")}</td></tr>`}).join("");
+  const all=Object.values(PEOPLE).filter(p=>p.status!=="leaver");
+  const rows=all.filter(p=>!q||`${p.firstName} ${p.knownAs||""} ${p.lastName} ${p.jobTitle} ${p.department} ${[...(USUAL.groups[p.id]||[])].join(" ")}`.toLowerCase().includes(q))
+    .sort((a,b)=>(a.knownAs||a.firstName||"").localeCompare(b.knownAs||b.firstName||"")||(a.lastName||"").localeCompare(b.lastName||""));
+  $("countLine").textContent=q?`${rows.length} of ${all.length} people`:`${all.length} people. Click someone to open their record.`;
+  $("ppl").innerHTML=rows.map(p=>`<button type="button" class="pcard" data-person="${p.id}">${avatar(p)}<span><b>${esc((p.knownAs||p.firstName)+" "+p.lastName)}</b><small>${esc(p.jobTitle||"")}${p.status==="leaving"?" · leaving":""}${p.source==="team"?" · new":""}</small></span>${RC.bandLetter(p.band)?`<span class="bl" title="${esc(RC.bandName(p.band))}">${RC.bandLetter(p.band)}</span>`:""}</button>`).join("")||'<p class="muted">Nobody matches that. Try a first name, or add them with "+ Add a new person".</p>';
 }
-document.addEventListener("change",async e=>{
-  const wk=e.target.closest("[data-weeks]");
-  if(wk){await db.doc("people/"+wk.dataset.weeks).update({contractWeeks:wk.value===""?null:+wk.value,updatedBy:UID,updatedAt:FV()});toast("Contract saved");return}
-  const bd=e.target.closest("[data-band]");
-  if(bd){await db.doc("people/"+bd.dataset.band).update({band:bd.value===""?null:+bd.value,updatedBy:UID,updatedAt:FV()});toast(bd.value===""?"Band cleared":"Band "+RC.bandLetter(+bd.value)+" saved");return}
-  const s=e.target.closest("[data-role]");if(!s)return;
-  await db.doc("people/"+s.dataset.role).update({role:s.value,updatedBy:UID,updatedAt:FV()});toast("Access updated");
-});
 /* ---------- add or change a member of staff ---------- */
 const DAYK=["mon","tue","wed","thu","fri","sat","sun"];
 let PE=null,TERMS=null,RS=null; // PE = person being edited; RS = rota of the chosen term {term,slots,weeks}
@@ -330,7 +296,10 @@ function pickTerm(from){return TERMS.find(t=>t.weeks.some(w=>w.monday===RC.monda
 async function openPerson(pid){
   const p=pid?PEOPLE[pid]:null;PE={pid,p,touched:new Set(),ticks:null};
   const fromBreathe=!!(p&&p.source==="breathe");
-  $("pTitle").textContent=p?name(pid):"New member of staff";
+  $("pTitle").textContent=p?name(pid):"New person";
+  $("pAv").outerHTML=p?avatar(p).replace('class="av"','class="av" id="pAv"'):'<span class="av" id="pAv" style="background:#999">+</span>';
+  $("pTags").innerHTML=p?[p.contractWeeks?`<span class="tag">${p.contractWeeks===52?"All year":"Term time"}</span>`:"",p.salaried?'<span class="tag">Salaried</span>':"",RC.bandLetter(p.band)?`<span class="tag">Band ${RC.bandLetter(p.band)}</span>`:"",p.uid?'<span class="tag on">Uses the app</span>':'<span class="tag">Not on the app yet</span>'].join(" "):"";
+  document.querySelectorAll("[data-old]").forEach(a=>a.hidden=!p);$("sHol").hidden=$("sDocs").hidden=!p;
   $("pSub").textContent=p?`${p.jobTitle||""}${p.joinDate?" · started "+fmt(p.joinDate,{day:"numeric",month:"long",year:"numeric"}):""}`:"Add them here and they can sign in to SAADI Team straight away.";
   const set=(id,v)=>$(id).value=v||"";
   set("pFirst",p&&p.firstName);set("pLast",p&&p.lastName);set("pKnown",p&&p.knownAs);set("pEmail",p&&p.email);set("pJob",p&&p.jobTitle);set("pDept",p&&p.department);set("pStart",p?p.joinDate:TODAY);
@@ -343,8 +312,8 @@ async function openPerson(pid){
       `<div class="muted" style="margin-top:4px">${hw?`Usual week on the rota: ${RC.hours(hw)}. `:""}Guide: all-year staff get 5.6 weeks of their usual hours a year${hw?` (about ${Math.round(5.6*hw/60)}h)`:""}; term-time and irregular-hours staff build up 12.07% of the hours they work. Check with payroll before changing an allowance.</div>`}
   else $("pHol").innerHTML='<span class="muted">Set in Breathe for now (until the switch-over).</span>';
   $("pAddOff").hidden=!p;$("oFrom").value=TODAY;$("oTo").value="";$("oNote").value="";$("oMsg").textContent="";
-  $("pRole").value=p?p.role||"staff":"staff";$("pRoleWrap").hidden=!!p||ROLE!=="owner";
-  $("pWelcomeWrap").hidden=!!p;$("pSendDoc").hidden=!p;if(p)$("pSendDoc").href="documents.html?send="+encodeURIComponent(pid);$("pWelcome").checked=true;$("pMsg").textContent="";
+  $("pRole").value=p?p.role||"staff":"staff";$("pRoleWrap").hidden=ROLE!=="owner";
+  $("pWelcomeWrap").hidden=!!p;if(p)$("pSendDoc").href="documents.html?send="+encodeURIComponent(pid);$("pWelcome").checked=true;$("pMsg").textContent="";
   $("jobList").innerHTML=[...new Set(Object.values(PEOPLE).map(x=>x.jobTitle).filter(Boolean))].sort().map(v=>`<option value="${esc(v)}">`).join("");
   $("deptList").innerHTML=[...new Set(Object.values(PEOPLE).map(x=>x.department).filter(Boolean))].sort().map(v=>`<option value="${esc(v)}">`).join("");
   ["pDob","pPEmail","pAddr","pMob","pEmName","pEmPhone"].forEach(id=>$(id).value="");
@@ -355,10 +324,34 @@ async function openPerson(pid){
     const ph=pat&&pat.days&&pat.days[DAYK[i]]&&pat.days[DAYK[i]].hours;
     return `<div class="wd"><label style="display:flex;gap:8px;align-items:center;font-weight:600"><input type="checkbox" data-wd="${i}" ${w?"checked":""}> ${d}</label><input type="time" data-wa="${i}" value="${(w&&w.start)||""}" step="300"><input type="time" data-wb="${i}" value="${(w&&w.end)||""}" step="300"><span class="small muted">${ph?`Breathe pattern: ${ph}h`:""}</span></div>`}).join("");
   $("pSlots").innerHTML='<p class="muted small" style="padding:8px 10px">Loading the rota…</p>';
-  $("dlgP").showModal();
+  showRecord(pid);
   if(pid){const d=await db.doc(`people/${pid}/private/personal`).get();const x=d.data()||{};
     set("pDob",x.dob);set("pPEmail",x.personalEmail);set("pAddr",x.address);set("pMob",x.personalMobile);set("pEmName",x.emergencyName);set("pEmPhone",x.emergencyPhone)}
   await termsList();await loadTermFor();renderSlots();
+  if(pid){loadHistory(pid);loadDocs(pid)}
+}
+function showRecord(pid){
+  $("listView").hidden=true;$("pForm").hidden=false;window.scrollTo(0,0);
+  const url=pid?`?p=${pid}`:"?p=new";if(location.search!==url)history.pushState({p:pid||"new"},"",url);
+}
+function showList(){$("pForm").hidden=true;$("listView").hidden=false;PE=null;if(location.search)history.pushState({},"",location.pathname);renderPeople()}
+$("pBackList").onclick=showList;$("pCancel").onclick=showList;
+window.addEventListener("popstate",()=>{const q=new URLSearchParams(location.search).get("p");if(q&&(PEOPLE[q]||q==="new"))openPerson(q==="new"?null:q);else{$("pForm").hidden=true;$("listView").hidden=false;PE=null}});
+// side menu: highlight the section you're in
+document.querySelectorAll("#pNav a").forEach(a=>a.onclick=e=>{e.preventDefault();document.querySelector(a.getAttribute("href")).scrollIntoView({behavior:"smooth"});document.querySelectorAll("#pNav a").forEach(x=>x.classList.toggle("on",x===a))});
+// this year's holiday and leave, and sickness, for the person
+async function loadHistory(pid){
+  const [lv,sk]=await Promise.all([db.collection("leave").where("personId","==",pid).get(),db.collection("sickness").where("personId","==",pid).get()]);
+  const yr=TODAY.slice(0,4),rows=[...lv.docs.map(d=>({k:d.data().type==="holiday"?"Holiday":"Other leave",...d.data()})),...sk.docs.map(d=>({k:"Sick",...d.data()}))]
+    .filter(x=>(x.end||x.start||"")>=yr+"-01-01"||x.status==="open").sort((a,b)=>(b.start||"").localeCompare(a.start||""));
+  const ST={approved:"Approved",pending:"Waiting",declined:"Declined",cancelled:"Cancelled",open:"Off now",closed:"Back"};
+  $("pHist").innerHTML=rows.length?`<table class="hist">${rows.map(x=>`<tr><td><b>${x.k}</b></td><td>${range(x.start,x.end)}</td><td class="muted">${ST[x.status]||x.status||""}</td><td class="muted">${x.deducted?Math.round(x.deducted*100)/100+holidayOf(pid).u:""}</td></tr>`).join("")}</table>`:'<p class="small muted">No holiday, leave or sickness this year.</p>';
+}
+async function loadDocs(pid){
+  try{const s=await db.collection("signDocs").where("personId","==",pid).get();
+    const ST={sent:"Waiting for them to sign",signed:"Signed: needs counter-signing",complete:"Signed by everyone",withdrawn:"Withdrawn"};
+    $("pDocList").innerHTML=s.empty?'<span class="muted">No contracts or documents sent to them yet.</span>':s.docs.map(d=>`<div>📄 <b>${esc(d.data().title)}</b> · ${ST[d.data().status]||d.data().status} · <a href="documents.html">open in Documents</a></div>`).join("");
+  }catch(e){$("pDocList").textContent="Couldn't load documents."}
 }
 function fromDate(){const s=$("pStart").value||TODAY;return s>TODAY?s:TODAY}
 async function loadTermFor(){
@@ -398,7 +391,7 @@ $("oSave").onclick=async()=>{
     if(type==="sick")await db.collection("sickness").add({personId:pid,start:from,end:to,status:to&&to<TODAY?"closed":"open",source:"manager",notes:$("oNote").value.trim()||null,createdAt:FV(),...st});
     else{const l={personId:pid,type,start:from,end:to,status:"approved",notes:$("oNote").value.trim()||null,source:"manager",decidedBy:UID,decidedAt:FV(),createdAt:FV(),...st};
       l.deducted=type==="holiday"?deductFor(l):null;await db.collection("leave").add(l)}
-    $("oMsg").textContent="✓ Added. Any shifts they had now show red on the rota.";$("oNote").value="";
+    $("oMsg").textContent="✓ Recorded. Any shifts they had now show red on the rota.";$("oNote").value="";loadHistory(pid);
   }catch(e){$("oMsg").textContent="Couldn't save: "+e.message}
   $("oSave").disabled=false};
 document.addEventListener("click",e=>{const a=e.target.closest("[data-person]");if(a){e.preventDefault();openPerson(a.dataset.person)}});
@@ -424,7 +417,8 @@ $("pSave").onclick=async()=>{
     await db.doc(`people/${pid}/private/personal`).set({personId:pid,dob:g("pDob")||null,personalEmail:g("pPEmail")||null,address:g("pAddr")||null,personalMobile:g("pMob")||null,
       emergencyName:g("pEmName")||null,emergencyPhone:g("pEmPhone")||null,updatedBy:UID,updatedAt:FV()},{merge:true});
     const n=await saveRota(pid);
-    $("dlgP").close();toast(isNew?`${g("pKnown")||g("pFirst")} added${n?`, on ${n} class slot${n>1?"s":""}`:""}${$("pWelcome").checked?". Welcome email on its way.":""}`:`Saved${n?`: ${n} rota change${n>1?"s":""}`:""}`);
+    if(!isNew&&ROLE==="owner"&&$("pRole").value!==(PE.p.role||"staff"))await db.doc("people/"+pid).update({role:$("pRole").value,updatedBy:UID,updatedAt:FV()});
+    $("pMsg").textContent="";setTimeout(()=>{if(PEOPLE[pid])openPerson(pid)},isNew?1200:0);toast(isNew?`${g("pKnown")||g("pFirst")} added${n?`, on ${n} class slot${n>1?"s":""}`:""}${$("pWelcome").checked?". Welcome email on its way.":""}`:`Saved${n?`: ${n} rota change${n>1?"s":""}`:""}`);
   }catch(err){$("pMsg").textContent="Couldn't save: "+err.message}
   $("pSave").disabled=false;
 };

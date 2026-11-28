@@ -25,5 +25,61 @@ service cloud.firestore {
     match /data/{dataKey}/{rest=**} {
       allow read, write: if dataKey.size() >= 20;
     }
+
+    // ===================== SAADI Team (HR) =====================
+    // Signed-in people only (6-digit code sign-in). Claims set by the server: pid (their record), role.
+    // staff = their own records; manager = everyone's time off and records; owner = also health details,
+    // roles and the audit log. Every client write must say who made it (updatedBy = their uid), which the
+    // server-side audit log records. Nobody can write the audit log or sign-in codes from the app.
+    function tSignedIn() { return request.auth != null && request.auth.token.pid is string; }
+    function tRole() { return tSignedIn() ? request.auth.token.role : ''; }
+    function tOwner() { return tRole() == 'owner'; }
+    function tManager() { return tRole() in ['manager', 'owner']; }
+    function tMe(pid) { return tSignedIn() && request.auth.token.pid == pid; }
+    function tStamped() { return request.resource.data.updatedBy == request.auth.uid; }
+    function tOnly(keys) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys); }
+
+    match /people/{pid} {
+      allow read: if tMe(pid) || tManager();
+      // owners edit records (incl. roles); managers can't change roles or status
+      allow create: if tOwner() && tStamped();
+      allow update: if tStamped() && (tOwner()
+        || (tManager() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'uid', 'emailLower', 'email'])));
+      allow delete: if false; // leavers are marked, then removed by the retention job
+      match /private/{doc} {
+        allow read: if tMe(pid) || tManager();
+        allow write: if tStamped() && tManager();
+      }
+    }
+    match /leave/{id} {
+      allow read: if tManager() || (tSignedIn() && resource.data.personId == request.auth.token.pid);
+      // staff ask for their own time off; it always starts as pending
+      allow create: if tStamped() && (tManager()
+        || (tMe(request.resource.data.personId) && request.resource.data.status == 'pending'));
+      // managers decide; staff can cancel their own request
+      allow update: if tStamped() && (tManager()
+        || (tMe(resource.data.personId) && request.resource.data.status == 'cancelled'
+            && tOnly(['status', 'updatedBy', 'updatedAt', 'cancelledAt'])));
+      allow delete: if false;
+    }
+    match /sickness/{id} {
+      allow read: if tManager() || (tSignedIn() && resource.data.personId == request.auth.token.pid);
+      allow create: if tStamped() && (tManager() || tMe(request.resource.data.personId));
+      allow update: if tStamped() && tManager();
+      allow delete: if false;
+    }
+    // what was wrong and return-to-work notes: the person and owners only
+    match /sicknessDetail/{id} {
+      allow read: if tOwner() || (tSignedIn() && resource.data.personId == request.auth.token.pid);
+      allow create: if tStamped() && (tOwner() || tMe(request.resource.data.personId));
+      allow update: if tStamped() && tOwner();
+      allow delete: if false;
+    }
+    match /patterns/{id} { allow read: if tSignedIn(); allow write: if tStamped() && tManager(); }
+    match /allowances/{id} { allow read: if tSignedIn(); allow write: if tStamped() && tManager(); }
+    match /hrConfig/{id} { allow read: if tManager(); allow write: if tStamped() && tOwner(); }
+    match /audit/{id} { allow read: if tOwner(); allow write: if false; }
+    match /authCodes/{id} { allow read, write: if false; }
+    // ============================================================
   }
 }

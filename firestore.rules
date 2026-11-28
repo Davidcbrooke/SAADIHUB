@@ -42,7 +42,8 @@ service cloud.firestore {
     match /people/{pid} {
       allow read: if tMe(pid) || tManager();
       // owners edit records (incl. roles); managers can't change roles or status
-      allow create: if tOwner() && tStamped();
+      // new starters: owners and managers add them (managers only as 'staff' access)
+      allow create: if tStamped() && (tOwner() || (tManager() && request.resource.data.role == 'staff'));
       allow update: if tStamped() && (tOwner()
         || (tManager() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'uid', 'emailLower', 'email'])));
       allow delete: if false; // leavers are marked, then removed by the retention job

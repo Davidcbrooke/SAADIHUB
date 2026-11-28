@@ -11,7 +11,7 @@
 "use strict";
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
-const { onDocumentWritten } = require("firebase-functions/v2/firestore");
+const { onDocumentWritten, onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { setGlobalOptions, logger } = require("firebase-functions/v2");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
@@ -264,6 +264,20 @@ exports.sicknessNotify = onDocumentWritten({ document: "sickness/{id}", secrets:
   })));
 });
 
+/* ------------------------------------------------------------------ welcome a new member of staff added in SAADI Team */
+exports.welcomeNotify = onDocumentCreated({ document: "people/{pid}", secrets: [BREVO_API_KEY] }, async ev => {
+  const p = ev.data && ev.data.data();
+  if (!p || p.source !== "team" || !p.welcome || !p.email) return;
+  await notify(ev.params.pid, {
+    subject: "Welcome to SAADI Team", heading: "Welcome to SAADI!",
+    lines: ["You've been added to <b>SAADI Team</b>, our staff app. It's where you'll see your shifts, ask for holiday, let us know if you're not well, and pick up extra shifts.",
+      `To sign in, open the link below and use this email address (<b>${esc(p.email)}</b>). We'll email you a 6-digit code: there's no password.`,
+      "Tip: on your phone, add it to your Home Screen so it works like an app, and switch on notifications."],
+    button: "Open SAADI Team", url: HUB + "team/",
+    push: { title: "Welcome to SAADI Team", body: "Your shifts, holiday and cover, all in one place." }
+  });
+});
+
 /* ------------------------------------------------------------------ cover: open shifts
    Created by a manager on the rota → offered to the chosen staff; staff put their name down; the manager picks one. */
 const nice = t => { if (!t) return "?"; let h = +t.slice(0, 2); const m = t.slice(3, 5), ap = h >= 12 ? "pm" : "am"; h = h % 12 || 12; return h + (m !== "00" ? ":" + m : "") + ap; };
@@ -354,7 +368,13 @@ async function runBreatheSync(key) {
   const put = (path, data) => writes.push({ path, data: clean({ ...data, source: "breathe", updatedBy: "breathe-sync" }) });
 
   const existingPeople = new Map((await db.collection("people").get()).docs.map(d => [d.id, d.data()]));
+  // people added in SAADI Team (source "team") who are later added to Breathe too: link by email instead of making a duplicate
+  const teamByEmail = new Map([...existingPeople].filter(([, p]) => p.source === "team" && p.emailLower).map(([id, p]) => [p.emailLower, id]));
+  const alias = new Map();
+  const pidOf = id => alias.get(String(id)) || "b" + id;
   for (const e of emps) {
+    const linked = teamByEmail.get(norm(e.email));
+    if (linked && !existingPeople.has("b" + e.id)) { alias.set(String(e.id), linked); writes.push({ path: `people/${linked}`, data: { breatheId: e.id } }); continue; }
     const pid = "b" + e.id, old = existingPeople.get(pid) || {};
     const full = `${e.first_name || ""} ${e.last_name || ""}`.trim().toLowerCase();
     const role = old.role || (FIRST_ROLES.owner.includes(full) ? "owner" : FIRST_ROLES.manager.includes(full) ? "manager" : "staff");
@@ -377,7 +397,7 @@ async function runBreatheSync(key) {
     });
   }
   for (const a of absences) put(`leave/ba${a.id}`, {
-    personId: "b" + idOf(a.employee), type: a.type === "Holiday" ? "holiday" : "other",
+    personId: pidOf(idOf(a.employee)), type: a.type === "Holiday" ? "holiday" : "other",
     start: day(a.start_date), end: day(a.end_date), halfStart: !!a.half_start, halfStartPm: a.half_start_am_pm === "pm",
     halfEnd: !!a.half_end, halfEndPm: a.half_end_am_pm === "pm", units: a.work_units != null ? Number(a.work_units) : null,
     deducted: a.deducted != null ? Number(a.deducted) : null, status: a.cancelled ? "cancelled" : "approved",
@@ -385,19 +405,19 @@ async function runBreatheSync(key) {
   });
   // Approved requests are already in absences; bring across the ones still waiting or turned down.
   for (const q of requests) if (q.status !== "approved") put(`leave/br${q.id}`, {
-    personId: "b" + idOf(q.employee), type: q.type === "Holiday" ? "holiday" : "other",
+    personId: pidOf(idOf(q.employee)), type: q.type === "Holiday" ? "holiday" : "other",
     start: day(q.start_date), end: day(q.end_date), halfStart: !!q.half_start, halfStartPm: q.half_start_am_pm === "pm",
     halfEnd: !!q.half_end, halfEndPm: q.half_end_am_pm === "pm", deducted: q.deducted != null ? Number(q.deducted) : null,
     status: q.cancelled ? "cancelled" : q.status === "denied" ? "declined" : "pending", reason: nm(q.reason), notes: q.notes || null
   });
   for (const s of sick) {
     put(`sickness/bs${s.id}`, {
-      personId: "b" + idOf(s.employee), start: day(s.start_date), end: day(s.end_date),
+      personId: pidOf(idOf(s.employee)), start: day(s.start_date), end: day(s.end_date),
       halfStart: !!s.half_start, halfEnd: !!s.half_end, deducted: s.deducted != null ? Number(s.deducted) : null,
       status: s.status === "closed" ? "closed" : "open"
     });
     // Health details: owners only (special category data)
-    put(`sicknessDetail/bs${s.id}`, { personId: "b" + idOf(s.employee), type: nm(s.company_sicknesstype), reason: s.reason || null, reviewNotes: s.review_notes || null });
+    put(`sicknessDetail/bs${s.id}`, { personId: pidOf(idOf(s.employee)), type: nm(s.company_sicknesstype), reason: s.reason || null, reviewNotes: s.review_notes || null });
   }
   for (const w of patterns) {
     const days = {};

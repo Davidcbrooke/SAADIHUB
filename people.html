@@ -37,6 +37,24 @@ table.ppl th{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:v
 .code{letter-spacing:8px;font-size:24px;text-align:center;font-weight:700;max-width:220px}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:10px 18px;border-radius:99px;font-weight:600;z-index:60}
 .small{font-size:13px}
+dialog.pd{border:0;border-radius:16px;padding:0;max-width:760px;width:calc(100% - 24px);max-height:calc(100vh - 32px);box-shadow:0 20px 60px rgba(0,0,0,.3)}
+dialog.pd form{padding:18px 20px}
+dialog.pd h2{margin:0 0 2px}dialog.pd h3{margin:20px 0 6px;font-size:15px;border-top:1px solid var(--line);padding-top:14px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+@media (max-width:620px){.g2,.g3{grid-template-columns:1fr}}
+.pd label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600}
+.pd input:disabled{background:var(--surface-2);color:var(--muted)}
+.wd{display:grid;grid-template-columns:130px 110px 110px 1fr;gap:8px;align-items:center;padding:4px 0;font-size:14px}
+.wd.h{color:var(--muted);font-size:12px}
+.sl{max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.sl label{display:grid;grid-template-columns:22px 86px 150px minmax(0,1fr);gap:8px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--line);font-size:13.5px;cursor:pointer}
+.sl label small{color:var(--muted);display:block}
+.sl .dh{padding:6px 10px;background:var(--surface-2);font-weight:700;font-size:13px}
+.sl .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+td a.pn{color:inherit;text-decoration:none;border-bottom:1px dashed var(--muted);cursor:pointer}
+.pacts{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;align-items:center}
+button.go{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.bad{color:#7d0b1c}
 </style>
 </head>
 <body>
@@ -94,9 +112,9 @@ table.ppl th{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:v
     </section>
 
     <section class="panel">
-      <div class="row" style="justify-content:space-between"><h2 style="margin:0">Staff</h2><input type="search" id="q" placeholder="Search" style="max-width:220px"></div>
+      <div class="row" style="justify-content:space-between"><h2 style="margin:0">Staff</h2><div class="row"><input type="search" id="q" placeholder="Search" style="max-width:220px"><button type="button" class="go" id="bAdd">+ Add member of staff</button></div></div>
       <div style="overflow-x:auto"><table class="ppl"><thead><tr><th>Name</th><th>Job</th><th>Department</th><th>Started</th><th>Band</th><th>App</th><th title="What they can see: staff = their own things; manager = rota and People; owner = everything, including sickness details">Access</th></tr></thead><tbody id="ppl"></tbody></table></div>
-      <p class="small muted">"App" shows who has signed in to SAADI Team. Only owners can change roles. Owner = everything incl. health details; Manager = time off, sickness dates and records; Staff = their own.</p>
+      <p class="small muted">Click a name to see or change their details, working days and classes. "App" shows who has signed in to SAADI Team. Only owners can change roles. Owner = everything incl. health details; Manager = time off, sickness dates and records; Staff = their own.</p>
     </section>
 
     <section class="panel" id="syncPanel" hidden>
@@ -106,6 +124,27 @@ table.ppl th{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:v
     </section>
   </main>
 </div>
+
+<dialog class="pd" id="dlgP"><form method="dialog" id="pForm">
+  <h2 id="pTitle">New member of staff</h2><p class="small muted" id="pSub" style="margin:0"></p>
+  <h3>About them</h3>
+  <div class="g3"><label class="f">First name * <input id="pFirst" required></label><label class="f">Last name * <input id="pLast" required></label><label class="f">Known as <input id="pKnown" placeholder="e.g. Kay"></label></div>
+  <div class="g2" style="margin-top:10px"><label class="f">Work email * (they sign in with this) <input type="email" id="pEmail" required></label><label class="f">Mobile <input type="tel" id="pMob"></label></div>
+  <div class="g3" style="margin-top:10px"><label class="f">Job title <input id="pJob" list="jobList" placeholder="e.g. Coach"></label><label class="f">Department <input id="pDept" list="deptList" placeholder="e.g. Coach"></label><label class="f">Start date * <input type="date" id="pStart" required></label></div>
+  <datalist id="jobList"></datalist><datalist id="deptList"></datalist>
+  <div class="g2" style="margin-top:10px"><label class="f">Band <select id="pBand"></select></label><label class="f" id="pRoleWrap">Access <select id="pRole"><option value="staff">Staff: their own shifts, holiday, sickness</option><option value="manager">Manager: rota and People</option><option value="owner">Owner: everything</option></select></label></div>
+  <p class="small muted" id="pBreathe" hidden style="margin:8px 0 0">Name, email, job, department and start date come from Breathe every night until we switch over, so change those in Breathe for now.</p>
+  <h3>Personal details <span class="small muted" style="font-weight:400">(only managers and the person can see these)</span></h3>
+  <div class="g3"><label class="f">Date of birth <input type="date" id="pDob"></label><label class="f">Personal email <input type="email" id="pPEmail"></label><label class="f">Address <input id="pAddr"></label></div>
+  <div class="g2" style="margin-top:10px"><label class="f">Emergency contact name <input id="pEmName"></label><label class="f">Emergency contact phone <input type="tel" id="pEmPhone"></label></div>
+  <h3>Working days</h3>
+  <div id="pDays"></div>
+  <h3>On the rota <span class="small muted" style="font-weight:400" id="pTermLine"></span></h3>
+  <p class="small muted" style="margin:0 0 6px">Classes running in their working hours. Tick the ones they'll do: they go on the rota every week from <b id="pFrom"></b>. Classes with nobody on that suit their band are ticked for you.</p>
+  <div class="sl" id="pSlots"></div>
+  <label class="small" id="pWelcomeWrap" style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="pWelcome" checked> Email them a welcome with how to sign in to SAADI Team</label>
+  <div class="pacts"><button type="button" class="go" id="pSave">Save</button><span style="flex:1"></span><span class="small bad" id="pMsg"></span><button value="cancel">Cancel</button></div>
+</form></dialog>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -213,7 +252,7 @@ function renderPeople(){
   const q=$("q").value.trim().toLowerCase();
   const rows=Object.values(PEOPLE).filter(p=>p.status!=="leaver").filter(p=>!q||`${p.firstName} ${p.lastName} ${p.jobTitle} ${p.department}`.toLowerCase().includes(q))
     .sort((a,b)=>(a.lastName||"").localeCompare(b.lastName||""));
-  $("ppl").innerHTML=rows.map(p=>`<tr><td><b>${esc((p.knownAs||p.firstName)+" "+p.lastName)}</b>${p.status==="leaving"?' <span class="tag">leaving</span>':""}</td><td>${esc(p.jobTitle||"")}</td><td>${esc(p.department||"")}</td><td>${fmt(p.joinDate,{month:"short",year:"numeric"})}</td>
+  $("ppl").innerHTML=rows.map(p=>`<tr><td><a class="pn" data-person="${p.id}"><b>${esc((p.knownAs||p.firstName)+" "+p.lastName)}</b></a>${p.source==="team"?' <span class="tag on">new</span>':""}${p.status==="leaving"?' <span class="tag">leaving</span>':""}</td><td>${esc(p.jobTitle||"")}</td><td>${esc(p.department||"")}</td><td>${fmt(p.joinDate,{month:"short",year:"numeric"})}</td>
     <td><select data-band="${p.id}" aria-label="Pay band"><option value="">–</option>${RC.BANDS.map((b,i)=>`<option value="${i}" ${p.band!==undefined&&p.band!==null&&p.band!==""&&+p.band===i?"selected":""}>${RC.bandLetter(i)}: ${esc(b)}</option>`).join("")}</select></td>
     <td>${p.uid?'<span class="tag on">Signed in</span>':'<span class="tag">Not yet</span>'}</td>
     <td>${ROLE==="owner"?`<select data-role="${p.id}">${["staff","manager","owner"].map(r=>`<option ${p.role===r?"selected":""}>${r}</option>`).join("")}</select>`:esc(p.role||"staff")}</td></tr>`).join("");
@@ -224,6 +263,116 @@ document.addEventListener("change",async e=>{
   const s=e.target.closest("[data-role]");if(!s)return;
   await db.doc("people/"+s.dataset.role).update({role:s.value,updatedBy:UID,updatedAt:FV()});toast("Access updated");
 });
+/* ---------- add or change a member of staff ---------- */
+const DAYK=["mon","tue","wed","thu","fri","sat","sun"];
+let PE=null,TERMS=null,RS=null; // PE = person being edited; RS = rota of the chosen term {term,slots,weeks}
+const hasB=v=>v!==undefined&&v!==null&&v!=="";
+// which roles suit which band (only used to pre-tick slots nobody is on)
+function fits(role,band,job){
+  if(/desk|reception|morning|afternoon|evening|open|welcome/i.test(role))return /recep|desk|duty|customer|admin/i.test(job||"");
+  if(!hasB(band))return false;band=+band;
+  if(band<=0)return /young|demo|yl\b/i.test(role);
+  if(band<=2)return /assist|warm ?up|wu\b|young/i.test(role);
+  return /lead|coach|set ?up|senior|squad/i.test(role);
+}
+async function termsList(){if(!TERMS)TERMS=(await db.collection("rotaTerms").get()).docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.start.localeCompare(b.start));return TERMS}
+function pickTerm(from){return TERMS.find(t=>t.weeks.some(w=>w.monday===RC.monday(from)))||TERMS.find(t=>t.start>from)||null}
+async function openPerson(pid){
+  const p=pid?PEOPLE[pid]:null;PE={pid,p,touched:new Set(),ticks:null};
+  const fromBreathe=!!(p&&p.source==="breathe");
+  $("pTitle").textContent=p?name(pid):"New member of staff";
+  $("pSub").textContent=p?`${p.jobTitle||""}${p.joinDate?" · started "+fmt(p.joinDate,{day:"numeric",month:"long",year:"numeric"}):""}`:"Add them here and they can sign in to SAADI Team straight away.";
+  const set=(id,v)=>$(id).value=v||"";
+  set("pFirst",p&&p.firstName);set("pLast",p&&p.lastName);set("pKnown",p&&p.knownAs);set("pEmail",p&&p.email);set("pJob",p&&p.jobTitle);set("pDept",p&&p.department);set("pStart",p?p.joinDate:TODAY);
+  ["pFirst","pLast","pKnown","pEmail","pJob","pDept","pStart"].forEach(id=>$(id).disabled=fromBreathe||(!!p&&id==="pEmail"));$("pBreathe").hidden=!fromBreathe;
+  $("pBand").innerHTML=`<option value="">No band (not on the coaching scale)</option>`+RC.BANDS.map((b,i)=>`<option value="${i}">${RC.bandLetter(i)}: ${esc(b)}</option>`).join("");
+  $("pBand").value=p&&hasB(p.band)?String(p.band):"";
+  $("pRole").value=p?p.role||"staff":"staff";$("pRoleWrap").hidden=!!p||ROLE!=="owner";
+  $("pWelcomeWrap").hidden=!!p;$("pWelcome").checked=true;$("pMsg").textContent="";
+  $("jobList").innerHTML=[...new Set(Object.values(PEOPLE).map(x=>x.jobTitle).filter(Boolean))].sort().map(v=>`<option value="${esc(v)}">`).join("");
+  $("deptList").innerHTML=[...new Set(Object.values(PEOPLE).map(x=>x.department).filter(Boolean))].sort().map(v=>`<option value="${esc(v)}">`).join("");
+  ["pDob","pPEmail","pAddr","pMob","pEmName","pEmPhone"].forEach(id=>$(id).value="");
+  // working days: saved ones, else the days in their Breathe working pattern (it has hours but no times)
+  const wd=(p&&p.workDays)||null,pat=p&&PATTERNS[p.patternId];
+  const patOn=i=>!!(pat&&pat.days&&pat.days[DAYK[i]]&&pat.days[DAYK[i]].on);
+  $("pDays").innerHTML=`<div class="wd h"><span>Day</span><span>From</span><span>To</span><span></span></div>`+RC.DAYS.map((d,i)=>{const w=wd?wd[i]:(patOn(i)?{}:null);
+    const ph=pat&&pat.days&&pat.days[DAYK[i]]&&pat.days[DAYK[i]].hours;
+    return `<div class="wd"><label style="display:flex;gap:8px;align-items:center;font-weight:600"><input type="checkbox" data-wd="${i}" ${w?"checked":""}> ${d}</label><input type="time" data-wa="${i}" value="${(w&&w.start)||""}" step="300"><input type="time" data-wb="${i}" value="${(w&&w.end)||""}" step="300"><span class="small muted">${ph?`Breathe pattern: ${ph}h`:""}</span></div>`}).join("");
+  $("pSlots").innerHTML='<p class="muted small" style="padding:8px 10px">Loading the rota…</p>';
+  $("dlgP").showModal();
+  if(pid){const d=await db.doc(`people/${pid}/private/personal`).get();const x=d.data()||{};
+    set("pDob",x.dob);set("pPEmail",x.personalEmail);set("pAddr",x.address);set("pMob",x.personalMobile);set("pEmName",x.emergencyName);set("pEmPhone",x.emergencyPhone)}
+  await termsList();await loadTermFor();renderSlots();
+}
+function fromDate(){const s=$("pStart").value||TODAY;return s>TODAY?s:TODAY}
+async function loadTermFor(){
+  const t=pickTerm(fromDate());
+  if(!t){RS=null;return}
+  if(!RS||RS.term.id!==t.id){const r=await RC.load(db,t.id);RS={term:t,slots:r.slots,weeks:r.weeks}}
+}
+function fromMonday(){if(!RS)return "";const m=RC.monday(fromDate());return RS.term.weeks.map(w=>w.monday).find(x=>x>=m)||""}
+function workDaysNow(){const o={};RC.DAYS.forEach((d,i)=>{if(document.querySelector(`[data-wd="${i}"]`).checked)o[i]={start:document.querySelector(`[data-wa="${i}"]`).value||null,end:document.querySelector(`[data-wb="${i}"]`).value||null}});return o}
+function renderSlots(){
+  if(!PE)return;
+  if(!RS){$("pTermLine").textContent="";$("pFrom").textContent="–";$("pSlots").innerHTML='<p class="muted small" style="padding:8px 10px">There\'s no rota term for that date yet. Save them now, and add them to classes once the term is set up.</p>';return}
+  const fm=fromMonday();$("pTermLine").textContent="· "+RS.term.name;$("pFrom").textContent=fm?"w/c "+fmt(fm,{day:"numeric",month:"short"}):"–";
+  const wd=workDaysNow(),pid=PE.pid,band=$("pBand").value,job=$("pJob").value;
+  if(!PE.ticks){PE.ticks=new Set(pid?RS.slots.filter(s=>(s.usual||[]).includes(pid)).map(s=>s.id):[]);PE.orig=new Set(PE.ticks)}
+  const show=RS.slots.filter(s=>{if(PE.ticks.has(s.id)||PE.orig.has(s.id))return true;const w=wd[s.day];if(!w)return false;
+    return !w.start||!w.end||!s.start||!s.end||(s.start<w.end&&s.end>w.start)});
+  // new starters: pre-tick slots nobody is on that suit their band, until the manager ticks/unticks it themselves
+  if(!pid)show.forEach(s=>{if(PE.touched.has(s.id))return;const empty=!(s.usual||[]).length;
+    if(empty&&fits(s.role,band,job))PE.ticks.add(s.id);else PE.ticks.delete(s.id)});
+  let last=-1;
+  $("pSlots").innerHTML=show.length?show.map(s=>{const head=s.day!==last?`<div class="dh">${RC.DAYS[s.day]}</div>`:"";last=s.day;
+    const others=(s.usual||[]).filter(x=>x!==pid).map(x=>name(x).trim());
+    return head+`<label><input type="checkbox" data-slot="${s.id}" ${PE.ticks.has(s.id)?"checked":""}><span>${s.start?RC.nice(s.start)+"–"+RC.nice(s.end):"no time"}</span><span><span class="dot" style="background:${esc(s.colour||"#999")}"></span>${esc(s.cls)}</span><span>${esc(s.role)}<small>${others.length?"With "+esc(others.join(", ")):"Nobody on it"}</small></span></label>`}).join("")
+    :'<p class="muted small" style="padding:8px 10px">Tick their working days (and times) to see the classes running then.</p>';
+}
+$("bAdd").onclick=()=>openPerson(null);
+document.addEventListener("click",e=>{const a=e.target.closest("[data-person]");if(a){e.preventDefault();openPerson(a.dataset.person)}});
+$("pDays").addEventListener("input",renderSlots);$("pDays").addEventListener("change",renderSlots);
+$("pBand").onchange=renderSlots;$("pJob").oninput=renderSlots;
+$("pStart").onchange=async()=>{await loadTermFor();PE.ticks=null;renderSlots()};
+$("pSlots").addEventListener("change",e=>{const c=e.target.closest("[data-slot]");if(!c)return;PE.touched.add(c.dataset.slot);c.checked?PE.ticks.add(c.dataset.slot):PE.ticks.delete(c.dataset.slot)});
+$("pSave").onclick=async()=>{
+  const g=id=>$(id).value.trim(),email=g("pEmail").toLowerCase(),isNew=!PE.pid;
+  if(isNew&&(!g("pFirst")||!g("pLast")||!email||!g("pStart")))return $("pMsg").textContent="Fill in the boxes marked *";
+  if(isNew&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))return $("pMsg").textContent="Check the email address";
+  if(isNew){const dup=Object.values(PEOPLE).find(x=>x.status!=="leaver"&&(x.emailLower||"")===email);if(dup)return $("pMsg").textContent=`${name(dup.id)} already has that email`}
+  const wd=workDaysNow();for(const [i,w] of Object.entries(wd))if(w.start&&w.end&&w.start>=w.end)return $("pMsg").textContent=`${RC.DAYS[i]}: the finish time is before the start`;
+  $("pSave").disabled=true;$("pMsg").textContent="Saving…";
+  try{
+    const pid=PE.pid||("n"+Date.now().toString(36)+Math.random().toString(36).slice(2,5));
+    const base={band:$("pBand").value===""?null:+$("pBand").value,workDays:wd,updatedBy:UID,updatedAt:FV()};
+    if(isNew)await db.doc("people/"+pid).set({...base,firstName:g("pFirst"),lastName:g("pLast"),knownAs:g("pKnown")||null,email:g("pEmail"),emailLower:email,
+      jobTitle:g("pJob")||null,department:g("pDept")||null,joinDate:g("pStart"),status:"current",role:ROLE==="owner"?$("pRole").value:"staff",
+      source:"team",welcome:$("pWelcome").checked,createdAt:FV()});
+    else{const upd={...base};if(PE.p.source==="team")Object.assign(upd,{firstName:g("pFirst"),lastName:g("pLast"),knownAs:g("pKnown")||null,jobTitle:g("pJob")||null,department:g("pDept")||null,joinDate:g("pStart")});
+      await db.doc("people/"+pid).update(upd)}
+    await db.doc(`people/${pid}/private/personal`).set({personId:pid,dob:g("pDob")||null,personalEmail:g("pPEmail")||null,address:g("pAddr")||null,personalMobile:g("pMob")||null,
+      emergencyName:g("pEmName")||null,emergencyPhone:g("pEmPhone")||null,updatedBy:UID,updatedAt:FV()},{merge:true});
+    const n=await saveRota(pid);
+    $("dlgP").close();toast(isNew?`${g("pKnown")||g("pFirst")} added${n?`, on ${n} class slot${n>1?"s":""}`:""}${$("pWelcome").checked?". Welcome email on its way.":""}`:`Saved${n?`: ${n} rota change${n>1?"s":""}`:""}`);
+  }catch(err){$("pMsg").textContent="Couldn't save: "+err.message}
+  $("pSave").disabled=false;
+};
+// put them on (or take them off) the ticked slots from the "from" week on; earlier weeks keep who actually worked them
+async function saveRota(pid){
+  if(!RS||!PE.ticks)return 0;const fm=fromMonday();if(!fm)return 0;
+  const add=[...PE.ticks].filter(id=>!PE.orig.has(id)),rem=[...PE.orig].filter(id=>!PE.ticks.has(id));
+  if(!add.length&&!rem.length)return 0;
+  const st={updatedBy:UID,updatedAt:FV()},docs=[],perWeek={};
+  [...add,...rem].forEach(id=>{const s=RS.slots.find(x=>x.id===id);if(!s)return;
+    const usual=add.includes(id)?[...new Set([...(s.usual||[]),pid])]:(s.usual||[]).filter(x=>x!==pid);
+    RS.term.weeks.forEach(w=>{const wk=RS.weeks[RC.weekId(RS.term.id,w.monday)];
+      if(w.monday<fm&&!(wk&&wk.changes&&wk.changes[id]))(perWeek[w.monday]=perWeek[w.monday]||{})[id]={people:s.usual||[],text:s.usualText||null}});
+    docs.push([db.doc("rotaSlots/"+id),{usual,...st},"update"])});
+  Object.entries(perWeek).forEach(([m,ch])=>docs.push([db.doc("rotaWeeks/"+RC.weekId(RS.term.id,m)),{term:RS.term.id,monday:m,changes:ch,...st},"set"]));
+  for(let i=0;i<docs.length;i+=400){const b=db.batch();docs.slice(i,i+400).forEach(([r,d,k])=>k==="set"?b.set(r,d,{merge:true}):b.update(r,d));await b.commit()}
+  RS=null;return add.length+rem.length;
+}
+
 $("bSync").onclick=async()=>{$("bSync").disabled=true;$("bSync").textContent="Copying… (a few minutes)";
   try{const r=await fn.httpsCallable("breatheSyncNow",{timeout:1800000})();toast(`Copied: ${r.data.changed} changes`)}catch(err){toast(err.message)}
   $("bSync").disabled=false;$("bSync").textContent="Copy from Breathe now"};

@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="hub.css">
-<script src="hub-shell.js?v=6" defer></script>
+<script src="hub-shell.js?v=7" defer></script>
 <style>
 .bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .days{display:flex;gap:6px;flex-wrap:wrap}
@@ -51,6 +51,35 @@ dialog h2{margin:0 0 4px}
 button.go{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:10px 18px;border-radius:99px;font-weight:600;z-index:60}
 .small{font-size:13px}
+/* calendar view */
+.seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:2px}
+.seg button{border:0;background:none;border-radius:8px;padding:6px 12px;font-weight:600}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink)}
+body.cal .layout{grid-template-columns:1fr}body.cal #days,body.cal #hoursPanel{display:none}
+.calwrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.cal{width:100%;min-width:980px;border-collapse:separate;border-spacing:0;font-size:13px;table-layout:fixed}
+.cal th,.cal td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:4px;vertical-align:top}
+.cal th{background:var(--surface-2);text-align:left;font-weight:600;position:sticky;top:0;z-index:1}
+.cal th.today{background:#ffe3f0}
+.cal col.nmc{width:170px}
+.cal td.nm{font-weight:600;line-height:1.25}.cal td.nm small{display:block;font-weight:400;color:var(--muted)}
+.bt{display:inline-block;font-size:11px;font-weight:700;border-radius:5px;padding:0 5px;background:#ececf1;color:#444;margin-left:4px;vertical-align:1px}
+.sh{border-left:4px solid #999;background:#f4f4f7;border-radius:6px;padding:3px 6px;margin-bottom:3px;cursor:pointer;line-height:1.25}
+.sh:hover{filter:brightness(.96)}
+.sh b{display:block;font-variant-numeric:tabular-nums}
+.sh small{display:block;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sh.off{background:#fde4e8;border-left-color:#c6152e}.sh.off b{color:#7d0b1c}
+.sh.sent{background:#fff4d6;border-left-color:#e0a100}.sh.sent b{color:#7a5600}
+.sh.filled{background:#e3f5e8;border-left-color:#3aa655}.sh.filled b{color:#1e6b33}
+.lv{font-size:12px;border-radius:6px;padding:2px 6px;margin-bottom:3px;background:#eef3ff;color:#2f4f9e}
+.lv.sick{background:#fde4e8;color:#7d0b1c}
+td.shut{background:repeating-linear-gradient(45deg,#f6f6f8 0 6px,#fff 6px 12px);color:var(--muted);font-size:12px}
+tr.needs td{background:#fff7f8}tr.needs td.nm{color:#7d0b1c}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:4px}
+.opts label{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid var(--line);border-radius:10px;margin-top:8px;cursor:pointer}
+.opts label.dis{opacity:.5;cursor:default}
+.opts label small{display:block;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -73,6 +102,7 @@ button.go{background:var(--accent);border-color:var(--accent);color:var(--accent
         <button type="button" id="wkNext" aria-label="Next week">›</button>
         <button type="button" id="wkToday">This week</button>
         <span style="flex:1"></span>
+        <div class="seg" role="group" aria-label="View"><button type="button" data-view="cal">Calendar</button><button type="button" data-view="cls">By class</button></div>
         <button type="button" id="bNewTerm">New term…</button>
       </div>
       <div class="days" id="days" style="margin-top:12px"></div>
@@ -90,7 +120,7 @@ button.go{background:var(--accent);border-color:var(--accent);color:var(--accent
           </div>
           <p class="small muted">Blue dot = different from the usual this week. Red = on holiday or off sick. Amber = a name that isn't matched to anyone in Breathe.</p>
         </section>
-        <section class="panel"><h2 style="margin-top:0">Hours this week</h2><div id="hours"></div></section>
+        <section class="panel" id="hoursPanel"><h2 style="margin-top:0">Hours this week</h2><div id="hours"></div></section>
       </div>
     </div>
   </main>
@@ -110,6 +140,23 @@ button.go{background:var(--accent);border-color:var(--accent);color:var(--accent
   </div>
 </form></dialog>
 
+<dialog id="dlgCover"><form method="dialog" class="in">
+  <h2>Find cover</h2><p class="small muted" id="cvSub" style="margin:0"></p>
+  <div id="cvItems" class="small" style="margin-top:8px"></div>
+  <div class="opts" id="cvOpts"></div>
+  <select id="cvSel" style="width:100%;margin-top:8px" hidden></select>
+  <p class="small" id="cvWho" style="margin:10px 0 0"></p>
+  <label class="small" style="display:block;margin-top:10px">Note for staff (optional) <input id="cvNote" maxlength="140" style="width:100%" placeholder="e.g. Lead Coach needed, set up from 3:45pm"></label>
+  <div class="acts"><button type="button" class="go" id="cvSend">Send</button><span style="flex:1"></span><button value="cancel">Cancel</button></div>
+  <p class="small bad" id="cvMsg"></p>
+</form></dialog>
+
+<dialog id="dlgChoose"><form method="dialog" class="in">
+  <h2 id="chTitle">Choose who covers</h2><p class="small muted" id="chSub" style="margin:0"></p>
+  <div class="pick" id="chList"></div>
+  <div class="acts"><button type="button" id="chWithdraw">Withdraw the offer</button><span style="flex:1"></span><button value="cancel">Close</button></div>
+</form></dialog>
+
 <dialog id="dlgTerm"><form method="dialog" class="in">
   <h2>New term</h2>
   <p class="small muted">Copies every class, role and time from <b id="ntFrom"></b>, with the same usual people, into a new term. You then change only what's different.</p>
@@ -126,7 +173,7 @@ button.go{background:var(--accent);border-color:var(--accent);color:var(--accent
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="team-auth.js?v=4"></script>
-<script src="rota-core.js?v=1"></script>
+<script src="rota-core.js?v=2"></script>
 <script>
 "use strict";
 const $=id=>document.getElementById(id);
@@ -134,11 +181,12 @@ const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;"
 const toast=t=>{const d=document.createElement("div");d.className="toast";d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),2600)};
 const fmt=(s,o)=>s?new Date(s+"T12:00:00").toLocaleDateString("en-GB",o||{weekday:"short",day:"numeric",month:"short"}):"";
 const TODAY=RC.iso(new Date());
-let db,UID,TERMS=[],TERM=null,SLOTS=[],WEEKS={},PEOPLE={},PATTERNS={},LEAVE=[],SICK=[],MON="",DAY=RC.dayIdx(TODAY),unsubW=null,unsubS=null;
+let db,UID,MYPID,TERMS=[],TERM=null,SLOTS=[],WEEKS={},PEOPLE={},PATTERNS={},LEAVE=[],SICK=[],OPEN=[],MON="",DAY=RC.dayIdx(TODAY),unsubW=null,unsubS=null,unsubO=null;
+let VIEW=localStorage.getItem("rotaView")||"cal";
 const FV=()=>firebase.firestore.FieldValue;
 const stamp=()=>({updatedBy:UID,updatedAt:FV().serverTimestamp()});
 
-TeamAuth.start({need:["manager","owner"],onReady:async x=>{db=x.db;UID=x.uid;
+TeamAuth.start({need:["manager","owner"],onReady:async x=>{db=x.db;UID=x.uid;MYPID=x.pid;
   db.collection("people").onSnapshot(s=>{PEOPLE={};s.docs.forEach(d=>PEOPLE[d.id]={id:d.id,...d.data()});render()});
   db.collection("patterns").get().then(s=>{s.docs.forEach(d=>PATTERNS[d.id]=d.data());render()});
   db.collection("leave").where("end",">=",RC.addDays(TODAY,-120)).onSnapshot(s=>{LEAVE=s.docs.map(d=>d.data()).filter(l=>["approved","pending"].includes(l.status));render()});
@@ -157,7 +205,11 @@ async function openTerm(tid,monday){
   unsubS=db.collection("rotaSlots").where("term","==",tid).onSnapshot(s=>{SLOTS=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.day-b.day||a.order-b.order);render()});
   if(unsubW)unsubW();
   unsubW=db.collection("rotaWeeks").where("term","==",tid).onSnapshot(s=>{WEEKS={};s.docs.forEach(d=>WEEKS[d.id]={id:d.id,...d.data()});render()});
+  if(unsubO)unsubO();
+  unsubO=db.collection("openShifts").where("term","==",tid).onSnapshot(s=>{OPEN=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>console.warn("openShifts",e.message));
 }
+const setView=v=>{VIEW=v;localStorage.setItem("rotaView",v);render()};
+document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>setView(b.dataset.view));
 $("termSel").onchange=()=>openTerm($("termSel").value,RC.monday(TODAY));
 const wkIdx=()=>TERM.weeks.findIndex(w=>w.monday===MON);
 $("wkPrev").onclick=()=>{const i=wkIdx();if(i>0){MON=TERM.weeks[i-1].monday;render()}};
@@ -186,7 +238,10 @@ function render(){
   $("bCloseDay").textContent=closed?`Open ${RC.DAYS[DAY]} again`:`Close ${RC.DAYS[DAY]} (half term, bank holiday)`;
   // the day: groups of session + class
   const sl=SLOTS.filter(s=>s.day===DAY);
-  if(closed){$("grid").innerHTML=`<div class="panel"><h2 style="margin:0">${RC.DAYS[DAY]} ${fmt(date,{day:"numeric",month:"long"})} is closed</h2><p class="muted">${esc(closed)}. Nobody is rostered. Use "Open ${RC.DAYS[DAY]} again" if that's wrong.</p></div>`}
+  document.body.classList.toggle("cal",VIEW==="cal");
+  document.querySelectorAll("[data-view]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.view===VIEW)));
+  if(VIEW==="cal")renderCal(week);
+  else if(closed){$("grid").innerHTML=`<div class="panel"><h2 style="margin:0">${RC.DAYS[DAY]} ${fmt(date,{day:"numeric",month:"long"})} is closed</h2><p class="muted">${esc(closed)}. Nobody is rostered. Use "Open ${RC.DAYS[DAY]} again" if that's wrong.</p></div>`}
   else{
     let html="",last="";
     sl.forEach(s=>{
@@ -220,9 +275,129 @@ function render(){
 }
 document.addEventListener("click",e=>{
   const d=e.target.closest("[data-day]");if(d){DAY=+d.dataset.day;render()}
-  const g=e.target.closest("[data-goday]");if(g){e.preventDefault();DAY=+g.dataset.goday;render()}
+  const g=e.target.closest("[data-goday]");if(g){e.preventDefault();DAY=+g.dataset.goday;setView("cls")}
   const ed=e.target.closest("[data-edit]");if(ed)openEdit(ed.dataset.edit);
+  const bk=e.target.closest("[data-blk]");if(bk)blockClick(+bk.dataset.blk);
 });
+
+/* ---------- calendar: one row per person, one column per day (like Breathe), gaps for holiday/sickness in red ---------- */
+let NEEDS=[],BLK=[];
+const classes=b=>[...new Set(b.items.map(i=>i.cls))].join(", ");
+const openFor=(date,b)=>OPEN.filter(o=>o.date===date&&o.status!=="cancelled").find(o=>(o.slotIds||[]).some(id=>b.items.some(i=>i.id===id)));
+const applied=o=>Object.keys(o.applicants||{}).length;
+function blockHtml(pid,b,off){
+  const i=BLK.push({pid,b,off})-1;
+  if(!off)return `<div class="sh" data-blk="${i}" style="border-left-color:${esc(b.items[0].colour||"#999")}" title="${esc(b.items.map(x=>`${RC.nice(x.start)} ${x.cls} (${x.role})`).join("\n"))}"><b>${RC.nice(b.start)}–${RC.nice(b.end)}</b><small>${esc(classes(b))}</small></div>`;
+  const o=openFor(b.date,b);
+  const st=!o?"Needs cover":o.status==="filled"?"Covered":applied(o)?`🙋 ${applied(o)} can do it`:`Sent to ${o.pids.length}`;
+  return `<div class="sh ${o?(o.status==="filled"?"filled":"sent"):"off"}" data-blk="${i}" title="${esc(fullNm(pid))} is ${esc(off)}"><b>${RC.nice(b.start)}–${RC.nice(b.end)}</b><small>${esc(off)} · ${st}</small></div>`;
+}
+function renderCal(week){
+  BLK=[];
+  const dates=[0,1,2,3,4,5,6].map(i=>RC.addDays(MON,i));
+  const wk={[RC.weekId(TERM.id,MON)]:week},pids=new Set();
+  SLOTS.forEach(s=>RC.on(s,week).people.forEach(p=>pids.add(p)));
+  const sh={};pids.forEach(p=>sh[p]=RC.shiftsFor(p,SLOTS,wk,[TERM],MON,7));
+  // shifts that need cover this week (rostered but off), plus offers already made
+  NEEDS=[];pids.forEach(p=>sh[p].forEach(b=>{const o=offWhy(p,b.date);if(o)NEEDS.push({p,b,o})}));
+  const filled=OPEN.filter(o=>o.monday===MON&&o.status==="filled");
+  const head=`<tr><th>Person</th>${dates.map((d,i)=>`<th class="${d===TODAY?"today":""}">${RC.DAYS[i].slice(0,3)} ${new Date(d+"T12:00:00").getDate()}</th>`).join("")}</tr>`;
+  const needRow=`<tr class="needs"><td class="nm">⚠ Needs cover<small>${NEEDS.filter(n=>!openFor(n.b.date,n.b)).length} to sort · ${filled.length} covered</small></td>${dates.map((d,i)=>{
+    if(RC.closed(week,i))return `<td class="shut">${esc(RC.closed(week,i))}</td>`;
+    const here=NEEDS.filter(n=>n.b.date===d).map(n=>blockHtml(n.p,n.b,n.o).replace("<small>",`<small><b style="display:inline">${esc(nm(n.p))}</b> · `)).join("");
+    const done=filled.filter(o=>o.date===d).map(o=>`<div class="sh filled" title="${esc(o.items.map(x=>x.cls).join(", "))}"><b>${RC.nice(o.start)}–${RC.nice(o.end)}</b><small>✓ ${esc(nm(o.filledBy))} covering</small></div>`).join("");
+    return `<td>${here}${done}</td>`}).join("")}</tr>`;
+  const tot=RC.weekHours(TERM,SLOTS,week,MON);
+  const rows=[...pids].filter(p=>PEOPLE[p]).sort((a,b)=>fullNm(a).localeCompare(fullNm(b))).map(p=>{const pp=PEOPLE[p],pat=PATTERNS[pp.patternId],c=pat&&pat.totalHours?pat.totalHours*60:null;
+    const flag=c&&Math.abs((tot[p]||0)-c)>60?` <span class="warn" title="Working pattern in Breathe: ${RC.hours(c)}">≠ ${RC.hours(c)}</span>`:"";
+    return `<tr><td class="nm">${esc(fullNm(p))}${RC.bandLetter(pp.band)?`<span class="bt" title="${esc(RC.bandName(pp.band))}">${RC.bandLetter(pp.band)}</span>`:""}<small>${RC.hours(tot[p]||0)}${flag}</small></td>${dates.map((d,i)=>{
+      if(RC.closed(week,i))return `<td class="shut"></td>`;
+      const off=offWhy(p,d),bl=sh[p].filter(b=>b.date===d);
+      return `<td>${bl.map(b=>blockHtml(p,b,off)).join("")}${off&&!bl.length?`<div class="lv ${off==="off sick"?"sick":""}">${esc(off)}</div>`:""}</td>`}).join("")}</tr>`}).join("");
+  const unknown=SLOTS.filter(s=>{const on=RC.on(s,week);return !on.people.length&&on.text&&on.text.trim()}).length;
+  $("grid").innerHTML=`<div class="calwrap"><table class="cal"><colgroup><col class="nmc">${"<col>".repeat(7)}</colgroup><thead>${head}</thead><tbody>${needRow}${rows}</tbody></table></div>
+    <div class="legend"><span><i style="background:#fde4e8;border-left:3px solid #c6152e"></i>Needs cover: click to find someone</span><span><i style="background:#fff4d6;border-left:3px solid #e0a100"></i>Offered to staff: click to choose</span><span><i style="background:#e3f5e8;border-left:3px solid #3aa655"></i>Covered</span><span>Click any shift to change who's on it. Letters = pay band.</span>${unknown?`<span class="warn">${unknown} slots have a name that isn't matched to anyone (see By class)</span>`:""}</div>`;
+}
+function blockClick(i){
+  const x=BLK[i];if(!x)return;
+  if(x.off){const o=openFor(x.b.date,x.b);if(o&&o.status==="open")return openChoose(o);if(!o)return openCover(x.pid,x.b,x.off)}
+  DAY=RC.dayIdx(x.b.date);setView("cls");
+}
+
+/* ---------- find cover: same band / one band down / one person ---------- */
+let CV=null;
+function freeAt(date,start,end,exclude){
+  const day=RC.dayIdx(date),week=WEEKS[RC.weekId(TERM.id,RC.monday(date))],busy=new Set();
+  SLOTS.filter(s=>s.day===day&&s.start&&s.end&&s.start<end&&s.end>start).forEach(s=>RC.on(s,week).people.forEach(p=>busy.add(p)));
+  return Object.values(PEOPLE).filter(p=>p.status!=="leaver"&&p.id!==exclude&&!busy.has(p.id)&&!offWhy(p.id,date))
+    .sort((a,b)=>((hasBand(b)?+b.band:-1)-(hasBand(a)?+a.band:-1))||fullNm(a.id).localeCompare(fullNm(b.id)));
+}
+const hasBand=p=>p&&p.band!==undefined&&p.band!==null&&p.band!=="";
+function openCover(pid,b,off){
+  const me=PEOPLE[pid]||{},free=freeAt(b.date,b.start,b.end,pid),bd=hasBand(me)?+me.band:null;
+  const same=bd!==null?free.filter(p=>hasBand(p)&&+p.band===bd):free.filter(p=>me.jobTitle&&p.jobTitle===me.jobTitle);
+  const below=bd!==null&&bd>0?free.filter(p=>hasBand(p)&&+p.band===bd-1):null;
+  CV={pid,b,free,lists:{same,below:below||[]},mode:same.length?"same":below&&below.length?"below":"person"};
+  $("cvSub").textContent=`${fmt(b.date,{weekday:"long",day:"numeric",month:"long"})}, ${RC.nice(b.start)}–${RC.nice(b.end)} · ${fullNm(pid)} is ${off}`;
+  $("cvItems").innerHTML=b.items.map(x=>`<div><span class="dot" style="background:${esc(x.colour||"#999")};margin:0 6px 0 0"></span>${RC.nice(x.start)}–${RC.nice(x.end)} <b>${esc(x.cls)}</b> · ${esc(x.role)}</div>`).join("");
+  const opt=(v,t,n,dis,why)=>`<label class="${dis?"dis":""}"><input type="radio" name="cvm" value="${v}" ${dis?"disabled":""} ${CV.mode===v?"checked":""}><span><b>${t}</b><small>${dis?why:`${n} free at that time`}</small></span></label>`;
+  $("cvOpts").innerHTML=
+    opt("same",bd!==null?`1. Same band: ${esc(RC.bandName(bd))}`:`1. Same job: ${esc(me.jobTitle||"–")}`,same.length,!same.length,bd!==null?"Nobody else in that band is free then":"No band set for them (set it on People), and nobody with the same job is free")+
+    opt("below",bd!==null&&bd>0?`2. One band down: ${esc(RC.bandName(bd-1))}`:"2. One band down",below?below.length:0,!below||!below.length,bd===null?"Set their band on People to use this":bd===0?"Band A is the first band":"Nobody in that band is free then")+
+    opt("person","3. A particular person",free.length,!free.length,"Nobody is free then");
+  $("cvSel").innerHTML=free.map(p=>`<option value="${p.id}">${esc(fullNm(p.id))}${hasBand(p)?" · Band "+RC.bandLetter(p.band):""}${p.jobTitle?" · "+esc(p.jobTitle):""}</option>`).join("");
+  $("cvNote").value="";$("cvMsg").textContent="";cvWho();$("dlgCover").showModal();
+}
+function cvTargets(){return CV.mode==="person"?($("cvSel").value?[$("cvSel").value]:[]):CV.lists[CV.mode].map(p=>p.id)}
+function cvWho(){
+  $("cvSel").hidden=CV.mode!=="person";
+  const t=cvTargets(),n=t.map(fullNm);
+  $("cvWho").innerHTML=t.length?`Goes to <b>${t.length}</b>: ${esc(n.slice(0,14).join(", "))}${n.length>14?` and ${n.length-14} more`:""}. They get a notification and can say they'll do it; you choose.`:'<span class="bad">Nobody to send it to.</span>';
+  $("cvSend").textContent=t.length?`Send to ${t.length} ${t.length===1?"person":"people"}`:"Send";
+}
+$("cvOpts").addEventListener("change",e=>{if(e.target.name==="cvm"){CV.mode=e.target.value;cvWho()}});
+$("cvSel").onchange=cvWho;
+$("cvSend").onclick=async()=>{
+  const pids=cvTargets(),b=CV.b;if(!pids.length)return;
+  $("cvSend").disabled=true;
+  try{
+    await db.collection("openShifts").add({term:TERM.id,monday:RC.monday(b.date),date:b.date,day:RC.dayIdx(b.date),start:b.start,end:b.end,
+      slotIds:b.items.map(i=>i.id),items:b.items.map(i=>({cls:i.cls,role:i.role,start:i.start,end:i.end,colour:i.colour||null})),
+      mode:CV.mode,band:CV.mode==="same"?(hasBand(PEOPLE[CV.pid])?+PEOPLE[CV.pid].band:null):CV.mode==="below"?+PEOPLE[CV.pid].band-1:null,
+      pids,applicants:{},status:"open",note:$("cvNote").value.trim()||null,createdByPid:MYPID,createdAt:FV().serverTimestamp(),...stamp()});
+    $("dlgCover").close();toast(`Sent to ${pids.length}. You'll be told when someone can do it.`);
+  }catch(e){$("cvMsg").textContent="Couldn't send: "+e.message}
+  $("cvSend").disabled=false;
+};
+
+/* ---------- choose who gets an offered shift ---------- */
+let CH=null;
+function openChoose(o){
+  CH=o;
+  const week=WEEKS[RC.weekId(TERM.id,o.monday)],tot=RC.weekHours(TERM,SLOTS,week,o.monday);
+  $("chTitle").textContent=`${fmt(o.date,{weekday:"long",day:"numeric",month:"long"})}, ${RC.nice(o.start)}–${RC.nice(o.end)}`;
+  $("chSub").textContent=`${[...new Set(o.items.map(i=>i.cls))].join(", ")} · offered to ${o.pids.length} (${o.mode==="same"?"same band":o.mode==="below"?"one band down":"one person"})${o.note?` · “${o.note}”`:""}`;
+  const ap=Object.entries(o.applicants||{}).sort((a,b)=>String(a[1]&&a[1].at&&a[1].at.seconds).localeCompare(String(b[1]&&b[1].at&&b[1].at.seconds)));
+  $("chList").innerHTML=ap.length?ap.map(([p])=>{const pp=PEOPLE[p]||{},o2=offWhy(p,o.date);
+      return `<label><span><b>${esc(fullNm(p))}</b> <span class="muted small">${hasBand(pp)?"Band "+RC.bandLetter(pp.band)+" · ":""}${esc(pp.jobTitle||"")}</span><br><span class="small muted">${RC.hours(tot[p]||0)} this week${o2?` · <span class="bad">${o2}</span>`:""}</span></span><small><button type="button" class="go" data-give="${p}">Give them the shift</button></small></label>`}).join("")
+    :`<p class="muted" style="padding:10px">Nobody has said yes yet. Sent to: ${esc(o.pids.map(fullNm).join(", "))}.</p>`;
+  $("dlgChoose").showModal();
+}
+$("chList").addEventListener("click",async e=>{
+  const g=e.target.closest("[data-give]");if(!g||!CH)return;const pid=g.dataset.give,o=CH;g.disabled=true;
+  const week=WEEKS[RC.weekId(TERM.id,o.monday)],changes={};
+  // on each of the shift's slots: take off whoever is off that day, put the chosen person on
+  o.slotIds.forEach(id=>{const s=SLOTS.find(x=>x.id===id);if(!s)return;const on=RC.on(s,week);
+    const ppl=on.people.filter(p=>!offWhy(p,o.date));if(!ppl.includes(pid))ppl.push(pid);changes[id]={people:ppl,text:on.text||null}});
+  try{const b=db.batch();
+    b.set(weekRef(o.monday),{term:TERM.id,monday:o.monday,changes,...stamp()},{merge:true});
+    b.update(db.doc("openShifts/"+o.id),{status:"filled",filledBy:pid,filledAt:FV().serverTimestamp(),...stamp()});
+    await b.commit();$("dlgChoose").close();toast(`${fullNm(pid)} is covering. They've been told.`);
+  }catch(err){g.disabled=false;toast("Couldn't save: "+err.message)}
+});
+$("chWithdraw").onclick=async()=>{if(!CH)return;
+  const b=$("chWithdraw");if(!b.dataset.sure){b.dataset.sure=1;b.textContent="Sure? Withdraw it";setTimeout(()=>{delete b.dataset.sure;b.textContent="Withdraw the offer"},4000);return}
+  await db.doc("openShifts/"+CH.id).update({status:"cancelled",...stamp()});$("dlgChoose").close();toast("Offer withdrawn")};
 
 /* ---------- edit one slot ---------- */
 let ED=null;

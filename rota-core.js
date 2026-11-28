@@ -17,6 +17,10 @@ RC.hhmm = m => m == null ? "" : String(Math.floor(m / 60)).padStart(2, "0") + ":
 RC.nice = t => { if (!t) return "?"; let h = +t.slice(0, 2); const m = t.slice(3, 5), ap = h >= 12 ? "pm" : "am"; h = h % 12 || 12; return h + (m !== "00" ? ":" + m : "") + ap; };
 RC.hours = m => { const h = Math.floor(m / 60), r = m % 60; return h + "h" + (r ? " " + String(r).padStart(2, "0") : ""); };
 RC.weekId = (tid, monday) => `${tid}_${monday}`;
+/* SAADI coaching pay bands (staff release, from 1 Jan 2027). people/{pid}.band = 0..7 */
+RC.BANDS = ["Demonstrator / Young Leader", "Trainee Coach", "Assistant Coach", "Lead Coach", "Lead Coach + L1", "Lead Coach + L2", "Senior Coach + L3", "Senior Coach"];
+RC.bandLetter = n => (n === null || n === undefined || n === "") ? "" : "ABCDEFGH"[+n] || "";
+RC.bandName = n => RC.bandLetter(n) ? `Band ${RC.bandLetter(n)}: ${RC.BANDS[+n]}` : "No band";
 RC.termFor = (terms, iso) => terms.find(t => t.weeks && t.weeks.some(w => w.monday === RC.monday(iso))) || null;
 
 /* who's on a slot in a given week: the week's change if there is one, else the usual people */
@@ -44,7 +48,7 @@ RC.shiftsFor = (pid, slots, weeks, terms, from, n) => {
       if (last && x.a <= last.b + 15) { last.b = Math.max(last.b, x.b); last.items.push(x); }
       else blocks.push({ a: x.a, b: x.b, items: [x] });
     });
-    blocks.forEach(b => out.push({ date, start: RC.hhmm(b.a), end: RC.hhmm(b.b), mins: b.b - b.a, items: b.items.map(x => ({ cls: x.s.cls, role: x.s.role, start: x.s.start, end: x.s.end, colour: x.s.colour, note: x.note })) }));
+    blocks.forEach(b => out.push({ date, start: RC.hhmm(b.a), end: RC.hhmm(b.b), mins: b.b - b.a, items: b.items.map(x => ({ id: x.s.id, cls: x.s.cls, role: x.s.role, start: x.s.start, end: x.s.end, colour: x.s.colour, note: x.note })) }));
   }
   return out;
 };

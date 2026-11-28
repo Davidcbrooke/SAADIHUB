@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="hub.css">
-<script src="hub-shell.js?v=6" defer></script>
+<script src="hub-shell.js?v=7" defer></script>
 <style>
 .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 @media (max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -95,7 +95,7 @@ table.ppl th{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:v
 
     <section class="panel">
       <div class="row" style="justify-content:space-between"><h2 style="margin:0">Staff</h2><input type="search" id="q" placeholder="Search" style="max-width:220px"></div>
-      <div style="overflow-x:auto"><table class="ppl"><thead><tr><th>Name</th><th>Job</th><th>Department</th><th>Started</th><th>App</th><th>Role</th></tr></thead><tbody id="ppl"></tbody></table></div>
+      <div style="overflow-x:auto"><table class="ppl"><thead><tr><th>Name</th><th>Job</th><th>Department</th><th>Started</th><th>Band</th><th>App</th><th title="What they can see: staff = their own things; manager = rota and People; owner = everything, including sickness details">Access</th></tr></thead><tbody id="ppl"></tbody></table></div>
       <p class="small muted">"App" shows who has signed in to SAADI Team. Only owners can change roles. Owner = everything incl. health details; Manager = time off, sickness dates and records; Staff = their own.</p>
     </section>
 
@@ -112,6 +112,7 @@ table.ppl th{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:v
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="firebase-config.js"></script>
+<script src="rota-core.js?v=2"></script>
 <script>
 "use strict";
 const $=id=>document.getElementById(id);
@@ -213,12 +214,15 @@ function renderPeople(){
   const rows=Object.values(PEOPLE).filter(p=>p.status!=="leaver").filter(p=>!q||`${p.firstName} ${p.lastName} ${p.jobTitle} ${p.department}`.toLowerCase().includes(q))
     .sort((a,b)=>(a.lastName||"").localeCompare(b.lastName||""));
   $("ppl").innerHTML=rows.map(p=>`<tr><td><b>${esc((p.knownAs||p.firstName)+" "+p.lastName)}</b>${p.status==="leaving"?' <span class="tag">leaving</span>':""}</td><td>${esc(p.jobTitle||"")}</td><td>${esc(p.department||"")}</td><td>${fmt(p.joinDate,{month:"short",year:"numeric"})}</td>
+    <td><select data-band="${p.id}" aria-label="Pay band"><option value="">–</option>${RC.BANDS.map((b,i)=>`<option value="${i}" ${p.band!==undefined&&p.band!==null&&p.band!==""&&+p.band===i?"selected":""}>${RC.bandLetter(i)}: ${esc(b)}</option>`).join("")}</select></td>
     <td>${p.uid?'<span class="tag on">Signed in</span>':'<span class="tag">Not yet</span>'}</td>
     <td>${ROLE==="owner"?`<select data-role="${p.id}">${["staff","manager","owner"].map(r=>`<option ${p.role===r?"selected":""}>${r}</option>`).join("")}</select>`:esc(p.role||"staff")}</td></tr>`).join("");
 }
 document.addEventListener("change",async e=>{
+  const bd=e.target.closest("[data-band]");
+  if(bd){await db.doc("people/"+bd.dataset.band).update({band:bd.value===""?null:+bd.value,updatedBy:UID,updatedAt:FV()});toast(bd.value===""?"Band cleared":"Band "+RC.bandLetter(+bd.value)+" saved");return}
   const s=e.target.closest("[data-role]");if(!s)return;
-  await db.doc("people/"+s.dataset.role).update({role:s.value,updatedBy:UID,updatedAt:FV()});toast("Role updated");
+  await db.doc("people/"+s.dataset.role).update({role:s.value,updatedBy:UID,updatedAt:FV()});toast("Access updated");
 });
 $("bSync").onclick=async()=>{$("bSync").disabled=true;$("bSync").textContent="Copying… (a few minutes)";
   try{const r=await fn.httpsCallable("breatheSyncNow",{timeout:1800000})();toast(`Copied: ${r.data.changed} changes`)}catch(err){toast(err.message)}

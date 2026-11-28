@@ -84,6 +84,17 @@ service cloud.firestore {
     match /rotaTerms/{id} { allow read: if tSignedIn(); allow write: if tStamped() && tManager(); }
     match /rotaSlots/{id} { allow read: if tSignedIn(); allow write: if tStamped() && tManager(); }
     match /rotaWeeks/{id} { allow read: if tSignedIn(); allow write: if tStamped() && tManager(); }
+    // shifts needing cover, offered to chosen staff (pids). Staff see only shifts offered to them and can only
+    // put their own name down or take it off while it's open. No reason or absent person is stored here.
+    match /openShifts/{id} {
+      allow read: if tManager() || (tSignedIn() && request.auth.token.pid in resource.data.pids);
+      allow create: if tStamped() && tManager();
+      allow update: if tStamped() && (tManager()
+        || (tSignedIn() && request.auth.token.pid in resource.data.pids && resource.data.status == 'open'
+            && tOnly(['applicants', 'updatedBy', 'updatedAt'])
+            && request.resource.data.applicants.diff(resource.data.applicants).affectedKeys().hasOnly([request.auth.token.pid])));
+      allow delete: if false;
+    }
     match /patterns/{id} { allow read: if tSignedIn(); allow write: if tStamped() && tManager(); }
     match /allowances/{id} { allow read: if tSignedIn(); allow write: if tStamped() && tManager(); }
     match /hrConfig/{id} { allow read: if tManager(); allow write: if tStamped() && tOwner(); }

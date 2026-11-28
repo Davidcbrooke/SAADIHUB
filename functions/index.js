@@ -264,6 +264,56 @@ exports.sicknessNotify = onDocumentWritten({ document: "sickness/{id}", secrets:
   })));
 });
 
+/* ------------------------------------------------------------------ cover: open shifts
+   Created by a manager on the rota → offered to the chosen staff; staff put their name down; the manager picks one. */
+const nice = t => { if (!t) return "?"; let h = +t.slice(0, 2); const m = t.slice(3, 5), ap = h >= 12 ? "pm" : "am"; h = h % 12 || 12; return h + (m !== "00" ? ":" + m : "") + ap; };
+const shiftWhen = s => `${fmtDay(s.date)}, ${nice(s.start)}–${nice(s.end)}`;
+const shiftWhat = s => [...new Set((s.items || []).map(x => `${x.cls} (${x.role})`))].join(", ");
+exports.coverNotify = onDocumentWritten({ document: "openShifts/{id}", secrets: [BREVO_API_KEY] }, async ev => {
+  const before = ev.data.before.exists ? ev.data.before.data() : null;
+  const after = ev.data.after.exists ? ev.data.after.data() : null;
+  if (!after) return;
+  const when = shiftWhen(after), what = shiftWhat(after);
+  if (!before) {
+    await Promise.all((after.pids || []).map(id => notify(id, {
+      subject: `Shift up for grabs: ${when}`, heading: "Can you cover a shift?",
+      lines: [`There's a shift that needs cover: <b>${esc(when)}</b>.`, esc(what), after.note ? `Note: “${esc(after.note)}”` : "",
+        "If you can do it, open SAADI Team and tap <b>I can do this</b>. A manager will confirm who gets it."].filter(Boolean),
+      button: "See the shift", url: HUB + "team/#open",
+      push: { title: "Shift up for grabs 🙋", body: `${when}: ${what}`.slice(0, 180) }
+    })));
+    return;
+  }
+  // someone new put their name down → tell the manager who sent it
+  const added = Object.keys(after.applicants || {}).filter(k => !(before.applicants || {})[k]);
+  if (added.length && after.status === "open" && after.createdByPid) {
+    for (const pid of added) {
+      const ps = await db.doc(`people/${pid}`).get(), who = ps.exists ? personName(ps.data()) : "Someone";
+      await notify(after.createdByPid, {
+        subject: `${who} can cover ${when}`, heading: "Cover offered",
+        lines: [`<b>${esc(who)}</b> can do <b>${esc(when)}</b> (${esc(what)}).`, "Open the rota to choose who gets it."],
+        button: "Choose on the rota", url: HUB + "rota.html",
+        push: { title: "Cover offered 🙋", body: `${who}: ${when}` }
+      });
+    }
+  }
+  // filled → tell the person who got it, and thank the others
+  if (before.status === "open" && after.status === "filled" && after.filledBy) {
+    await notify(after.filledBy, {
+      subject: `It's yours: ${when}`, heading: "Shift confirmed",
+      lines: [`Thanks! You're covering <b>${esc(when)}</b>: ${esc(what)}.`, "It's in My shifts in SAADI Team."],
+      button: "My shifts", url: HUB + "team/",
+      push: { title: "Shift confirmed ✅", body: `${when}: ${what}`.slice(0, 180) }
+    });
+    await Promise.all(Object.keys(after.applicants || {}).filter(k => k !== after.filledBy).map(id => notify(id, {
+      subject: `Covered: ${when}`, heading: "Thanks for offering",
+      lines: [`The shift on <b>${esc(when)}</b> has been given to someone else this time. Thank you for offering: it really helps.`],
+      button: "Open SAADI Team", url: HUB + "team/",
+      push: { title: "Shift covered", body: `${when}: given to someone else this time. Thanks for offering!` }
+    })));
+  }
+});
+
 /* ------------------------------------------------------------------ Breathe copy */
 async function breathe(path, key) {
   for (let i = 0; i < 8; i++) {

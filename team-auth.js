@@ -27,12 +27,15 @@ TeamAuth.start = function (opts) {
   $("taCode").onsubmit = async e => { e.preventDefault(); $("taGo").disabled = true; $("taM2").textContent = "";
     try { const r = await fn.httpsCallable("verifyCode")({ email, code: $("taC").value }); await auth.signInWithCustomToken(r.data.token); }
     catch (err) { $("taM2").textContent = err.message; } $("taGo").disabled = false; };
-  if ($("signOut")) $("signOut").onclick = () => auth.signOut().then(() => location.reload());
+  const out = () => auth.signOut().then(() => location.reload());
+  if ($("signOut")) $("signOut").onclick = out;
+  const nm = $("notManager");
+  if (nm) { const b = document.createElement("button"); b.type = "button"; b.className = "primary"; b.textContent = "Sign in with a different email"; b.onclick = out; nm.appendChild(b); }
   auth.onAuthStateChanged(async u => {
-    if (!u) { panel.hidden = false; $("main").hidden = true; document.body.classList.remove("signed-in"); return; }
+    if (!u) { panel.hidden = false; $("main").hidden = true; if (nm) nm.hidden = true; document.body.classList.remove("signed-in"); return; }
     const t = await u.getIdTokenResult(true), role = t.claims.role || "";
     panel.hidden = true; document.body.classList.add("signed-in");
-    if (opts.need && !opts.need.includes(role)) { if ($("notManager")) $("notManager").hidden = false; return; }
+    if (opts.need && !opts.need.includes(role)) { if (nm) { nm.hidden = false; const p = nm.querySelector(".muted"); if (p && !nm.dataset.who) { nm.dataset.who = 1; p.insertAdjacentHTML("afterbegin", `You're signed in as <b>${(u.email || t.claims.email || "a staff member").replace(/[<>&]/g, "")}</b>, which has staff access only. `); } } return; }
     $("main").hidden = false;
     opts.onReady({ auth, db, fn, uid: u.uid, pid: t.claims.pid, role });
   });

@@ -1,0 +1,11 @@
+{
+  "name": "saadi-team-functions",
+  "private": true,
+  "description": "SAADI Team (HR, rota, documents, messages): server side. Runs in europe-west2 (London).",
+  "main": "index.js",
+  "engines": { "node": "22" },
+  "dependencies": {
+    "firebase-admin": "^13.0.0",
+    "firebase-functions": "^6.3.0"
+  }
+}

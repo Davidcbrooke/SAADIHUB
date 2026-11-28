@@ -73,7 +73,8 @@ function build(){
   const actions = head.querySelector("#hubActions"), right = top.querySelector("#hubTopRight");
 
   // Lock goes in the top bar; the page's other controls go in the heading
-  old.querySelectorAll("[data-lock], #signOut").forEach(b => { b.classList.add("lock-btn"); b.innerHTML = icon("lock", "ic sm") + "<span>Lock</span>"; right.appendChild(b); });
+  // pages with their own sign-in (Rota, People) keep "Sign out"; Hub-password pages say "Lock"
+  old.querySelectorAll("[data-lock], #signOut").forEach(b => { const own = b.id === "signOut"; b.classList.add("lock-btn"); b.innerHTML = icon("lock", "ic sm") + `<span>${own ? "Sign out" : "Lock"}</span>`; right.appendChild(b); });
   const controls = old.querySelector("#appControls");
   if (controls) actions.appendChild(controls);
   old.querySelectorAll(".head-right > *").forEach(el => { if (!el.classList.contains("hubnav")) actions.appendChild(el); });

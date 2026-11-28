@@ -37,6 +37,7 @@ TeamAuth.start = function (opts) {
     if (!u) { panel.hidden = false; $("main").hidden = true; if (nm) nm.hidden = true; document.body.classList.remove("signed-in"); return; }
     const t = await u.getIdTokenResult(true), role = t.claims.role || "";
     panel.hidden = true; document.body.classList.add("signed-in");
+    db.doc("people/" + t.claims.pid).get().then(d => { const p = d.data() || {}, so = $("signOut"), s = so && so.querySelector("span"); if (s) { s.textContent = p.firstName ? `Sign out (${p.firstName})` : "Sign out"; so.title = "Signed in as " + [p.firstName, p.lastName].filter(Boolean).join(" "); } }).catch(() => {});
     if (opts.need && !opts.need.includes(role)) { if (nm) { nm.hidden = false; const p = nm.querySelector(".muted"); if (p && !nm.dataset.who) { nm.dataset.who = 1; p.insertAdjacentHTML("afterbegin", `You're signed in as <b>${(u.email || t.claims.email || "a staff member").replace(/[<>&]/g, "")}</b>, which has staff access only. `); } } return; }
     $("main").hidden = false;
     opts.onReady({ auth, db, fn, uid: u.uid, pid: t.claims.pid, role });

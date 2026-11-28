@@ -65,7 +65,7 @@ button.go{background:var(--accent);border-color:var(--accent);color:var(--accent
 
     <div class="kpis">
       <div class="kpi"><span class="v" id="kPeople">–</span><span class="s">people to pay</span></div>
-      <div class="kpi"><span class="v" id="kHours">–</span><span class="s">hours worked</span></div>
+      <div class="kpi"><span class="v" id="kHours">–</span><span class="s">hours to pay (hourly staff)</span></div>
       <div class="kpi"><span class="v" id="kHol">–</span><span class="s">holiday (hours)</span></div>
       <div class="kpi bad"><span class="v" id="kSick">–</span><span class="s">sick days (SSP)</span></div>
       <div class="kpi"><span class="v" id="kFlags">–</span><span class="s">things to check</span></div>
@@ -198,20 +198,21 @@ function calc(){
     if(p.joinDate&&p.joinDate>=P.start&&p.joinDate<=P.end)flags.push(["f-blue","new starter"]);
     if(extra)flags.push(["f-blue",`+${fh(extra)}h extra`]);
     const workedH=h1(workMins)+extra;
-    return {pay:Math.round((workedH+(units==="days"?0:hol))*100)/100,p,name:`${p.knownAs||p.firstName} ${p.lastName}`,days,rot:h1(rotMins),worked:h1(workMins)+extra,extra,hol:Math.round(hol*100)/100,oth:Math.round(oth*100)/100,units,used,left,al,sickDays,flags};
+    if(p.salaried)flags.unshift(["f-grey","Salaried: paid by salary"]);
+    return {pay:p.salaried?0:Math.round((workedH+(units==="days"?0:hol))*100)/100,p,name:`${p.knownAs||p.firstName} ${p.lastName}`,days,rot:h1(rotMins),worked:h1(workMins)+extra,extra,hol:Math.round(hol*100)/100,oth:Math.round(oth*100)/100,units,used,left,al,sickDays,flags};
   }).filter(r=>r.rot||r.hol||r.oth||r.sickDays.length||r.extra).sort((a,b)=>a.name.localeCompare(b.name));
   window.__SHIFTS=shiftsBy;
 }
 function render(){
   const q=$("q").value.trim().toLowerCase(),only=$("onlyFlags").checked;
-  const list=R.filter(r=>(!q||r.name.toLowerCase().includes(q))&&(!only||r.flags.some(f=>f[0]!=="f-blue")));
-  $("kPeople").textContent=R.length;$("kHours").textContent=Math.round(R.reduce((t,r)=>t+r.worked,0));
+  const list=R.filter(r=>(!q||r.name.toLowerCase().includes(q))&&(!only||r.flags.some(f=>f[0]==="f-red"||f[0]==="f-amb")));
+  $("kPeople").textContent=R.length;$("kHours").textContent=Math.round(R.filter(r=>!r.p.salaried).reduce((t,r)=>t+r.pay,0));
   $("kHol").textContent=Math.round(R.filter(r=>r.units!=="days").reduce((t,r)=>t+r.hol,0));
   $("kSick").textContent=R.reduce((t,r)=>t+r.sickDays.length,0);$("kFlags").textContent=R.filter(r=>r.flags.some(f=>f[0]==="f-red"||f[0]==="f-amb")).length;
   const u=r=>r.units==="days"?"d":"h";
   $("rows").innerHTML=list.length?list.map(r=>`<tr data-p="${r.p.id}" class="${SEL===r.p.id?"sel":""}"><td><b>${esc(r.name)}</b>${RC.bandLetter(r.p.band)?` <span class="small muted">Band ${RC.bandLetter(r.p.band)}</span>`:""}<div class="small muted">${esc(r.p.jobTitle||"")}</div></td>
     <td class="n">${fh(r.rot)}</td><td class="n">${r.extra?fh(r.extra):"–"}</td><td class="n"><b>${fh(r.worked)}</b></td>
-    <td class="n">${r.hol?fh(r.hol)+u(r):"–"}</td><td class="n"><b>${fh(r.pay)}</b></td><td class="n">${r.left==null?'<span class="muted">no allowance</span>':`<span class="${r.left<0?"bad":""}">${r.left?fh(r.left):"0"}${u(r)}</span>`}</td>
+    <td class="n">${r.hol?fh(r.hol)+u(r):"–"}</td><td class="n"><b>${r.p.salaried?'<span class="muted">salary</span>':fh(r.pay)}</b></td><td class="n">${r.left==null?'<span class="muted">no allowance</span>':`<span class="${r.left<0?"bad":""}">${r.left?fh(r.left):"0"}${u(r)}</span>`}</td>
     <td class="n">${r.sickDays.length||"–"}</td><td class="n">${r.oth?fh(r.oth)+u(r):"–"}</td>
     <td>${r.flags.map(f=>`<span class="flag ${f[0]}">${esc(f[1])}</span>`).join("")}</td></tr>`).join("")
     :'<tr><td colspan="10" class="muted">Nobody to show for this period.</td></tr>';

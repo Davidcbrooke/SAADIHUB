@@ -78,6 +78,13 @@ td.shut{background:repeating-linear-gradient(45deg,#f6f6f8 0 6px,#fff 6px 12px);
 tr.needs td{background:#fff7f8}tr.needs td.nm{color:#7d0b1c}
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:8px}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:4px}
+.cal td.add{cursor:copy;position:relative}
+.cal td.add:hover{background:#fff5fa}
+.cal td.add:hover::after{content:"+";position:absolute;right:5px;bottom:2px;font-weight:700;color:var(--accent);font-size:16px}
+.addl{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:6px}
+.addl label{display:grid;grid-template-columns:22px 96px minmax(0,1fr);gap:8px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--line);font-size:13.5px;cursor:pointer}
+.addl label small{display:block;color:var(--muted)}
+.addl label.on{background:#f2f7ff}
 .opts label{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid var(--line);border-radius:10px;margin-top:8px;cursor:pointer}
 .opts label.dis{opacity:.5;cursor:default}
 .opts label small{display:block;color:var(--muted)}
@@ -150,6 +157,18 @@ tr.needs td{background:#fff7f8}tr.needs td.nm{color:#7d0b1c}
   <label class="small" style="display:block;margin-top:10px">Note for staff (optional) <input id="cvNote" maxlength="140" style="width:100%" placeholder="e.g. Lead Coach needed, set up from 3:45pm"></label>
   <div class="acts"><button type="button" class="go" id="cvSend">Send</button><span style="flex:1"></span><button value="cancel">Cancel</button></div>
   <p class="small bad" id="cvMsg"></p>
+</form></dialog>
+
+<dialog id="dlgAdd"><form method="dialog" class="in">
+  <h2 id="adTitle">Add a shift</h2><p class="small muted" id="adSub" style="margin:0"></p>
+  <b class="small" style="display:block;margin-top:12px">1. Put them on a class that day</b>
+  <div class="addl" id="adSlots"></div>
+  <b class="small" style="display:block;margin-top:14px">2. Or a shift that isn't a class</b>
+  <div class="bar" style="margin-top:6px"><input id="adWhat" list="adWhatList" placeholder="What (e.g. Admin, Training)" style="flex:1;min-width:160px" maxlength="60">
+    <datalist id="adWhatList"><option value="Desk/Reception"><option value="Admin"><option value="Training"><option value="Event"><option value="Holiday camp"><option value="Cleaning"><option value="Meeting"></datalist>
+    <label class="small">From <input type="time" id="adFrom" step="300"></label><label class="small">To <input type="time" id="adTo" step="300"></label></div>
+  <div class="acts"><button type="button" class="go" id="adWeek">Just this week</button><button type="button" id="adEvery">Every week from now</button><span style="flex:1"></span><button value="cancel">Cancel</button></div>
+  <p class="small bad" id="adMsg"></p>
 </form></dialog>
 
 <dialog id="dlgChoose"><form method="dialog" class="in">
@@ -278,7 +297,8 @@ document.addEventListener("click",e=>{
   const d=e.target.closest("[data-day]");if(d){DAY=+d.dataset.day;render()}
   const g=e.target.closest("[data-goday]");if(g){e.preventDefault();DAY=+g.dataset.goday;setView("cls")}
   const ed=e.target.closest("[data-edit]");if(ed)openEdit(ed.dataset.edit);
-  const bk=e.target.closest("[data-blk]");if(bk)blockClick(+bk.dataset.blk);
+  const bk=e.target.closest("[data-blk]");if(bk){blockClick(+bk.dataset.blk);return}
+  const ad=e.target.closest("[data-addto]");if(ad){let [p,dt]=ad.dataset.addto.split("|");if(p==="?"){p=$("addWho").value;if(!p)return toast("Pick who first, in the last row")}openAdd(p,dt)}
 });
 
 /* ---------- calendar: one row per person, one column per day (like Breathe), gaps for holiday/sickness in red ---------- */
@@ -315,16 +335,60 @@ function renderCal(week){
     return `<tr><td class="nm">${esc(fullNm(p))}${RC.bandLetter(pp.band)?`<span class="bt" title="${esc(RC.bandName(pp.band))}">${RC.bandLetter(pp.band)}</span>`:""}<small>${RC.hours(tot[p]||0)}${flag}</small></td>${dates.map((d,i)=>{
       if(RC.closed(week,i))return `<td class="shut"></td>`;
       const off=offWhy(p,d),bl=sh[p].filter(b=>b.date===d);
-      return `<td>${bl.map(b=>blockHtml(p,b,off)).join("")}${off&&!bl.length?`<div class="lv ${off==="off sick"?"sick":""}">${esc(off)}</div>`:""}</td>`}).join("")}</tr>`}).join("");
+      return `<td class="add" data-addto="${p}|${d}" title="Click to add a shift for ${esc(fullNm(p))}">${bl.map(b=>blockHtml(p,b,off)).join("")}${off&&!bl.length?`<div class="lv ${off==="off sick"?"sick":""}">${esc(off)}</div>`:""}</td>`}).join("")}</tr>`}).join("");
+  // a last row to add a shift for someone with nothing on the rota this week
+  const others=Object.values(PEOPLE).filter(p=>p.status!=="leaver"&&!pids.has(p.id)).sort((a,b)=>fullNm(a.id).localeCompare(fullNm(b.id)));
+  const otherRow=`<tr><td class="nm"><select id="addWho" style="max-width:160px"><option value="">Someone else…</option>${others.map(p=>`<option value="${p.id}">${esc(fullNm(p.id))}</option>`).join("")}</select><small>pick, then click a day</small></td>${dates.map((d,i)=>RC.closed(week,i)?'<td class="shut"></td>':`<td class="add" data-addto="?|${d}"></td>`).join("")}</tr>`;
   const unknown=SLOTS.filter(s=>{const on=RC.on(s,week);return !on.people.length&&on.text&&on.text.trim()}).length;
-  $("grid").innerHTML=`<div class="calwrap"><table class="cal"><colgroup><col class="nmc">${"<col>".repeat(7)}</colgroup><thead>${head}</thead><tbody>${needRow}${rows}</tbody></table></div>
-    <div class="legend"><span><i style="background:#fde4e8;border-left:3px solid #c6152e"></i>Needs cover: click to find someone</span><span><i style="background:#fff4d6;border-left:3px solid #e0a100"></i>Offered to staff: click to choose</span><span><i style="background:#e3f5e8;border-left:3px solid #3aa655"></i>Covered</span><span>Click any shift to change who's on it. Letters = pay band.</span>${unknown?`<span class="warn">${unknown} slots have a name that isn't matched to anyone (see By class)</span>`:""}</div>`;
+  $("grid").innerHTML=`<div class="calwrap"><table class="cal"><colgroup><col class="nmc">${"<col>".repeat(7)}</colgroup><thead>${head}</thead><tbody>${needRow}${rows}${otherRow}</tbody></table></div>
+    <div class="legend"><span><i style="background:#fde4e8;border-left:3px solid #c6152e"></i>Needs cover: click to find someone</span><span><i style="background:#fff4d6;border-left:3px solid #e0a100"></i>Offered to staff: click to choose</span><span><i style="background:#e3f5e8;border-left:3px solid #3aa655"></i>Covered</span><span>Click a shift to see that day's classes. Click an empty part of a day to add a shift for that person. Letters = pay band.</span>${unknown?`<span class="warn">${unknown} slots have a name that isn't matched to anyone (see By class)</span>`:""}</div>`;
 }
 function blockClick(i){
   const x=BLK[i];if(!x)return;
   if(x.off){const o=openFor(x.b.date,x.b);if(o&&o.status==="open")return openChoose(o);if(!o)return openCover(x.pid,x.b,x.off)}
   DAY=RC.dayIdx(x.b.date);setView("cls");
 }
+
+/* ---------- add a shift for a person: a class slot that day, or a shift that isn't a class ---------- */
+let AD=null;
+function openAdd(pid,date){
+  const day=RC.dayIdx(date),week=WEEKS[RC.weekId(TERM.id,RC.monday(date))],off=offWhy(pid,date);
+  AD={pid,date,day,monday:RC.monday(date),ticks:new Set()};
+  $("adTitle").textContent=`Add a shift: ${fullNm(pid)}`;
+  $("adSub").textContent=`${fmt(date,{weekday:"long",day:"numeric",month:"long"})}${off?` · note: they're ${off} that day`:""}`;
+  const sl=SLOTS.filter(s=>s.day===day).sort((a,b)=>(a.start||"99").localeCompare(b.start||"99")||a.order-b.order);
+  $("adSlots").innerHTML=sl.length?sl.map(s=>{const on=RC.on(s,week),mine=on.people.includes(pid),others=on.people.filter(x=>x!==pid).map(nm);
+    return `<label class="${mine?"on":""}"><input type="checkbox" data-ad="${s.id}" ${mine?"checked disabled":""}><span>${s.start?RC.nice(s.start)+"–"+RC.nice(s.end):"no time"}</span><span><span class="dot" style="background:${esc(s.colour||"#999")};margin:0 5px 0 0"></span><b>${esc(s.cls)}</b> · ${esc(s.role)}<small>${mine?"Already on this":others.length?"With "+esc(others.join(", ")):"Nobody on it"}</small></span></label>`}).join("")
+    :'<p class="small muted" style="padding:8px 10px">No classes on this day.</p>';
+  $("adWhat").value="";$("adFrom").value="";$("adTo").value="";$("adMsg").textContent="";
+  $("dlgAdd").showModal();
+}
+$("adSlots").addEventListener("change",e=>{const c=e.target.closest("[data-ad]");if(c)c.checked?AD.ticks.add(c.dataset.ad):AD.ticks.delete(c.dataset.ad)});
+async function saveAdd(every){
+  const what=$("adWhat").value.trim(),a=$("adFrom").value,b=$("adTo").value,custom=!!(what||a||b);
+  if(!AD.ticks.size&&!custom)return $("adMsg").textContent="Tick a class, or fill in a shift that isn't a class.";
+  if(custom&&(!what||!a||!b))return $("adMsg").textContent="For a shift that isn't a class, say what it is and the times.";
+  if(custom&&a>=b)return $("adMsg").textContent="The finish time is before the start.";
+  const pid=AD.pid,from=AD.monday,st=stamp(),batch=db.batch(),perWeek={};
+  const addWeek=(m,sid,val)=>{(perWeek[m]=perWeek[m]||{})[sid]=val};
+  // class slots
+  AD.ticks.forEach(sid=>{const s=SLOTS.find(x=>x.id===sid);if(!s)return;
+    if(!every){const on=RC.on(s,WEEKS[RC.weekId(TERM.id,from)]);addWeek(from,sid,{people:[...new Set([...on.people,pid])],text:on.text||null});return}
+    TERM.weeks.forEach(w=>{const wk=WEEKS[RC.weekId(TERM.id,w.monday)],ch=wk&&wk.changes&&wk.changes[sid];
+      if(w.monday<from&&!ch)addWeek(w.monday,sid,{people:s.usual||[],text:s.usualText||null}); // earlier weeks keep who actually worked
+      if(w.monday>=from&&ch&&!(ch.people||[]).includes(pid))addWeek(w.monday,sid,{people:[...(ch.people||[]),pid],text:ch.text||null})});
+    batch.update(db.doc("rotaSlots/"+sid),{usual:[...new Set([...(s.usual||[]),pid])],...st})});
+  // a shift that isn't a class: a new slot on that day (nobody on it in other weeks unless "every week")
+  if(custom){const sid=`${TERM.id}-${AD.day}-x${Date.now().toString(36)}`;
+    batch.set(db.doc("rotaSlots/"+sid),{term:TERM.id,day:AD.day,order:900+Math.floor(Date.now()/1000)%99,session:"Extra",cls:what,role:what,colour:"#7c4bc4",start:a,end:b,usual:every?[pid]:[],usualText:null,source:"added",...st});
+    if(every)TERM.weeks.forEach(w=>{if(w.monday<from)addWeek(w.monday,sid,{people:[],text:null})});
+    else addWeek(from,sid,{people:[pid],text:null})}
+  Object.entries(perWeek).forEach(([m,ch])=>batch.set(weekRef(m),{term:TERM.id,monday:m,changes:ch,...st},{merge:true}));
+  try{await batch.commit();$("dlgAdd").close();toast(`Added for ${fullNm(pid)}${every?" every week from now":" this week"}`)}
+  catch(err){$("adMsg").textContent="Couldn't save: "+err.message}
+}
+$("adWeek").onclick=()=>saveAdd(false);
+$("adEvery").onclick=()=>saveAdd(true);
 
 /* ---------- find cover: same band / one band down / one person ---------- */
 let CV=null;

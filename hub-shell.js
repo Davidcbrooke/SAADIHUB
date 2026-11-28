@@ -18,6 +18,7 @@ const PAGES = [
     {href: "business-plan.html", name: "Business Plan", desc: "Every objective with its owner, due date and progress.", icon: "target"},
     {href: "calendar.html", name: "Club Calendar", desc: "Term dates, assessments and competitions, with clashes flagged.", icon: "calendar"}]},
   {group: "Team", items: [
+    {href: "rota.html", name: "Rota", desc: "Who's coaching what, week by week. Change one week or every week, cover for holiday and sickness, and hours. Sign in as yourself.", icon: "calendar"},
     {href: "people.html", name: "People", desc: "Approve holiday, see who's off and who's sick, and manage staff records. Sign in as yourself.", icon: "people"},
     {href: "staffing.html", name: "Staffing", desc: "Who's off, who's covering, and offering spare shifts to the people who can do them.", icon: "people"}]}
 ];

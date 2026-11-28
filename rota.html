@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f20779">
+<meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>SAADI Rota</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="hub.css">
+<script src="hub-shell.js?v=5" defer></script>
+<style>
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.days{display:flex;gap:6px;flex-wrap:wrap}
+.days button{min-width:84px}.days button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.days button small{display:block;font-size:11px;opacity:.8}
+.days button.closed{opacity:.5;text-decoration:line-through}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;align-items:start}
+@media (max-width:1000px){.layout{grid-template-columns:1fr}}
+.grp{border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden;margin-bottom:10px}
+.grp h3{margin:0;padding:8px 12px;font-size:15px;display:flex;gap:10px;align-items:center;border-left:8px solid var(--line);background:var(--surface-2)}
+.grp h3 small{font-weight:400;color:var(--muted)}
+.slot{display:grid;grid-template-columns:150px 92px minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 12px;border-top:1px solid var(--line);font-size:14px}
+@media (max-width:640px){.slot{grid-template-columns:1fr auto}.slot .tm{display:none}}
+.slot.changed{background:#f2f7ff}
+.slot .tm{color:var(--muted);font-variant-numeric:tabular-nums}
+.slot .tm.none{color:#b36b00}
+.chips{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.chip{font-size:13px;border-radius:99px;padding:2px 9px;background:var(--surface-2);border:1px solid var(--line);white-space:nowrap}
+.chip.off{background:#fde4e8;border-color:#e3a0ab;color:#7d0b1c}
+.chip.unk{background:#fff4d6;border-color:#e6c46a;color:#7a5600}
+.chip.empty{background:#fff;border-style:dashed;color:#b36b00}
+.note{font-size:12px;color:var(--muted)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#2f6fde;margin-left:4px}
+.side .panel{margin-bottom:12px}
+.hrs{width:100%;border-collapse:collapse;font-size:13.5px}.hrs td{padding:5px 4px;border-bottom:1px solid var(--line)}.hrs td.n{text-align:right;font-variant-numeric:tabular-nums}
+.warn{color:#b36b00}.bad{color:#7d0b1c}
+dialog{border:0;border-radius:16px;padding:0;max-width:560px;width:calc(100% - 24px);box-shadow:0 20px 60px rgba(0,0,0,.3)}
+dialog .in{padding:18px 20px}
+dialog h2{margin:0 0 4px}
+.pick{max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:8px}
+.pick label{display:flex;gap:10px;align-items:center;padding:7px 10px;border-bottom:1px solid var(--line);cursor:pointer;font-size:14px}
+.pick label small{margin-left:auto;color:var(--muted)}
+.pick label.off small{color:#7d0b1c}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+button.go{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:10px 18px;border-radius:99px;font-weight:600;z-index:60}
+.small{font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="index.html"><img src="saadi-logo-white.png" alt="SAADI Gymnastics" width="64" height="61">
+      <div><div class="eyebrow">SAADI Gymnastics</div><h1>Rota</h1></div></a>
+    <div class="head-right"><button type="button" class="needs-auth" id="signOut">Sign out</button></div>
+  </header>
+  <div id="statusNote" class="notice" hidden></div>
+  <section class="panel auth" id="authPanel" hidden></section>
+  <section class="panel" id="notManager" hidden><h2>This page is for managers</h2><p class="muted">Your own shifts are in the <a href="team/">SAADI Team app</a>.</p></section>
+
+  <main class="wrap needs-auth" id="main" hidden>
+    <div class="panel">
+      <div class="bar">
+        <select id="termSel" aria-label="Term"></select>
+        <button type="button" id="wkPrev" aria-label="Previous week">‹</button>
+        <b id="wkLabel"></b>
+        <button type="button" id="wkNext" aria-label="Next week">›</button>
+        <button type="button" id="wkToday">This week</button>
+        <span style="flex:1"></span>
+        <button type="button" id="bNewTerm">New term…</button>
+      </div>
+      <div class="days" id="days" style="margin-top:12px"></div>
+    </div>
+
+    <div class="layout">
+      <div id="grid"></div>
+      <div class="side">
+        <section class="panel"><h2 style="margin-top:0">This week</h2>
+          <div id="weekWarn" class="small"></div>
+          <div class="acts">
+            <button type="button" id="bCopyNext" title="Put this week's changes into next week as well">Copy changes to next week</button>
+            <button type="button" id="bMakeUsual" title="This week's changes become the usual people for the rest of term">Make this week the usual</button>
+            <button type="button" id="bCloseDay"></button>
+          </div>
+          <p class="small muted">Blue dot = different from the usual this week. Red = on holiday or off sick. Amber = a name that isn't matched to anyone in Breathe.</p>
+        </section>
+        <section class="panel"><h2 style="margin-top:0">Hours this week</h2><div id="hours"></div></section>
+      </div>
+    </div>
+  </main>
+</div>
+
+<dialog id="dlg"><form method="dialog" class="in" id="dlgForm">
+  <h2 id="dTitle"></h2><p class="small muted" id="dSub" style="margin:0"></p>
+  <div class="bar" style="margin-top:12px"><label class="small">Starts <input type="time" id="dStart" step="300"></label><label class="small">Ends <input type="time" id="dEnd" step="300"></label><span class="small muted">(times apply to every week)</span></div>
+  <input type="search" id="dFind" placeholder="Find someone" style="margin-top:12px;width:100%">
+  <div class="pick" id="dPick"></div>
+  <label class="small" style="display:block;margin-top:10px">Note for this slot (e.g. "Kay from 5pm") <input id="dNote" maxlength="120" style="width:100%"></label>
+  <div class="acts">
+    <button type="button" class="go" id="dWeek">Just this week</button>
+    <button type="button" id="dUsual">From this week on</button>
+    <button type="button" id="dReset" hidden>Back to the usual</button>
+    <span style="flex:1"></span><button value="cancel">Cancel</button>
+  </div>
+</form></dialog>
+
+<dialog id="dlgTerm"><form method="dialog" class="in">
+  <h2>New term</h2>
+  <p class="small muted">Copies every class, role and time from <b id="ntFrom"></b>, with the same usual people, into a new term. You then change only what's different.</p>
+  <label class="f">Name <input id="ntName" placeholder="Spring Term 2027" required></label>
+  <div class="bar"><label class="f">First Monday <input type="date" id="ntStart" required></label><label class="f">Weeks <input type="number" id="ntWeeks" min="1" max="20" value="12" style="width:80px"></label></div>
+  <label class="f">Half-term week (Monday, optional) <input type="date" id="ntHalf"></label>
+  <div class="acts"><button type="button" class="go" id="ntGo">Create term</button><span style="flex:1"></span><button value="cancel">Cancel</button></div>
+  <p class="small" id="ntMsg"></p>
+</form></dialog>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="team-auth.js?v=1"></script>
+<script src="rota-core.js?v=1"></script>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const toast=t=>{const d=document.createElement("div");d.className="toast";d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),2600)};
+const fmt=(s,o)=>s?new Date(s+"T12:00:00").toLocaleDateString("en-GB",o||{weekday:"short",day:"numeric",month:"short"}):"";
+const TODAY=RC.iso(new Date());
+let db,UID,TERMS=[],TERM=null,SLOTS=[],WEEKS={},PEOPLE={},PATTERNS={},LEAVE=[],SICK=[],MON="",DAY=RC.dayIdx(TODAY),unsubW=null,unsubS=null;
+const FV=()=>firebase.firestore.FieldValue;
+const stamp=()=>({updatedBy:UID,updatedAt:FV().serverTimestamp()});
+
+TeamAuth.start({need:["manager","owner"],onReady:async x=>{db=x.db;UID=x.uid;
+  db.collection("people").onSnapshot(s=>{PEOPLE={};s.docs.forEach(d=>PEOPLE[d.id]={id:d.id,...d.data()});render()});
+  db.collection("patterns").get().then(s=>{s.docs.forEach(d=>PATTERNS[d.id]=d.data());render()});
+  db.collection("leave").where("end",">=",RC.addDays(TODAY,-120)).onSnapshot(s=>{LEAVE=s.docs.map(d=>d.data()).filter(l=>["approved","pending"].includes(l.status));render()});
+  db.collection("sickness").onSnapshot(s=>{SICK=s.docs.map(d=>d.data());render()});
+  db.collection("rotaTerms").onSnapshot(s=>{TERMS=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.start.localeCompare(b.start));
+    $("termSel").innerHTML=TERMS.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join("");
+    if(!TERM){const t=RC.termFor(TERMS,TODAY)||TERMS.find(t=>t.start>TODAY)||TERMS[TERMS.length-1];if(t)openTerm(t.id,RC.monday(TODAY))}
+    else{TERM=TERMS.find(t=>t.id===TERM.id)||TERM;$("termSel").value=TERM.id;render()}});
+}});
+
+async function openTerm(tid,monday){
+  TERM=TERMS.find(t=>t.id===tid);$("termSel").value=tid;
+  const ws=TERM.weeks.map(w=>w.monday);MON=ws.includes(monday)?monday:ws[0];
+  $("grid").innerHTML='<p class="muted">Loading the rota…</p>';
+  if(unsubS)unsubS();
+  unsubS=db.collection("rotaSlots").where("term","==",tid).onSnapshot(s=>{SLOTS=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.day-b.day||a.order-b.order);render()});
+  if(unsubW)unsubW();
+  unsubW=db.collection("rotaWeeks").where("term","==",tid).onSnapshot(s=>{WEEKS={};s.docs.forEach(d=>WEEKS[d.id]={id:d.id,...d.data()});render()});
+}
+$("termSel").onchange=()=>openTerm($("termSel").value,RC.monday(TODAY));
+const wkIdx=()=>TERM.weeks.findIndex(w=>w.monday===MON);
+$("wkPrev").onclick=()=>{const i=wkIdx();if(i>0){MON=TERM.weeks[i-1].monday;render()}};
+$("wkNext").onclick=()=>{const i=wkIdx();if(i<TERM.weeks.length-1){MON=TERM.weeks[i+1].monday;render()}};
+$("wkToday").onclick=()=>{const t=RC.termFor(TERMS,TODAY);if(t&&t.id!==TERM.id)openTerm(t.id,RC.monday(TODAY));else if(t){MON=RC.monday(TODAY);DAY=RC.dayIdx(TODAY);render()}};
+
+/* who's off on a date */
+function offWhy(pid,date){
+  const l=LEAVE.find(l=>l.personId===pid&&l.start<=date&&(l.end||l.start)>=date);
+  if(l)return l.status==="pending"?"asked for time off":(l.type==="holiday"?"on holiday":"on leave");
+  const s=SICK.find(s=>s.personId===pid&&s.start<=date&&((s.end||(s.status==="open"?"9999":s.start))>=date));
+  return s?"off sick":"";
+}
+const nm=pid=>{const p=PEOPLE[pid];return p?(p.knownAs||p.firstName)+" "+(p.lastName||"").slice(0,1):pid};
+const fullNm=pid=>{const p=PEOPLE[pid];return p?(p.knownAs||p.firstName)+" "+(p.lastName||""):pid};
+
+function render(){
+  if(!TERM||!MON)return;
+  const week=WEEKS[RC.weekId(TERM.id,MON)],w=TERM.weeks[wkIdx()]||{};
+  $("wkLabel").textContent=`w/c ${fmt(MON,{day:"numeric",month:"short"})} · Week ${wkIdx()+1} of ${TERM.weeks.length}${w.label&&!/^week/i.test(w.label)?" · "+w.label:""}${w.note?" · "+w.note:""}`;
+  // day buttons with problems flagged
+  $("days").innerHTML=RC.DAYS.map((d,i)=>{const date=RC.addDays(MON,i),sl=SLOTS.filter(s=>s.day===i);if(!sl.length)return "";
+    const cl=RC.closed(week,i),probs=cl?0:sl.reduce((t,s)=>t+RC.on(s,week).people.filter(p=>offWhy(p,date)).length,0);
+    return `<button type="button" data-day="${i}" aria-pressed="${i===DAY}" class="${cl?"closed":""}">${d.slice(0,3)} ${new Date(date+"T12:00:00").getDate()}<small>${cl?esc(cl):probs?`⚠ ${probs} need cover`:"&nbsp;"}</small></button>`}).join("");
+  const date=RC.addDays(MON,DAY),closed=RC.closed(week,DAY);
+  $("bCloseDay").textContent=closed?`Open ${RC.DAYS[DAY]} again`:`Close ${RC.DAYS[DAY]} (half term, bank holiday)`;
+  // the day: groups of session + class
+  const sl=SLOTS.filter(s=>s.day===DAY);
+  if(closed){$("grid").innerHTML=`<div class="panel"><h2 style="margin:0">${RC.DAYS[DAY]} ${fmt(date,{day:"numeric",month:"long"})} is closed</h2><p class="muted">${esc(closed)}. Nobody is rostered. Use "Open ${RC.DAYS[DAY]} again" if that's wrong.</p></div>`}
+  else{
+    let html="",last="";
+    sl.forEach(s=>{
+      const g=s.session+"|"+s.cls;
+      if(g!==last){if(last)html+="</div>";last=g;html+=`<div class="grp"><h3 style="border-left-color:${esc(s.colour||"var(--line)")}">${esc(s.cls)} <small>${esc(s.session)}${s.termly?" · "+esc(s.termly)+" children":""}</small></h3>`}
+      const on=RC.on(s,week);
+      const chips=on.people.map(p=>{const o=offWhy(p,date);return `<span class="chip ${o?"off":""}" title="${esc(fullNm(p))}${o?" – "+o:""}">${esc(nm(p))}${o?" · "+o:""}</span>`});
+      const unknown=on.text&&!on.people.length&&on.text.trim()?`<span class="chip unk" title="Not matched to anyone in Breathe">${esc(on.text)}</span>`:"";
+      const empty=!on.people.length&&!unknown&&/lead|warm up$|^coach|open|morning|afternoon|evening/i.test(s.role)?'<span class="chip empty">nobody</span>':"";
+      const extra=on.people.length&&on.text&&/\d|from|until|till|@|\(/i.test(on.text)?`<span class="note">${esc(on.text)}</span>`:"";
+      html+=`<div class="slot ${on.changed?"changed":""}"><div>${esc(s.role)}${on.changed?'<span class="dot" title="Different this week"></span>':""}</div>
+        <div class="tm ${s.start?"":"none"}">${s.start?RC.nice(s.start)+"–"+RC.nice(s.end):"set time"}</div>
+        <div class="chips">${chips.join("")}${unknown}${empty}${extra}</div>
+        <div><button type="button" data-edit="${s.id}">Change</button></div></div>`});
+    if(last)html+="</div>";
+    $("grid").innerHTML=html||'<p class="muted">No classes on this day.</p>';
+  }
+  // week warnings: people rostered while off
+  const warn=[];
+  for(let d=0;d<7;d++){const dt=RC.addDays(MON,d);if(RC.closed(week,d))continue;
+    SLOTS.filter(s=>s.day===d).forEach(s=>RC.on(s,week).people.forEach(p=>{const o=offWhy(p,dt);if(o)warn.push({d,dt,s,p,o})}))}
+  const byPd={};warn.forEach(x=>{const k=x.p+"_"+x.dt;(byPd[k]=byPd[k]||{...x,n:0}).n++});
+  $("weekWarn").innerHTML=Object.values(byPd).length?`<b class="bad">Needs cover</b><ul style="margin:6px 0 0;padding-left:18px">${Object.values(byPd).map(x=>`<li><a href="#" data-goday="${x.d}">${fmt(x.dt)}</a>: ${esc(fullNm(x.p))} is ${x.o} (${x.n} slot${x.n>1?"s":""})</li>`).join("")}</ul>`:'<span class="muted">Nobody rostered while off this week. 👍</span>';
+  // hours
+  const tot=RC.weekHours(TERM,SLOTS,week,MON);
+  const ids=Object.keys(tot).sort((a,b)=>tot[b]-tot[a]);
+  $("hours").innerHTML=`<table class="hrs">${ids.map(p=>{const pat=PATTERNS[(PEOPLE[p]||{}).patternId],c=pat&&pat.totalHours?pat.totalHours*60:null;
+    const flag=c&&Math.abs(tot[p]-c)>60?`<span class="warn" title="Working pattern in Breathe: ${RC.hours(c)}">≠ ${RC.hours(c)}</span>`:"";
+    return `<tr><td>${esc(fullNm(p))}</td><td class="n"><b>${RC.hours(tot[p])}</b></td><td class="n small">${flag}</td></tr>`}).join("")}</table>
+    <p class="small muted">${ids.length} people · ${RC.hours(Object.values(tot).reduce((a,b)=>a+b,0))} in total. "≠" = different from their working pattern in Breathe.</p>`;
+}
+document.addEventListener("click",e=>{
+  const d=e.target.closest("[data-day]");if(d){DAY=+d.dataset.day;render()}
+  const g=e.target.closest("[data-goday]");if(g){e.preventDefault();DAY=+g.dataset.goday;render()}
+  const ed=e.target.closest("[data-edit]");if(ed)openEdit(ed.dataset.edit);
+});
+
+/* ---------- edit one slot ---------- */
+let ED=null;
+function openEdit(sid){
+  const s=SLOTS.find(x=>x.id===sid),week=WEEKS[RC.weekId(TERM.id,MON)],on=RC.on(s,week),date=RC.addDays(MON,s.day);
+  ED={s,sel:new Set(on.people)};
+  $("dTitle").textContent=`${s.cls}: ${s.role}`;
+  $("dSub").textContent=`${RC.DAYS[s.day]} ${fmt(date,{day:"numeric",month:"long"})}${on.changed?" · changed this week":""} · usually: ${(s.usual||[]).map(fullNm).join(", ")||"nobody"}`;
+  $("dStart").value=s.start||"";$("dEnd").value=s.end||"";$("dNote").value=on.people.length&&on.text&&/\d|from|until|till|@|\(/i.test(on.text)?on.text:(!on.people.length?on.text:"");
+  $("dReset").hidden=!on.changed;$("dFind").value="";pick();$("dlg").showModal();
+}
+function pick(){
+  const s=ED.s,date=RC.addDays(MON,s.day),week=WEEKS[RC.weekId(TERM.id,MON)],q=$("dFind").value.trim().toLowerCase();
+  const tot=RC.weekHours(TERM,SLOTS,week,MON);
+  // who else is working that day at the same time (so you don't double-book)
+  const busy=new Set();SLOTS.filter(x=>x.day===s.day&&x.id!==s.id&&x.start&&s.start&&x.start<(s.end||"99")&&(x.end||"00")>s.start).forEach(x=>RC.on(x,week).people.forEach(p=>busy.add(p)));
+  const list=Object.values(PEOPLE).filter(p=>p.status!=="leaver").filter(p=>ED.sel.has(p.id)||!q||`${p.firstName} ${p.knownAs||""} ${p.lastName} ${p.jobTitle}`.toLowerCase().includes(q))
+    .sort((a,b)=>(ED.sel.has(b.id)-ED.sel.has(a.id))||((s.usual||[]).includes(b.id)-(s.usual||[]).includes(a.id))||(a.firstName||"").localeCompare(b.firstName||""));
+  $("dPick").innerHTML=list.slice(0,80).map(p=>{const o=offWhy(p.id,date),b=busy.has(p.id)&&!ED.sel.has(p.id);
+    return `<label class="${o?"off":""}"><input type="checkbox" data-p="${p.id}" ${ED.sel.has(p.id)?"checked":""}> ${esc(fullNm(p.id))} <span class="muted small">${esc(p.jobTitle||"")}</span>
+      <small>${o?o:b?"already on at this time":""}${tot[p.id]?` · ${RC.hours(tot[p.id])} this week`:""}</small></label>`}).join("");
+}
+$("dFind").oninput=pick;
+$("dPick").addEventListener("change",e=>{const c=e.target.closest("[data-p]");if(!c)return;c.checked?ED.sel.add(c.dataset.p):ED.sel.delete(c.dataset.p)});
+async function saveTimes(){const s=ED.s,a=$("dStart").value||null,b=$("dEnd").value||null;
+  if(a!==(s.start||null)||b!==(s.end||null))await db.doc("rotaSlots/"+s.id).update({start:a,end:b,...stamp()})}
+const weekRef=m=>db.doc("rotaWeeks/"+RC.weekId(TERM.id,m));
+$("dWeek").onclick=async()=>{const s=ED.s;
+  await saveTimes();
+  await weekRef(MON).set({term:TERM.id,monday:MON,changes:{[s.id]:{people:[...ED.sel],text:$("dNote").value.trim()||null}},...stamp()},{merge:true});
+  $("dlg").close();toast("Changed for this week")};
+$("dReset").onclick=async()=>{await weekRef(MON).update(new firebase.firestore.FieldPath("changes",ED.s.id),FV().delete(),"updatedBy",UID,"updatedAt",FV().serverTimestamp());$("dlg").close();toast("Back to the usual")};
+// "From this week on": the usual people change from this week; earlier weeks keep who actually worked them
+$("dUsual").onclick=async()=>{await saveTimes();await makeUsual([{s:ED.s,people:[...ED.sel],text:$("dNote").value.trim()||null}],MON);$("dlg").close();toast("Changed from this week on")};
+async function makeUsual(items,from){
+  const b=db.batch(),perWeek={};
+  items.forEach(({s,people,text})=>{
+    TERM.weeks.forEach(w=>{const wk=WEEKS[RC.weekId(TERM.id,w.monday)],has=wk&&wk.changes&&wk.changes[s.id];
+      if(w.monday<from&&!has)(perWeek[w.monday]=perWeek[w.monday]||{})[s.id]={people:s.usual||[],text:s.usualText||null}; // keep history
+      if(w.monday===from&&has)(perWeek[w.monday]=perWeek[w.monday]||{})[s.id]=null;}); // this week now = usual
+    b.update(db.doc("rotaSlots/"+s.id),{usual:people,usualText:text,...stamp()});
+  });
+  Object.entries(perWeek).forEach(([m,ch])=>{const upd={term:TERM.id,monday:m,changes:{},...stamp()};
+    Object.entries(ch).forEach(([sid,v])=>upd.changes[sid]=v===null?FV().delete():v);b.set(weekRef(m),upd,{merge:true})});
+  await b.commit();
+}
+/* ---------- week actions ---------- */
+$("bCopyNext").onclick=async()=>{const i=wkIdx(),wk=WEEKS[RC.weekId(TERM.id,MON)];
+  if(i>=TERM.weeks.length-1)return toast("This is the last week of term");
+  if(!wk||!Object.keys(wk.changes||{}).length)return toast("Nothing changed this week");
+  const nx=TERM.weeks[i+1].monday;await weekRef(nx).set({term:TERM.id,monday:nx,changes:wk.changes,...stamp()},{merge:true});
+  toast(`${Object.keys(wk.changes).length} changes copied to w/c ${fmt(nx,{day:"numeric",month:"short"})}`)};
+$("bMakeUsual").onclick=async()=>{const wk=WEEKS[RC.weekId(TERM.id,MON)],ch=wk&&wk.changes||{},ids=Object.keys(ch);
+  if(!ids.length)return toast("Nothing changed this week");
+  const b=$("bMakeUsual");if(!b.dataset.sure){b.dataset.sure=1;b.textContent=`Sure? ${ids.length} slots`;setTimeout(()=>{delete b.dataset.sure;b.textContent="Make this week the usual"},4000);return}
+  await makeUsual(ids.map(id=>({s:SLOTS.find(x=>x.id===id),people:ch[id].people||[],text:ch[id].text||null})).filter(x=>x.s),MON);toast("This week is now the usual from here on")};
+$("bCloseDay").onclick=async()=>{const wk=WEEKS[RC.weekId(TERM.id,MON)],cl=RC.closed(wk,DAY);
+  if(cl)await weekRef(MON).update(new firebase.firestore.FieldPath("closed",String(DAY)),FV().delete(),"updatedBy",UID);
+  else await weekRef(MON).set({term:TERM.id,monday:MON,closed:{[String(DAY)]:"Closed"},...stamp()},{merge:true});
+  toast(cl?"Open again":"Closed")};
+
+/* ---------- new term: copy the classes and usual people ---------- */
+$("bNewTerm").onclick=()=>{$("ntFrom").textContent=TERM.name;$("ntMsg").textContent="";$("dlgTerm").showModal()};
+$("ntGo").onclick=async()=>{
+  const name=$("ntName").value.trim(),start=$("ntStart").value,n=Math.max(1,Math.min(20,+$("ntWeeks").value||12)),half=$("ntHalf").value?RC.monday($("ntHalf").value):"";
+  if(!name||!start)return $("ntMsg").textContent="Give it a name and a first Monday.";
+  const first=RC.monday(start),tid=name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+  if(TERMS.some(t=>t.id===tid))return $("ntMsg").textContent="There's already a term with that name.";
+  const weeks=[];for(let i=0,m=first;weeks.length<n+(half?1:0);i++,m=RC.addDays(m,7))weeks.push({monday:m,label:m===half?"Half term":"",note:""});
+  $("ntGo").disabled=true;$("ntMsg").textContent="Copying…";
+  try{
+    const docs=[[db.doc("rotaTerms/"+tid),{name,weeks,start:weeks[0].monday,end:weeks[weeks.length-1].monday,copiedFrom:TERM.id,...stamp()}]];
+    SLOTS.forEach(s=>{const {id,...rest}=s;docs.push([db.doc(`rotaSlots/${tid}-${s.day}-${String(s.order).padStart(3,"0")}`),{...rest,term:tid,source:"copy",...stamp()}])});
+    if(half){const cl={};for(let d=0;d<7;d++)cl[String(d)]="Half term";docs.push([db.doc("rotaWeeks/"+RC.weekId(tid,half)),{term:tid,monday:half,changes:{},closed:cl,...stamp()}])}
+    for(let i=0;i<docs.length;i+=400){const b=db.batch();docs.slice(i,i+400).forEach(([r,d])=>b.set(r,d));await b.commit()}
+    $("dlgTerm").close();toast(`${name} created`);openTerm(tid,weeks[0].monday);
+  }catch(err){$("ntMsg").textContent="Couldn't create it: "+err.message}
+  $("ntGo").disabled=false};
+</script>
+</body>
+</html>

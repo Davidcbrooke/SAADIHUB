@@ -80,6 +80,10 @@ service cloud.firestore {
       allow update: if tStamped() && tOwner();
       allow delete: if false;
     }
+    // rota: every signed-in member of staff can see it (their shifts, who they're working with); managers edit
+    match /rotaTerms/{id} { allow read: if tSignedIn(); allow write: if tStamped() && tManager(); }
+    match /rotaSlots/{id} { allow read: if tSignedIn(); allow write: if tStamped() && tManager(); }
+    match /rotaWeeks/{id} { allow read: if tSignedIn(); allow write: if tStamped() && tManager(); }
     match /patterns/{id} { allow read: if tSignedIn(); allow write: if tStamped() && tManager(); }
     match /allowances/{id} { allow read: if tSignedIn(); allow write: if tStamped() && tManager(); }
     match /hrConfig/{id} { allow read: if tManager(); allow write: if tStamped() && tOwner(); }

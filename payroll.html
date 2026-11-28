@@ -210,7 +210,7 @@ function render(){
   const u=r=>r.units==="days"?"d":"h";
   $("rows").innerHTML=list.length?list.map(r=>`<tr data-p="${r.p.id}" class="${SEL===r.p.id?"sel":""}"><td><b>${esc(r.name)}</b>${RC.bandLetter(r.p.band)?` <span class="small muted">Band ${RC.bandLetter(r.p.band)}</span>`:""}<div class="small muted">${esc(r.p.jobTitle||"")}</div></td>
     <td class="n">${fh(r.rot)}</td><td class="n">${r.extra?fh(r.extra):"–"}</td><td class="n"><b>${fh(r.worked)}</b></td>
-    <td class="n">${r.hol?fh(r.hol)+u(r):"–"}</td><td class="n">${r.left==null?'<span class="muted">no allowance</span>':`<span class="${r.left<0?"bad":""}">${fh(r.left)||"0"}${u(r)}</span>`}</td>
+    <td class="n">${r.hol?fh(r.hol)+u(r):"–"}</td><td class="n">${r.left==null?'<span class="muted">no allowance</span>':`<span class="${r.left<0?"bad":""}">${r.left?fh(r.left):"0"}${u(r)}</span>`}</td>
     <td class="n">${r.sickDays.length||"–"}</td><td class="n">${r.oth?fh(r.oth)+u(r):"–"}</td>
     <td>${r.flags.map(f=>`<span class="flag ${f[0]}">${esc(f[1])}</span>`).join("")}</td></tr>`).join("")
     :'<tr><td colspan="9" class="muted">Nobody to show for this period.</td></tr>';

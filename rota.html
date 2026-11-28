@@ -70,6 +70,7 @@ body.cal .layout{grid-template-columns:1fr}body.cal #days,body.cal #hoursPanel{d
 .sh small{display:block;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sh.off{background:#fde4e8;border-left-color:#c6152e}.sh.off b{color:#7d0b1c}
 .sh.sent{background:#fff4d6;border-left-color:#e0a100}.sh.sent b{color:#7a5600}
+.sh.past{opacity:.55;border-left-color:#bbb}
 .sh.filled{background:#e3f5e8;border-left-color:#3aa655}.sh.filled b{color:#1e6b33}
 .lv{font-size:12px;border-radius:6px;padding:2px 6px;margin-bottom:3px;background:#eef3ff;color:#2f4f9e}
 .lv.sick{background:#fde4e8;color:#7d0b1c}
@@ -286,7 +287,8 @@ const classes=b=>[...new Set(b.items.map(i=>i.cls))].join(", ");
 const openFor=(date,b)=>OPEN.filter(o=>o.date===date&&o.status!=="cancelled").find(o=>(o.slotIds||[]).some(id=>b.items.some(i=>i.id===id)));
 const applied=o=>Object.keys(o.applicants||{}).length;
 function blockHtml(pid,b,off){
-  const i=BLK.push({pid,b,off})-1;
+  const i=BLK.push({pid,b,off:b.date<TODAY?"":off})-1;
+  if(off&&b.date<TODAY)return `<div class="sh past" data-blk="${i}"><b>${RC.nice(b.start)}–${RC.nice(b.end)}</b><small>${esc(off)}</small></div>`;
   if(!off)return `<div class="sh" data-blk="${i}" style="border-left-color:${esc(b.items[0].colour||"#999")}" title="${esc(b.items.map(x=>`${RC.nice(x.start)} ${x.cls} (${x.role})`).join("\n"))}"><b>${RC.nice(b.start)}–${RC.nice(b.end)}</b><small>${esc(classes(b))}</small></div>`;
   const o=openFor(b.date,b);
   const st=!o?"Needs cover":o.status==="filled"?"Covered":applied(o)?`🙋 ${applied(o)} can do it`:`Sent to ${o.pids.length}`;
@@ -299,7 +301,7 @@ function renderCal(week){
   SLOTS.forEach(s=>RC.on(s,week).people.forEach(p=>pids.add(p)));
   const sh={};pids.forEach(p=>sh[p]=RC.shiftsFor(p,SLOTS,wk,[TERM],MON,7));
   // shifts that need cover this week (rostered but off), plus offers already made
-  NEEDS=[];pids.forEach(p=>sh[p].forEach(b=>{const o=offWhy(p,b.date);if(o)NEEDS.push({p,b,o})}));
+  NEEDS=[];pids.forEach(p=>sh[p].forEach(b=>{const o=b.date>=TODAY&&offWhy(p,b.date);if(o)NEEDS.push({p,b,o})}));
   const filled=OPEN.filter(o=>o.monday===MON&&o.status==="filled");
   const head=`<tr><th>Person</th>${dates.map((d,i)=>`<th class="${d===TODAY?"today":""}">${RC.DAYS[i].slice(0,3)} ${new Date(d+"T12:00:00").getDate()}</th>`).join("")}</tr>`;
   const needRow=`<tr class="needs"><td class="nm">⚠ Needs cover<small>${NEEDS.filter(n=>!openFor(n.b.date,n.b)).length} to sort · ${filled.length} covered</small></td>${dates.map((d,i)=>{
